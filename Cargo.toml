@@ -1,0 +1,7 @@
+[package]
+name = "viml-parser-rs"
+version = "0.1.0"
+authors = ["Zandr Martin <zandrmartin@gmail.com>"]
+
+[dependencies]
+regex = "1.0.5"
