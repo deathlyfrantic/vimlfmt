@@ -245,13 +245,12 @@ impl NodeParser {
     }
 
     fn parse_expr4(&mut self) -> Result<Node, ParseError> {
-        let left = self.parse_expr5()?;
+        let mut left = self.parse_expr5()?;
         let pos = self.reader.borrow().tell();
         let token = self.tokenizer.get()?;
         let mut node = Node::new(NodeKind::Dummy);
         node.pos = token.pos;
-        node.left = Some(Box::new(left));
-        node.right = Some(Box::new(self.parse_expr5()?));
+        node.left = Some(Box::new(left.clone()));
         match token.kind {
             TokenKind::EqEq => {
                 node.kind = NodeKind::Equal;
@@ -345,9 +344,14 @@ impl NodeParser {
             }
             _ => {
                 self.reader.borrow_mut().seek_set(pos);
+                return Ok(left);
             }
         };
-        Ok(node)
+        if node.kind != NodeKind::Dummy {
+            left = node;
+        }
+        node.right = Some(Box::new(self.parse_expr5()?));
+        Ok(left)
     }
 
     fn parse_expr5(&mut self) -> Result<Node, ParseError> {
@@ -653,7 +657,7 @@ impl NodeParser {
                                 } else {
                                     return Err(ParseError {
                                         msg: format!(
-                                            "unexpected token: {}, type: {:?}",
+                                            "unexpected token: {}, type: {:#?}",
                                             token.value, token.kind
                                         ),
                                         pos: token.pos,
@@ -868,8 +872,8 @@ impl NodeParser {
             let pos = self.reader.borrow().tell();
             let c = self.reader.borrow().peek();
             let mut token = self.tokenizer.get()?;
-            let npos = token.pos;
             if !iswhite(&c) && token.kind == TokenKind::SqOpen {
+                let npos = token.pos;
                 let mut node = Node::new(NodeKind::Dummy);
                 node.pos = npos;
                 if self.tokenizer.peek()?.kind == TokenKind::Colon {
@@ -877,17 +881,12 @@ impl NodeParser {
                     node = Node::new(NodeKind::Slice);
                     node.pos = npos;
                     node.left = Some(Box::new(left));
+                    node.rlist = vec![Box::new(Node::new(NodeKind::Dummy))];
                     token = self.tokenizer.peek()?;
                     if token.kind == TokenKind::SqClose {
-                        node.rlist = vec![
-                            Box::new(Node::new(NodeKind::Dummy)),
-                            Box::new(self.parse_expr1()?),
-                        ];
+                        node.rlist.push(Box::new(self.parse_expr1()?));
                     } else {
-                        node.rlist = vec![
-                            Box::new(Node::new(NodeKind::Dummy)),
-                            Box::new(Node::new(NodeKind::Dummy)),
-                        ];
+                        node.rlist.push(Box::new(Node::new(NodeKind::Dummy)));
                     }
                     token = self.tokenizer.get()?;
                     if token.kind != TokenKind::SqClose {
@@ -901,16 +900,11 @@ impl NodeParser {
                         node.pos = npos;
                         node.left = Some(Box::new(left));
                         token = self.tokenizer.peek()?;
+                        node.rlist = vec![Box::new(right)];
                         if token.kind == TokenKind::SqClose {
-                            node.rlist = vec![
-                                Box::new(Node::new(NodeKind::Dummy)),
-                                Box::new(self.parse_expr1()?),
-                            ];
+                            node.rlist.push(Box::new(self.parse_expr1()?));
                         } else {
-                            node.rlist = vec![
-                                Box::new(Node::new(NodeKind::Dummy)),
-                                Box::new(Node::new(NodeKind::Dummy)),
-                            ];
+                            node.rlist.push(Box::new(Node::new(NodeKind::Dummy)));
                         }
                         token = self.tokenizer.get()?;
                         if token.kind != TokenKind::SqClose {
@@ -927,7 +921,7 @@ impl NodeParser {
                         }
                     }
                 }
-                left = node.clone();
+                left = node;
             } else if !iswhite(&c) && token.kind == TokenKind::Dot {
                 match self.parse_dot(token, left.clone()) {
                     Some(n) => {
@@ -952,10 +946,12 @@ impl NodeParser {
         let mut node = Node::new(NodeKind::Dummy);
         node.pos = token.pos;
         match token.kind {
-            TokenKind::COpen | TokenKind::Identifier | _
-                if token.kind == TokenKind::LT
-                    && self.reader.borrow().peekn(4).eq_ignore_ascii_case("SID>") =>
-            {
+            TokenKind::COpen | TokenKind::Identifier => {
+                self.reader.borrow_mut().seek_set(pos);
+                node = self.parse_identifier()?;
+                node.value = token.value;
+            }
+            _ if self.reader.borrow().peekn(5).eq_ignore_ascii_case("<SID>") => {
                 self.reader.borrow_mut().seek_set(pos);
                 node = self.parse_identifier()?;
                 node.value = token.value;
