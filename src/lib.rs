@@ -97,7 +97,7 @@ fn isargname(s: &str) -> bool {
 }
 
 fn isvarname(s: &str) -> bool {
-    Regex::new("^[vgslabwt]:$\\|^\\([vgslabwt]:\\)\\?[A-Za-z_][0-9A-Za-z_#]*$")
+    Regex::new("^[vgslabwt]:$|^([vgslabwt]:)?[A-Za-z_][0-9A-Za-z_#]*$")
         .unwrap()
         .is_match(s)
 }
