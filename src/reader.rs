@@ -39,6 +39,7 @@ impl Reader {
         let mut col = 0;
         let mut lnum = 0;
         while lnum < lines.len() {
+            col = 0;
             for c in lines[lnum].chars() {
                 self.buf.push(c);
                 self.pos.push((lnum + 1, col + 1));
@@ -142,7 +143,6 @@ impl Reader {
             self.cursor += 1;
         }
         let rv = self.buf[start..self.cursor].iter().collect::<String>();
-        self.get();
         rv
     }
 
@@ -270,6 +270,8 @@ mod tests {
         reader.cursor = 1;
         assert_eq!(&reader.peekn(5), "oo");
         assert_eq!(reader.cursor, 1);
+        reader.getn(2);
+        assert_eq!(&reader.peekn(1), "");
     }
 
     #[test]
@@ -298,6 +300,8 @@ mod tests {
         assert_eq!(reader.cursor, 2);
         assert_eq!(&reader.getn(5), "o");
         assert_eq!(reader.cursor, 3);
+        assert_eq!(&reader.getn(1), "");
+        assert_eq!(reader.cursor, 3);
     }
 
     #[test]
@@ -306,6 +310,7 @@ mod tests {
         assert_eq!(reader.cursor, 0);
         assert_eq!(&reader.get_line(), "foo");
         assert_eq!(reader.cursor, 4);
+        assert_eq!(&reader.peek(), "\n");
     }
 
     #[test]
@@ -395,12 +400,12 @@ mod tests {
 
     #[test]
     fn test_skip_white() {
-        let mut reader = Reader::from_lines(vec!["g  : foo"]);
+        let mut reader = Reader::from_lines(vec!["g ", ": foo"]);
         assert_eq!(reader.cursor, 0);
         assert_eq!(&reader.get(), "g");
         reader.skip_white();
-        assert_eq!(reader.cursor, 3);
-        assert_eq!(&reader.get(), ":");
+        assert_eq!(reader.cursor, 2);
+        assert_eq!(&reader.peek(), "\n");
     }
 
     #[test]
