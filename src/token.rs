@@ -119,6 +119,7 @@ impl Tokenizer {
             return Ok(Token::new(TokenKind::EOF, c, pos));
         }
         if c == "\n" {
+            self.reader.borrow_mut().get();
             return Ok(Token::new(TokenKind::EOL, c, pos));
         }
         if iswhite(&c) {
