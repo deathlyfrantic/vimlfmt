@@ -1384,7 +1384,23 @@ impl Parser {
         Ok(end)
     }
 
-    fn skip_vimgrep_pat(&mut self) {}
+    fn skip_vimgrep_pat(&mut self) -> Result<(), ParseError> {
+        let c = self.reader.borrow().peek();
+        if c == "\n" {
+        } else if isidc(&c) {
+            self.reader.borrow_mut().read_nonwhite();
+        } else {
+            let c = self.reader.borrow_mut().get();
+            let (_, endc) = self.parse_pattern(&c)?;
+            if c != endc {
+                return Ok(());
+            }
+            while self.reader.borrow().peek() == "g" || self.reader.borrow().peek() == "j" {
+                self.reader.borrow_mut().get();
+            }
+        }
+        Ok(())
+    }
 
     fn parse_argcmd(&mut self) {
         if self.reader.borrow().peek() == "+" {
