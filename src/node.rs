@@ -70,9 +70,9 @@ pub enum NodeKind {
     MatchCS,
     Minus,
     Multiply,
-    NEqual,
-    NEqualCI,
-    NEqualCS,
+    NotEqual,
+    NotEqualCI,
+    NotEqualCS,
     NoMatch,
     NoMatchCI,
     NoMatchCS,
@@ -262,13 +262,13 @@ impl NodeParser {
                 node.kind = NodeKind::EqualCS;
             }
             TokenKind::NotEq => {
-                node.kind = NodeKind::NEqual;
+                node.kind = NodeKind::NotEqual;
             }
             TokenKind::NotEqCI => {
-                node.kind = NodeKind::NEqualCI;
+                node.kind = NodeKind::NotEqualCI;
             }
             TokenKind::NotEqCS => {
-                node.kind = NodeKind::NEqualCS;
+                node.kind = NodeKind::NotEqualCS;
             }
             TokenKind::GT => {
                 node.kind = NodeKind::Greater;
