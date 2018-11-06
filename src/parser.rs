@@ -1,4 +1,4 @@
-use super::{isargname, isdigit, isvarname, iswhite, ParseError, Position};
+use super::{isargname, isdigit, isidc, isvarname, iswhite, ParseError, Position};
 use command::{neovim_commands, vim_commands, Command, Flag, ParserKind};
 use exarg::ExArg;
 use modifier::Modifier;
@@ -107,13 +107,13 @@ impl Parser {
     fn err<T>(&self, msg: &str) -> Result<T, ParseError> {
         Err(ParseError {
             msg: msg.to_string(),
-            pos: self.reader.borrow_mut().getpos(),
+            pos: self.reader.borrow().getpos(),
         })
     }
 
     pub fn parse(&mut self) -> Result<Node, ParseError> {
         let mut toplevel = Node::new(NodeKind::TopLevel);
-        toplevel.pos = self.reader.borrow_mut().getpos();
+        toplevel.pos = self.reader.borrow().getpos();
         self.push_context(toplevel);
         while self.reader.borrow().peek() != "<EOF>" {
             self.parse_one_cmd()?;
@@ -137,19 +137,20 @@ impl Parser {
             return Ok(());
         }
         self.reader.borrow_mut().skip_white_and_colon();
-        if self.reader.borrow().peek() == "" {
+        if self.reader.borrow().peek() == "\n" {
             self.reader.borrow_mut().get();
             return Ok(());
         }
         if self.reader.borrow().peek() == "\"" {
             self.parse_comment()?;
+            self.reader.borrow_mut().get();
             return Ok(());
         }
-        ea.linepos = self.reader.borrow_mut().getpos();
+        ea.linepos = self.reader.borrow().getpos();
         ea.modifiers = self.parse_command_modifiers()?;
         ea.range = self.parse_range()?;
-        // self.parse_command(ea);
-        self.parse_trail();
+        self.parse_command(ea)?;
+        self.parse_trail()?;
         Ok(())
     }
 
@@ -159,19 +160,23 @@ impl Parser {
             return self.err(&format!("unexpected characters: {}", sb));
         }
         let mut node = Node::new(NodeKind::Shebang);
-        node.pos = self.reader.borrow_mut().getpos();
+        node.pos = self.reader.borrow().getpos();
         node.string = self.reader.borrow_mut().get_line();
         self.add_node(node);
         Ok(())
     }
 
     fn parse_comment(&mut self) -> Result<(), ParseError> {
+        let npos = self.reader.borrow().getpos();
         let c = self.reader.borrow_mut().get();
         if c != "\"" {
-            return self.err(&format!("unexpected character: {}", c));
+            return Err(ParseError {
+                msg: format!("unexpected character: {}", c),
+                pos: npos,
+            });
         }
         let mut node = Node::new(NodeKind::Comment);
-        node.pos = self.reader.borrow_mut().getpos();
+        node.pos = npos;
         node.string = self.reader.borrow_mut().get_line();
         self.add_node(node);
         Ok(())
@@ -288,21 +293,21 @@ impl Parser {
             loop {
                 self.reader.borrow_mut().skip_white();
                 let c = self.reader.borrow().peek();
-                match c {
-                    _ if c == "" => break,
-                    _ if c == "." || c == "$" => tokens.push(self.reader.borrow_mut().get()),
-                    _ if c == "'" => {
-                        if self.reader.borrow().peek_ahead(1) == "" {
+                match c.as_str() {
+                    "" => break,
+                    "." | "$" => tokens.push(self.reader.borrow_mut().get()),
+                    "'" => {
+                        if self.reader.borrow().peek_ahead(1) == "\n" {
                             break;
                         }
                         tokens.push(self.reader.borrow_mut().getn(2));
                     }
-                    _ if c == "/" || c == "?" => {
+                    "/" | "?" => {
                         self.reader.borrow_mut().get();
                         let (pattern, _) = self.parse_pattern(&c)?;
                         tokens.push(pattern);
                     }
-                    _ if c == "\\" => {
+                    "\\" => {
                         let m = self.reader.borrow().peek_ahead(1);
                         if m == "&" || m == "?" || m == "/" {
                             tokens.push(self.reader.borrow_mut().getn(2));
@@ -310,14 +315,14 @@ impl Parser {
                             return self.err("E10: \\\\ should be followed by /, ? or &");
                         }
                     }
-                    _ if c.parse::<usize>().is_ok() => {
+                    _ if isdigit(&c) => {
                         tokens.push(self.reader.borrow_mut().read_digit());
                     }
                     _ => (),
                 }
                 loop {
                     self.reader.borrow_mut().skip_white();
-                    if self.reader.borrow().peek() == "" {
+                    if self.reader.borrow().peek() == "\n" {
                         break;
                     }
                     let n = self.reader.borrow_mut().read_integer();
@@ -349,7 +354,7 @@ impl Parser {
         let mut endc = String::new();
         let mut in_bracket = 0;
         loop {
-            let c = self.reader.borrow_mut().get();
+            let c = self.reader.borrow_mut().getn(1);
             if c == "" {
                 break;
             }
@@ -360,10 +365,10 @@ impl Parser {
             pattern.push_str(&c);
             if c == "\\" {
                 let c = self.reader.borrow().peek();
-                if c == "" {
+                if c == "\n" {
                     return self.err("E682: Invalid search pattern or delimiter");
                 }
-                self.reader.borrow_mut().get();
+                self.reader.borrow_mut().getn(1);
                 pattern.push_str(&c);
             } else if c == "[" {
                 in_bracket += 1;
@@ -376,8 +381,8 @@ impl Parser {
 
     fn parse_command(&mut self, mut ea: ExArg) -> Result<(), ParseError> {
         self.reader.borrow_mut().skip_white_and_colon();
-        ea.cmdpos = self.reader.borrow_mut().getpos();
-        if self.reader.borrow().peek() == "" || self.reader.borrow().peek() == "\"" {
+        ea.cmdpos = self.reader.borrow().getpos();
+        if self.reader.borrow().peek() == "\n" || self.reader.borrow().peek() == "\"" {
             if ea.modifiers.len() > 0 || ea.range.len() > 0 {
                 self.parse_cmd_modifier_range(ea);
             }
@@ -409,7 +414,7 @@ impl Parser {
         if ea.cmd.name != "!" {
             self.reader.borrow_mut().skip_white();
         }
-        ea.argpos = self.reader.borrow_mut().getpos();
+        ea.argpos = self.reader.borrow().getpos();
         if ea.cmd.flags.contains(&Flag::Argopt) {
             self.parse_argopt()?;
         }
@@ -485,7 +490,7 @@ impl Parser {
             ParserKind::Unlockvar => self.parse_cmd_unlockvar(ea),
             ParserKind::While => self.parse_cmd_while(ea),
             ParserKind::Wincmd => self.parse_cmd_wincmd(ea),
-            _ => self.err(&format!("Unknown parser: {:?}", ea.cmd.parser)),
+            _ => self.err(&format!("Unknown parser: {:#?}", ea.cmd.parser)),
         }
     }
 
@@ -576,7 +581,7 @@ impl Parser {
         } else {
             loop {
                 end = self.reader.borrow().getpos();
-                if self.reader.borrow_mut().get() == "" {
+                if self.reader.borrow_mut().getn(1) == "" {
                     break;
                 }
             }
@@ -773,8 +778,8 @@ impl Parser {
         let mut node = Node::new(NodeKind::Finally);
         node.pos = ea.cmdpos;
         node.ea = Some(ea);
-        self.context[0].finally = Some(Box::new(node));
-        self.pop_context();
+        self.context[0].finally = Some(Box::new(node.clone()));
+        self.push_context(node);
         Ok(())
     }
 
@@ -837,8 +842,8 @@ impl Parser {
         }
         let lhs = self.parse_letlhs()?;
         self.reader.borrow_mut().skip_white();
-        let s1 = self.reader.borrow().peek_ahead(1);
-        let s2 = self.reader.borrow().peek_ahead(2);
+        let s1 = self.reader.borrow().peek();
+        let s2 = self.reader.borrow().peekn(2);
         if ends_excmds(&s1) || s2 != "+=" && s2 != "-=" && s2 != ".=" && s1 != "=" {
             self.reader.borrow_mut().seek_set(pos);
             return self.parse_cmd_common(ea);
@@ -1056,11 +1061,11 @@ impl Parser {
     }
 
     fn parse_cmd_wincmd(&mut self, ea: ExArg) -> Result<(), ParseError> {
-        let c = self.reader.borrow_mut().get();
+        let c = self.reader.borrow_mut().getn(1);
         if c == "" {
             return self.err("E471: Argument required");
         } else if c == "g" || c == "\x07" {
-            let c2 = self.reader.borrow_mut().get();
+            let c2 = self.reader.borrow_mut().getn(1);
             if c2 == "" || iswhite(&c2) {
                 return self.err("E474: Invalid argument");
             }
@@ -1124,7 +1129,7 @@ impl Parser {
     fn parse_cmd_function(&mut self, ea: ExArg) -> Result<(), ParseError> {
         let pos = self.reader.borrow().tell();
         self.reader.borrow_mut().skip_white();
-        if ends_excmds(&self.reader.borrow().peek()) || self.reader.borrow().peek_ahead(1) == "/" {
+        if ends_excmds(&self.reader.borrow().peek()) || self.reader.borrow().peek() == "/" {
             self.reader.borrow_mut().seek_set(pos);
             return self.parse_cmd_common(ea);
         }
@@ -1145,7 +1150,7 @@ impl Parser {
                 });
             }
         }
-        if self.reader.borrow().peek_ahead(1) != "(" {
+        if self.reader.borrow().peek() != "(" {
             self.reader.borrow_mut().seek_set(pos);
             return self.parse_cmd_common(ea);
         }
@@ -1153,7 +1158,7 @@ impl Parser {
         node.pos = ea.cmdpos;
         node.ea = Some(ea);
         node.left = Some(Box::new(left));
-        self.reader.borrow_mut().get();
+        self.reader.borrow_mut().getn(1);
         let mut tokenizer = Tokenizer::new(Rc::clone(&self.reader));
         if tokenizer.peek()?.kind == TokenKind::PClose {
             tokenizer.get()?;
@@ -1321,7 +1326,7 @@ impl Parser {
 
     fn separate_nextcmd(&mut self, ea: &ExArg) -> Result<Position, ParseError> {
         if ["vimgrep", "vimgrepadd", "lvimgrep", "lvimgrepadd"].contains(&ea.cmd.name.as_str()) {
-            self.skip_vimgrep_pat();
+            self.skip_vimgrep_pat()?;
         }
         let mut pc = String::new();
         let mut end = self.reader.borrow().getpos();
@@ -1336,7 +1341,7 @@ impl Parser {
                 break;
             } else if c == "\x16" {
                 self.reader.borrow_mut().get();
-                end = self.reader.borrow_mut().getpos();
+                end = self.reader.borrow().getpos();
                 nospend = end;
                 c = self.reader.borrow().peek();
                 if c == "\n" || c == "<EOF>" {
@@ -1350,11 +1355,11 @@ impl Parser {
             {
                 self.reader.borrow_mut().getn(2);
                 self.parse_expr()?;
-                c = self.reader.borrow().peek();
+                c = self.reader.borrow().peekn(1);
                 if c != "`" {
                     return self.err(&format!("unexpected character: {}", c));
                 }
-                self.reader.borrow_mut().get();
+                self.reader.borrow_mut().getn(1);
             } else if ["|", "\n", "\""].contains(&c.as_str())
                 && !ea.cmd.flags.contains(&Flag::Notrlcom)
                 && (ea.cmd.name != "@" && ea.cmd.name != "*"
@@ -1392,7 +1397,7 @@ impl Parser {
 
     fn read_cmdarg(&mut self) {
         loop {
-            let c = self.reader.borrow().peek();
+            let c = self.reader.borrow().peekn(1);
             if c == "" || c.chars().collect::<Vec<char>>()[0].is_whitespace() {
                 break;
             }
@@ -1445,7 +1450,6 @@ impl Parser {
             }
             self.reader.borrow_mut().skip_white();
         }
-        // HERE
         Ok(())
     }
 
@@ -1453,22 +1457,20 @@ impl Parser {
         let c = self.reader.borrow().peek();
         let mut name = "".to_string();
         if c == "k" {
-            self.reader.borrow_mut().get();
-            name = "k".to_string();
+            name.push_str(&self.reader.borrow_mut().get());
         } else if c == "s" && Regex::new("^s(c[^sr][^i][^p]|g|i[^mlg]|I|r[^e])")
             .unwrap()
             .is_match(&self.reader.borrow().peekn(5))
         {
             self.reader.borrow_mut().get();
-            name = "substitute".to_string();
+            name.push_str("substitute");
         } else if Regex::new("[@*!=><&~#]").unwrap().is_match(&c) {
-            self.reader.borrow_mut().get();
-            name = c;
+            name.push_str(&self.reader.borrow_mut().get());
         } else if self.reader.borrow().peekn(2) == "py" {
-            name = self.reader.borrow_mut().read_alnum();
+            name.push_str(&self.reader.borrow_mut().read_alnum());
         } else {
             let pos = self.reader.borrow().tell();
-            name = self.reader.borrow_mut().read_alpha();
+            name.push_str(&self.reader.borrow_mut().read_alpha());
             if name != "del" && Regex::new("^d(elete|elet|ele|el|e)[lp]$")
                 .unwrap()
                 .is_match(&name)
@@ -1483,7 +1485,7 @@ impl Parser {
         // TODO: add command cache here?
         let mut cmd: Option<Command> = None;
         for command in self.commands.iter() {
-            if command.name.starts_with(&name) && name.len() > command.minlen {
+            if command.name.starts_with(&name) && name.len() >= command.minlen {
                 cmd = Some(command.clone());
                 break;
             }
@@ -1503,7 +1505,7 @@ impl Parser {
     fn parse_cmd_modifier_range(&mut self, ea: ExArg) {
         let mut node = Node::new(NodeKind::ExCmd);
         node.pos = ea.cmdpos;
-        let pos = self.reader.borrow_mut().getpos();
+        let pos = self.reader.borrow().getpos();
         node.string = self.reader.borrow_mut().getstr(ea.linepos, pos);
         node.ea = Some(ea);
         self.add_node(node);
@@ -1514,7 +1516,7 @@ impl Parser {
         let c = self.reader.borrow().peek();
         match c.as_str() {
             "<EOF>" => Ok(()),
-            "\n " | "|" => {
+            "\n" | "|" => {
                 self.reader.borrow_mut().get();
                 Ok(())
             }
