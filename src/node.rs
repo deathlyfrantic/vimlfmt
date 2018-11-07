@@ -159,6 +159,428 @@ impl Node {
     }
 }
 
+fn indent(n: usize) -> String {
+    "  ".repeat(n)
+}
+
+fn escape(s: &str) -> String {
+    let mut rv = String::new();
+    for c in s.chars() {
+        if c == '\\' || c == '"' {
+            rv.push('\\');
+        }
+        rv.push(c);
+    }
+    rv
+}
+
+fn display_left(name: &str, node: &Node) -> String {
+    let left = match node.left {
+        Some(ref b) => format!("{}", *b),
+        None => "".to_string(),
+    };
+    format!("({} {})", name, left)
+}
+
+fn display_lr(name: &str, node: &Node) -> String {
+    let left = match node.left {
+        Some(ref b) => format!("{}", *b),
+        None => "".to_string(),
+    };
+    let right = match node.right {
+        Some(ref b) => format!("{}", *b),
+        None => "".to_string(),
+    };
+    format!("({} {} {})", name, left, right)
+}
+
+fn display_with_list(name: &str, node: &Node) -> String {
+    let list = node.list.clone();
+    let list = list
+        .into_iter()
+        .map(|n| format!("{}", *n))
+        .collect::<Vec<String>>()
+        .join(" ");
+    format!("({} {})", name, list)
+}
+
+use std::fmt;
+impl fmt::Display for Node {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self.kind {
+                NodeKind::Add => display_lr("+", self),
+                NodeKind::And => display_lr("&&", self),
+                NodeKind::Break => "(break)".to_string(),
+                NodeKind::Call => {
+                    let left = match self.left {
+                        Some(ref b) => format!("{}", *b),
+                        None => "".to_string(),
+                    };
+                    if self.rlist.len() > 0 {
+                        let rlist = self.rlist.clone();
+                        let rlist = rlist
+                            .into_iter()
+                            .map(|n| format!("{}", *n))
+                            .collect::<Vec<String>>()
+                            .join(" ");
+                        format!("({} {})", left, rlist)
+                    } else {
+                        format!("({})", left)
+                    }
+                }
+                NodeKind::Comment => format!(";{}", self.string),
+                NodeKind::Concat => display_lr("concat", self),
+                NodeKind::Continue => "(continue)".to_string(),
+                NodeKind::CurlyName => {
+                    let body = self.body.clone();
+                    body.into_iter()
+                        .map(|n| format!("{}", n.borrow()))
+                        .collect::<Vec<String>>()
+                        .join("")
+                }
+                NodeKind::CurlyNameExpr => {
+                    let left = match self.left {
+                        Some(ref b) => format!("{}", *b),
+                        None => "".to_string(),
+                    };
+                    format!("{{{}}}", left)
+                }
+                NodeKind::CurlyNamePart
+                | NodeKind::Env
+                | NodeKind::Identifier
+                | NodeKind::Number
+                | NodeKind::Option
+                | NodeKind::Reg
+                | NodeKind::String => self.value.clone(),
+                NodeKind::DelFunction => {
+                    let left = match self.left {
+                        Some(ref b) => format!("{}", *b),
+                        None => "".to_string(),
+                    };
+                    format!("(delfunction {})", left)
+                }
+                NodeKind::Dict => {
+                    let dict = self.dict.clone();
+                    let values = dict
+                        .into_iter()
+                        .map(|(k, v)| format!("({} {})", *k, *v))
+                        .collect::<Vec<String>>();
+                    if values.len() == 0 {
+                        "(dict)".to_string()
+                    } else {
+                        format!("(dict {})", values.join(" "))
+                    }
+                }
+                NodeKind::Divide => display_lr("/", self),
+                NodeKind::Dot => display_lr("dot", self),
+                NodeKind::Echo => display_with_list("echo", self),
+                NodeKind::EchoErr => display_with_list("echoerr", self),
+                NodeKind::EchoHl => format!("echohl \"{}\")", escape(&self.string)),
+                NodeKind::EchoMsg => display_with_list("echomsg", self),
+                NodeKind::EchoN => display_with_list("echon", self),
+                NodeKind::Equal => display_lr("==", self),
+                NodeKind::EqualCI => display_lr("==?", self),
+                NodeKind::EqualCS => display_lr("==#", self),
+                NodeKind::ExCall => {
+                    let left = match self.left {
+                        Some(ref b) => format!("{}", *b),
+                        None => "".to_string(),
+                    };
+                    format!("(call {})", left)
+                }
+                NodeKind::ExCmd => format!("(excmd \"{}\")", escape(&self.string)),
+                NodeKind::Execute => display_with_list("execute", self),
+                NodeKind::For => {
+                    let left = match self.left {
+                        Some(ref b) => format!("{}", *b),
+                        None => {
+                            let mut l = String::from("(");
+                            let list = self.list.clone();
+                            l.push_str(
+                                &list
+                                    .into_iter()
+                                    .map(|n| format!("{}", *n))
+                                    .collect::<Vec<String>>()
+                                    .join(" "),
+                            );
+                            if self.rest.len() > 0 {
+                                l.push_str(" . ");
+                                l.push_str(&format!("{}", self.rest[0]));
+                            }
+                            l.push_str(")");
+                            l
+                        }
+                    };
+                    let right = match self.right {
+                        Some(ref b) => format!("{}", *b),
+                        None => "".to_string(),
+                    };
+                    let mut rv = format!("(for {} {}", left, right);
+                    for node in &self.body {
+                        for line in format!("{}", node.borrow()).split("\n") {
+                            rv.push_str(&format!("\n{}{}", indent(1), line));
+                        }
+                    }
+                    rv.push_str(")");
+                    rv
+                }
+                NodeKind::Function => {
+                    let left = match self.left {
+                        Some(ref b) => format!("{}", *b),
+                        None => "".to_string(),
+                    };
+                    let rlist = self.rlist.clone();
+                    let mut rlist = rlist
+                        .into_iter()
+                        .map(|n| format!("{}", *n))
+                        .collect::<Vec<String>>();
+                    let rlist_len = rlist.len();
+                    if rlist_len > 0 && rlist[rlist_len - 1] == "..." {
+                        rlist[rlist_len - 1] = ". ...".to_string();
+                    }
+                    let mut rv = if rlist_len == 0 {
+                        format!("(function ({})", left)
+                    } else {
+                        format!("(function ({} {})", left, rlist.join(" "))
+                    };
+                    for node in &self.body {
+                        for line in format!("{}", node.borrow()).split("\n") {
+                            rv.push_str(&format!("\n{}{}", indent(1), line));
+                        }
+                    }
+                    rv.push_str(")");
+                    rv
+                }
+                NodeKind::GEqual => display_lr(">=", self),
+                NodeKind::GEqualCI => display_lr(">=?", self),
+                NodeKind::GEqualCS => display_lr(">=#", self),
+                NodeKind::Greater => display_lr(">", self),
+                NodeKind::GreaterCI => display_lr(">?", self),
+                NodeKind::GreaterCS => display_lr(">#", self),
+                NodeKind::If => {
+                    let cond = match self.cond {
+                        Some(ref b) => format!("{}", *b),
+                        None => "".to_string(),
+                    };
+                    let mut rv = format!("(if {}", cond);
+                    for node in &self.body {
+                        for line in format!("{}", node.borrow()).split("\n") {
+                            rv.push_str(&format!("\n{}{}", indent(1), line));
+                        }
+                    }
+                    for elseif in self.elseif.clone() {
+                        let cond = match elseif.borrow().cond {
+                            Some(ref b) => format!("{}", *b),
+                            None => "".to_string(),
+                        };
+                        rv.push_str(&format!("\n elseif {}", cond));
+                        for node in &elseif.borrow().body {
+                            for line in format!("{}", node.borrow()).split("\n") {
+                                rv.push_str(&format!("\n{}{}", indent(1), line));
+                            }
+                        }
+                    }
+                    if let Some(ref b) = self.else_ {
+                        rv.push_str("\n else");
+                        for node in &b.borrow().body {
+                            for line in format!("{}", node.borrow()).split("\n") {
+                                rv.push_str(&format!("\n{}{}", indent(1), line));
+                            }
+                        }
+                    }
+                    rv.push_str(")");
+                    rv
+                }
+                NodeKind::Is => display_lr("is", self),
+                NodeKind::IsCI => display_lr("is?", self),
+                NodeKind::IsCS => display_lr("is#", self),
+                NodeKind::IsNot => display_lr("isnot", self),
+                NodeKind::IsNotCI => display_lr("isnot?", self),
+                NodeKind::IsNotCS => display_lr("isnot#", self),
+                NodeKind::Lambda => {
+                    let left = match self.left {
+                        Some(ref b) => format!("{}", *b),
+                        None => "".to_string(),
+                    };
+                    let rlist = self.rlist.clone();
+                    let rlist = rlist
+                        .into_iter()
+                        .map(|n| format!("{}", *n))
+                        .collect::<Vec<String>>()
+                        .join(" ");
+                    format!("(lambda ({}) {})", rlist, left)
+                }
+                NodeKind::Let => {
+                    let left = match self.left {
+                        Some(ref b) => format!("{}", *b),
+                        None => {
+                            let mut l = String::from("(");
+                            let list = self.list.clone();
+                            l.push_str(
+                                &list
+                                    .into_iter()
+                                    .map(|n| format!("{}", *n))
+                                    .collect::<Vec<String>>()
+                                    .join(" "),
+                            );
+                            if self.rest.len() > 0 {
+                                l.push_str(" . ");
+                                l.push_str(&format!("{}", self.rest[0]));
+                            }
+                            l.push_str(")");
+                            l
+                        }
+                    };
+                    let right = match self.right {
+                        Some(ref b) => format!("{}", *b),
+                        None => "".to_string(),
+                    };
+                    format!("(let {} {} {})", self.op, left, right)
+                }
+                NodeKind::List => {
+                    let body = self.body.clone();
+                    let body = body
+                        .into_iter()
+                        .map(|n| format!("{}", n.borrow()))
+                        .collect::<Vec<String>>();
+                    if body.len() == 0 {
+                        "(list)".to_string()
+                    } else {
+                        format!("(list {})", body.join(" "))
+                    }
+                }
+                NodeKind::LockVar => {
+                    if let Some(d) = self.depth {
+                        display_with_list(&format!("lockvar {}", d), self)
+                    } else {
+                        display_with_list("lockvar", self)
+                    }
+                }
+                NodeKind::Match => display_lr("=~", self),
+                NodeKind::MatchCI => display_lr("=~?", self),
+                NodeKind::MatchCS => display_lr("=~#", self),
+                NodeKind::Minus => display_left("-", self),
+                NodeKind::Multiply => display_lr("*", self),
+                NodeKind::NotEqual => display_lr("!=", self),
+                NodeKind::NotEqualCI => display_lr("!=?", self),
+                NodeKind::NotEqualCS => display_lr("!=#", self),
+                NodeKind::NoMatch => display_lr("!~", self),
+                NodeKind::NoMatchCI => display_lr("!~?", self),
+                NodeKind::NoMatchCS => display_lr("!~#", self),
+                NodeKind::Not => display_left("!", self),
+                NodeKind::Or => display_lr("||", self),
+                NodeKind::Plus => display_left("+", self),
+                NodeKind::Remainder => display_lr("%", self),
+                NodeKind::Return => {
+                    if let Some(ref b) = self.left {
+                        format!("(return {})", format!("{}", *b))
+                    } else {
+                        "(return)".to_string()
+                    }
+                }
+                NodeKind::SEqual => display_lr("<=", self),
+                NodeKind::SEqualCI => display_lr("<=?", self),
+                NodeKind::SEqualCS => display_lr("<=#", self),
+                NodeKind::Shebang => format!("(#! \"{}\")", escape(&self.string)),
+                NodeKind::Slice => {
+                    let r0 = match self.rlist[0].kind {
+                        NodeKind::Dummy => "nil".to_string(),
+                        _ => format!("{}", self.rlist[0]),
+                    };
+                    let r1 = match self.rlist[1].kind {
+                        NodeKind::Dummy => "nil".to_string(),
+                        _ => format!("{}", self.rlist[1]),
+                    };
+                    let left = match self.left {
+                        Some(ref b) => format!("{}", *b),
+                        None => "".to_string(),
+                    };
+                    format!("(slice {} {} {})", left, r0, r1)
+                }
+                NodeKind::Smaller => display_lr("<", self),
+                NodeKind::SmallerCI => display_lr("<?", self),
+                NodeKind::SmallerCS => display_lr("<#", self),
+                NodeKind::Subscript => display_lr("subscript", self),
+                NodeKind::Subtract => display_lr("-", self),
+                NodeKind::Ternary => {
+                    let cond = match self.cond {
+                        Some(ref b) => format!("{}", *b),
+                        None => "".to_string(),
+                    };
+                    display_lr(&format!("?: {}", cond), self)
+                }
+                NodeKind::Throw => display_left("throw", self),
+                NodeKind::TopLevel => {
+                    let body = self.body.clone();
+                    format!(
+                        "{}",
+                        body.into_iter()
+                            .map(|n| format!("{}", n.borrow()))
+                            .collect::<Vec<String>>()
+                            .join("\n")
+                    )
+                }
+                NodeKind::Try => {
+                    let mut rv = String::from("(try\n");
+                    for node in &self.body {
+                        for line in format!("{}", node.borrow()).split("\n") {
+                            rv.push_str(&format!("\n{}{}", indent(1), line));
+                        }
+                    }
+                    for catch in self.catch.clone() {
+                        if catch.borrow().pattern.len() > 0 {
+                            rv.push_str(&format!(" catch /{}/", catch.borrow().pattern));
+                        } else {
+                            rv.push_str("\n catch");
+                        }
+                        for node in &catch.borrow().body {
+                            for line in format!("{}", node.borrow()).split("\n") {
+                                rv.push_str(&format!("\n{}{}", indent(1), line));
+                            }
+                        }
+                    }
+                    if let Some(ref b) = self.finally {
+                        rv.push_str("\n finally");
+                        for node in &b.borrow().body {
+                            for line in format!("{}", node.borrow()).split("\n") {
+                                rv.push_str(&format!("\n{}{}", indent(1), line));
+                            }
+                        }
+                    }
+                    rv.push_str(")");
+                    rv
+                }
+                NodeKind::Unlet => display_with_list("unlet", self),
+                NodeKind::UnlockVar => {
+                    if let Some(d) = self.depth {
+                        display_with_list(&format!("unlockvar {}", d), self)
+                    } else {
+                        display_with_list("unlockvar", self)
+                    }
+                }
+                NodeKind::While => {
+                    let cond = match self.cond {
+                        Some(ref b) => format!("{}", *b),
+                        None => "".to_string(),
+                    };
+                    let mut rv = format!("(while {}", cond);
+                    for node in &self.body {
+                        for line in format!("{}", node.borrow()).split("\n") {
+                            rv.push_str(&format!("\n{}{}", indent(1), line));
+                        }
+                    }
+                    rv.push_str(")");
+                    rv
+                }
+                _ => format!("{:?}", self),
+            }
+        )
+    }
+}
+
 #[derive(Debug)]
 pub struct NodeParser {
     reader: Rc<RefCell<Reader>>,
