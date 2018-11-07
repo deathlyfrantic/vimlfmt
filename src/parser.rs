@@ -586,7 +586,7 @@ impl Parser {
     }
 
     fn parse_cmd_common(&mut self, ea: ExArg) -> Result<(), ParseError> {
-        let mut end = self.reader.borrow().getpos();
+        let mut end;
         if ea.cmd.flags.contains(&Flag::Trlbar) && !ea.use_filter {
             end = self.separate_nextcmd(&ea)?;
         } else {
@@ -1000,7 +1000,7 @@ impl Parser {
     }
 
     fn parse_cmd_syntax(&mut self, ea: ExArg) -> Result<(), ParseError> {
-        let mut end = self.reader.borrow().getpos();
+        let mut end;
         loop {
             end = self.reader.borrow().getpos();
             let c = self.reader.borrow().peek();
