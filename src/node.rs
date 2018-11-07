@@ -107,7 +107,7 @@ pub enum NodeKind {
 #[derive(Debug, PartialEq, Clone)]
 pub struct Node {
     pub kind: NodeKind,
-    pub body: Vec<Box<Node>>,
+    pub body: Vec<Rc<RefCell<Node>>>,
     pub pos: Position,
     pub string: String,
     pub ea: Option<ExArg>,
@@ -118,13 +118,13 @@ pub struct Node {
     pub list: Vec<Box<Node>>,
     pub rlist: Vec<Box<Node>>,
     pub dict: Vec<(Box<Node>, Box<Node>)>,
-    pub pattern: Option<String>,
-    pub catch: Vec<Box<Node>>,
-    pub else_: Option<Box<Node>>,
-    pub elseif: Vec<Box<Node>>,
+    pub pattern: String,
+    pub catch: Vec<Rc<RefCell<Node>>>,
+    pub else_: Option<Rc<RefCell<Node>>>,
+    pub elseif: Vec<Rc<RefCell<Node>>>,
     pub end: Option<Box<Node>>,
     pub attrs: Vec<String>,
-    pub finally: Option<Box<Node>>,
+    pub finally: Option<Rc<RefCell<Node>>>,
     pub rest: Vec<Box<Node>>,
     pub op: String,
     pub depth: Option<usize>,
@@ -145,7 +145,7 @@ impl Node {
             list: vec![],
             rlist: vec![],
             dict: vec![],
-            pattern: None,
+            pattern: String::new(),
             catch: vec![],
             else_: None,
             elseif: vec![],
@@ -574,7 +574,7 @@ impl NodeParser {
                     self.tokenizer.get()?;
                 } else {
                     loop {
-                        node.body.push(Box::new(self.parse_expr1()?));
+                        node.body.push(Rc::new(RefCell::new(self.parse_expr1()?)));
                         let token = self.tokenizer.peek()?;
                         match token.kind {
                             TokenKind::Comma => {
@@ -782,8 +782,8 @@ impl NodeParser {
             node.kind = NodeKind::CurlyName;
             node.body = curly_parts
                 .into_iter()
-                .map(|n| Box::new(n))
-                .collect::<Vec<Box<Node>>>();
+                .map(|n| Rc::new(RefCell::new(n)))
+                .collect::<Vec<Rc<RefCell<Node>>>>();
         }
         Ok(node)
     }
@@ -814,6 +814,7 @@ impl NodeParser {
                 let mut node = self.parse_expr1()?;
                 node.kind = NodeKind::CurlyNameExpr;
                 node.pos = pos;
+                node.left = Some(Box::new(self.parse_expr1()?));
                 curly_parts.push(node);
                 self.reader.borrow_mut().skip_white();
                 let c = self.reader.borrow().peek();
