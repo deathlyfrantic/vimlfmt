@@ -1144,11 +1144,11 @@ impl NodeParser {
                         if self.tokenizer.peek()?.kind == TokenKind::CClose {
                             self.tokenizer.get()?;
                             break;
-                        } else if token.kind == TokenKind::CClose {
-                            break;
-                        } else {
-                            return self.token_err(token);
                         }
+                    } else if token.kind == TokenKind::CClose {
+                        break;
+                    } else {
+                        return self.token_err(token);
                     }
                 }
             }
