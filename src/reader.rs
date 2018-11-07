@@ -278,7 +278,7 @@ mod tests {
 
     #[test]
     fn test_peek_line() {
-        let mut reader = Reader::from_lines(vec!["foo", "bar"]);
+        let reader = Reader::from_lines(vec!["foo", "bar"]);
         assert_eq!(reader.cursor, 0);
         assert_eq!(&reader.peek_line(), "foo");
         assert_eq!(reader.cursor, 0);
