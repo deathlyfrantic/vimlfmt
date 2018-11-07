@@ -46,8 +46,10 @@ impl Reader {
                 col += 1;
             }
             while lnum + 1 < lines.len() && lines[lnum + 1].trim_start().starts_with("\\") {
-                col = 0;
-                for c in lines[lnum + 1].trim_start()[1..].chars() {
+                let line = lines[lnum + 1];
+                let trimmed = line.trim_start();
+                col = line.len() - trimmed.len() + 1;
+                for c in trimmed[1..].chars() {
                     self.buf.push(c);
                     self.pos.push((lnum + 2, col + 1));
                     col += 1;
