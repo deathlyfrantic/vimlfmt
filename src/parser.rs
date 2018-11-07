@@ -466,7 +466,7 @@ impl Parser {
             ParserKind::Break => self.parse_cmd_break(ea),
             ParserKind::Call => self.parse_cmd_call(ea),
             ParserKind::Catch => self.parse_cmd_catch(ea),
-            ParserKind::Common => self.parse_cmd_common(ea),
+            ParserKind::Common | ParserKind::Usercmd => self.parse_cmd_common(ea),
             ParserKind::Continue => self.parse_cmd_continue(ea),
             ParserKind::Delfunction => self.parse_cmd_delfunction(ea),
             ParserKind::Echo => self.parse_cmd_with_exprlist(ea, NodeKind::Echo),
@@ -499,7 +499,6 @@ impl Parser {
             ParserKind::Unlockvar => self.parse_cmd_unlockvar(ea),
             ParserKind::While => self.parse_cmd_while(ea),
             ParserKind::Wincmd => self.parse_cmd_wincmd(ea),
-            _ => self.err(&format!("Unknown parser: {:#?}", ea.cmd.parser)),
         }
     }
 
