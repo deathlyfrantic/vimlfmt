@@ -52,20 +52,8 @@ impl fmt::Display for ParseError {
     }
 }
 
-fn isalpha(s: &str) -> bool {
-    Regex::new("^[A-Za-z]$").unwrap().is_match(s)
-}
-
-fn isalnum(s: &str) -> bool {
-    Regex::new("^[0-9A-Za-z]$").unwrap().is_match(s)
-}
-
 fn isdigit(s: &str) -> bool {
     Regex::new("^[0-9]$").unwrap().is_match(s)
-}
-
-fn isodigit(s: &str) -> bool {
-    Regex::new("^[0-7]$").unwrap().is_match(s)
 }
 
 fn isxdigit(s: &str) -> bool {
@@ -104,12 +92,4 @@ fn isvarname(s: &str) -> bool {
 
 fn isidc(s: &str) -> bool {
     iswordc(s)
-}
-
-fn isupper(s: &str) -> bool {
-    Regex::new("^[A-Z]$").unwrap().is_match(s)
-}
-
-fn islower(s: &str) -> bool {
-    Regex::new("^[a-z]$").unwrap().is_match(s)
 }
