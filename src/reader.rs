@@ -36,7 +36,7 @@ impl Reader {
     }
 
     fn set_lines(&mut self, lines: Vec<&str>) {
-        let mut col = 0;
+        let mut col;
         let mut lnum = 0;
         while lnum < lines.len() {
             col = 0;
