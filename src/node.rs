@@ -347,10 +347,10 @@ impl NodeParser {
                 return Ok(left);
             }
         };
+        node.right = Some(Box::new(self.parse_expr5()?));
         if node.kind != NodeKind::Dummy {
             left = node;
         }
-        node.right = Some(Box::new(self.parse_expr5()?));
         Ok(left)
     }
 
