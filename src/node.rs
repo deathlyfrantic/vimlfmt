@@ -282,7 +282,7 @@ impl fmt::Display for Node {
                 NodeKind::Dot => display_lr("dot", self),
                 NodeKind::Echo => display_with_list("echo", self),
                 NodeKind::EchoErr => display_with_list("echoerr", self),
-                NodeKind::EchoHl => format!("echohl \"{}\")", escape(&self.string)),
+                NodeKind::EchoHl => format!("(echohl \"{}\")", escape(&self.string)),
                 NodeKind::EchoMsg => display_with_list("echomsg", self),
                 NodeKind::EchoN => display_with_list("echon", self),
                 NodeKind::Equal => display_lr("==", self),
@@ -528,7 +528,7 @@ impl fmt::Display for Node {
                     )
                 }
                 NodeKind::Try => {
-                    let mut rv = String::from("(try\n");
+                    let mut rv = String::from("(try");
                     for node in &self.body {
                         for line in format!("{}", node.borrow()).split("\n") {
                             rv.push_str(&format!("\n{}{}", indent(1), line));
@@ -536,7 +536,7 @@ impl fmt::Display for Node {
                     }
                     for catch in self.catch.clone() {
                         if catch.borrow().pattern.len() > 0 {
-                            rv.push_str(&format!(" catch /{}/", catch.borrow().pattern));
+                            rv.push_str(&format!("\n catch /{}/", catch.borrow().pattern));
                         } else {
                             rv.push_str("\n catch");
                         }
