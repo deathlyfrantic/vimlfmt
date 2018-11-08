@@ -557,7 +557,7 @@ impl Tokenizer {
         if c != "'" {
             return Err(ParseError {
                 msg: format!("unexpected character: {}", c),
-                pos: self.reader.borrow_mut().getpos(),
+                pos: self.reader.borrow().getpos(),
             });
         }
         self.reader.borrow_mut().get();
@@ -567,7 +567,7 @@ impl Tokenizer {
             if c == "<EOF>" || c == "\n" {
                 return Err(ParseError {
                     msg: "unexpected EOL".to_string(),
-                    pos: self.reader.borrow_mut().getpos(),
+                    pos: self.reader.borrow().getpos(),
                 });
             }
             if c == "'" {
@@ -591,7 +591,7 @@ impl Tokenizer {
         if c != "\"" {
             return Err(ParseError {
                 msg: format!("unexpected character: {}", c),
-                pos: self.reader.borrow_mut().getpos(),
+                pos: self.reader.borrow().getpos(),
             });
         }
         self.reader.borrow_mut().get();
@@ -601,7 +601,7 @@ impl Tokenizer {
             if c == "<EOF>" || c == "\n" {
                 return Err(ParseError {
                     msg: "unexpected EOL".to_string(),
-                    pos: self.reader.borrow_mut().getpos(),
+                    pos: self.reader.borrow().getpos(),
                 });
             }
             if c == "\"" {
@@ -613,7 +613,7 @@ impl Tokenizer {
                 if c == "<EOF>" || c == "\n" {
                     return Err(ParseError {
                         msg: "unexpected EOL".to_string(),
-                        pos: self.reader.borrow_mut().getpos(),
+                        pos: self.reader.borrow().getpos(),
                     });
                 }
                 value.push_str(&self.reader.borrow_mut().get());

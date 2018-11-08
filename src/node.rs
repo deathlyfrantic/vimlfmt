@@ -166,10 +166,14 @@ fn indent(n: usize) -> String {
 fn escape(s: &str) -> String {
     let mut rv = String::new();
     for c in s.chars() {
-        if c == '\\' || c == '"' {
-            rv.push('\\');
+        if c == '\r' {
+            rv.push_str("\\r");
+        } else {
+            if c == '\\' || c == '"' {
+                rv.push('\\');
+            }
+            rv.push(c);
         }
-        rv.push(c);
     }
     rv
 }
@@ -894,6 +898,7 @@ impl NodeParser {
                     if token.kind != TokenKind::SqClose {
                         return self.token_err(token);
                     }
+                    left = node;
                 } else {
                     let right = self.parse_expr1()?;
                     if self.tokenizer.peek()?.kind == TokenKind::Colon {
@@ -910,6 +915,7 @@ impl NodeParser {
                         if token.kind != TokenKind::SqClose {
                             return self.token_err(token);
                         }
+                        left = node;
                     } else {
                         let mut node = Node::new(NodeKind::Subscript);
                         node.pos = npos;
@@ -1056,14 +1062,15 @@ impl NodeParser {
                                 let mut varnode = Node::new(NodeKind::Identifier);
                                 varnode.pos = token.pos;
                                 varnode.value = token.value;
+                                let maybe_comma = self.tokenizer.peek()?.kind;
                                 if iswhite(&self.reader.borrow().peek())
-                                    && self.tokenizer.peek()?.kind == TokenKind::Comma
+                                    && maybe_comma == TokenKind::Comma
                                 {
                                     return Err(ParseError {
                                         msg: String::from(
                                             "E475: invalid argument: White space is not allowed before comma"
                                         ),
-                                        pos: self.reader.borrow_mut().getpos()
+                                        pos: self.reader.borrow().getpos()
                                     });
                                 }
                                 token = self.tokenizer.get()?;
@@ -1109,7 +1116,7 @@ impl NodeParser {
                     if !fallback {
                         node.left = Some(Box::new(self.parse_expr1()?));
                         token = self.tokenizer.get()?;
-                        if token.kind == TokenKind::CClose {
+                        if token.kind != TokenKind::CClose {
                             return self.token_err(token);
                         }
                         return Ok(node);
@@ -1195,7 +1202,7 @@ impl NodeParser {
     fn parse_identifier(&mut self) -> Result<Node, ParseError> {
         self.reader.borrow_mut().skip_white();
         let mut node = Node::new(NodeKind::Dummy);
-        node.pos = self.reader.borrow_mut().getpos();
+        node.pos = self.reader.borrow().getpos();
         let curly_parts = self.parse_curly_parts()?;
         if curly_parts.len() == 1 && curly_parts[0].kind == NodeKind::CurlyNamePart {
             node.kind = NodeKind::Identifier;
@@ -1213,7 +1220,7 @@ impl NodeParser {
     fn parse_curly_parts(&mut self) -> Result<Vec<Node>, ParseError> {
         let mut curly_parts = vec![];
         let c = self.reader.borrow().peek();
-        let pos = self.reader.borrow_mut().getpos();
+        let pos = self.reader.borrow().getpos();
         if c == "<" && self.reader.borrow().peekn(5).eq_ignore_ascii_case("<SID>") {
             let name = self.reader.borrow_mut().getn(5);
             let mut node = Node::new(NodeKind::CurlyNamePart);
@@ -1224,7 +1231,7 @@ impl NodeParser {
         loop {
             let c = self.reader.borrow().peek();
             if isnamec(&c) {
-                let pos = self.reader.borrow_mut().getpos();
+                let pos = self.reader.borrow().getpos();
                 let name = self.reader.borrow_mut().read_name();
                 let mut node = Node::new(NodeKind::CurlyNamePart);
                 node.pos = pos;
@@ -1232,7 +1239,7 @@ impl NodeParser {
                 curly_parts.push(node);
             } else if c == "{" {
                 self.reader.borrow_mut().get();
-                let pos = self.reader.borrow_mut().getpos();
+                let pos = self.reader.borrow().getpos();
                 let mut node = self.parse_expr1()?;
                 node.kind = NodeKind::CurlyNameExpr;
                 node.pos = pos;
@@ -1243,7 +1250,7 @@ impl NodeParser {
                 if c != "}" {
                     return Err(ParseError {
                         msg: format!("unexpected token: {}", c),
-                        pos: self.reader.borrow_mut().getpos(),
+                        pos: self.reader.borrow().getpos(),
                     });
                 }
                 self.reader.borrow_mut().seek_cur(1);
@@ -1270,7 +1277,7 @@ impl NodeParser {
         if !iswordc(&self.reader.borrow().peek()) {
             return None;
         }
-        let pos = self.reader.borrow_mut().getpos();
+        let pos = self.reader.borrow().getpos();
         let name = self.reader.borrow_mut().read_word();
         if isnamec(&self.reader.borrow().peek()) {
             return None;
@@ -1306,7 +1313,7 @@ impl NodeParser {
                     node.left = Some(Box::new(left));
                     node.rlist = vec![Box::new(Node::new(NodeKind::Dummy))];
                     token = self.tokenizer.peek()?;
-                    if token.kind == TokenKind::SqClose {
+                    if token.kind != TokenKind::SqClose {
                         node.rlist.push(Box::new(self.parse_expr1()?));
                     } else {
                         node.rlist.push(Box::new(Node::new(NodeKind::Dummy)));
@@ -1324,7 +1331,7 @@ impl NodeParser {
                         node.left = Some(Box::new(left));
                         token = self.tokenizer.peek()?;
                         node.rlist = vec![Box::new(right)];
-                        if token.kind == TokenKind::SqClose {
+                        if token.kind != TokenKind::SqClose {
                             node.rlist.push(Box::new(self.parse_expr1()?));
                         } else {
                             node.rlist.push(Box::new(Node::new(NodeKind::Dummy)));
