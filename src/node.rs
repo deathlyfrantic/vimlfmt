@@ -889,10 +889,12 @@ impl NodeParser {
                     let mut node = Node::new(NodeKind::Slice);
                     node.pos = npos;
                     node.left = Some(Box::new(left.clone()));
+                    node.rlist = vec![Box::new(Node::new(NodeKind::Dummy))];
                     token = self.tokenizer.peek()?;
                     if token.kind != TokenKind::SqClose {
-                        node.rlist.push(Box::new(Node::new(NodeKind::Dummy)));
                         node.rlist.push(Box::new(self.parse_expr1()?));
+                    } else {
+                        node.rlist.push(Box::new(Node::new(NodeKind::Dummy)));
                     }
                     token = self.tokenizer.get()?;
                     if token.kind != TokenKind::SqClose {
@@ -906,10 +908,12 @@ impl NodeParser {
                         let mut node = Node::new(NodeKind::Slice);
                         node.pos = npos;
                         node.left = Some(Box::new(left.clone()));
+                        node.rlist = vec![Box::new(right)];
                         token = self.tokenizer.peek()?;
                         if token.kind != TokenKind::SqClose {
-                            node.rlist.push(Box::new(Node::new(NodeKind::Dummy)));
                             node.rlist.push(Box::new(self.parse_expr1()?));
+                        } else {
+                            node.rlist.push(Box::new(Node::new(NodeKind::Dummy)));
                         }
                         token = self.tokenizer.get()?;
                         if token.kind != TokenKind::SqClose {
@@ -1028,7 +1032,8 @@ impl NodeParser {
                 let nodepos = token.pos;
                 let mut token = self.tokenizer.get()?;
                 let mut is_lambda = token.kind == TokenKind::Arrow;
-                if !is_lambda && token.kind != TokenKind::SQuote && token.kind != TokenKind::DQuote
+                if !is_lambda
+                    && (token.kind != TokenKind::SQuote || token.kind != TokenKind::DQuote)
                 {
                     let token2 = self.tokenizer.peek()?;
                     is_lambda = token2.kind == TokenKind::Arrow || token2.kind == TokenKind::Comma;
@@ -1158,6 +1163,7 @@ impl NodeParser {
                         return self.token_err(token);
                     }
                 }
+                return Ok(node);
             }
             TokenKind::POpen => {
                 node = self.parse_expr1()?;
@@ -1240,8 +1246,7 @@ impl NodeParser {
             } else if c == "{" {
                 self.reader.borrow_mut().get();
                 let pos = self.reader.borrow().getpos();
-                let mut node = self.parse_expr1()?;
-                node.kind = NodeKind::CurlyNameExpr;
+                let mut node = Node::new(NodeKind::CurlyNameExpr);
                 node.pos = pos;
                 node.left = Some(Box::new(self.parse_expr1()?));
                 curly_parts.push(node);
