@@ -196,7 +196,8 @@ impl Parser {
         loop {
             let pos = self.reader.borrow().tell();
             let mut d = "".to_string();
-            if let Ok(_) = self.reader.borrow().peek().parse::<usize>() {
+            let peeked = self.reader.borrow().peek();
+            if let Ok(_) = peeked.parse::<usize>() {
                 d = self.reader.borrow_mut().read_digit();
                 self.reader.borrow_mut().skip_white();
             }
@@ -258,8 +259,8 @@ impl Parser {
                 _ if "silent".starts_with(&k) && k.len() >= 3 => {
                     let mut mods = Modifier::new("silent");
                     if c == "!" {
-                        self.reader.borrow_mut().get();
                         mods.bang = true;
+                        self.reader.borrow_mut().get();
                     }
                     modifiers.push(mods)
                 }
@@ -1079,7 +1080,7 @@ impl Parser {
     }
 
     fn parse_cmd_while(&mut self, ea: ExArg) -> Result<(), ParseError> {
-        let mut node = Node::new(NodeKind::EndWhile);
+        let mut node = Node::new(NodeKind::While);
         node.pos = ea.cmdpos;
         node.ea = Some(ea);
         node.cond = Some(Box::new(self.parse_expr()?));
