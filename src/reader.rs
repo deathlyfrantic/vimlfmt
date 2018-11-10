@@ -110,7 +110,7 @@ impl Reader {
 
     pub fn peek_line(&self) -> String {
         let mut i = 0;
-        while self.buf[self.cursor + i] != '\n' && self.cursor + i < self.buf.len() {
+        while self.cursor + i < self.buf.len() && self.buf[self.cursor + i] != '\n' {
             i += 1;
         }
         self.buf[self.cursor..self.cursor + i]
@@ -141,7 +141,7 @@ impl Reader {
 
     pub fn get_line(&mut self) -> String {
         let start = self.cursor;
-        while self.buf[self.cursor] != '\n' && self.cursor < self.buf.len() {
+        while self.cursor < self.buf.len() && self.buf[self.cursor] != '\n' {
             self.cursor += 1;
         }
         let rv = self.buf[start..self.cursor].iter().collect::<String>();
