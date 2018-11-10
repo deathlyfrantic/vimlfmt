@@ -1032,8 +1032,7 @@ impl NodeParser {
                 let nodepos = token.pos;
                 let mut token = self.tokenizer.get()?;
                 let mut is_lambda = token.kind == TokenKind::Arrow;
-                if !is_lambda
-                    && (token.kind != TokenKind::SQuote || token.kind != TokenKind::DQuote)
+                if !is_lambda && token.kind != TokenKind::SQuote && token.kind != TokenKind::DQuote
                 {
                     let token2 = self.tokenizer.peek()?;
                     is_lambda = token2.kind == TokenKind::Arrow || token2.kind == TokenKind::Comma;
