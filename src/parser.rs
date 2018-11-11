@@ -197,7 +197,7 @@ impl Parser {
             let pos = self.reader.borrow().tell();
             let mut d = "".to_string();
             let peeked = self.reader.borrow().peek();
-            if let Ok(_) = peeked.parse::<usize>() {
+            if isdigit(&peeked) {
                 d = self.reader.borrow_mut().read_digit();
                 self.reader.borrow_mut().skip_white();
             }
