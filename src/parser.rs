@@ -1277,7 +1277,7 @@ impl Parser {
                     return Err(ParseError {
                         msg: format!("unexpected token: {}", key),
                         pos: epos,
-                    })
+                    });
                 }
             }
         }
