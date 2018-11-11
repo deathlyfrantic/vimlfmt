@@ -392,7 +392,8 @@ impl Parser {
     fn parse_command(&mut self, mut ea: ExArg) -> Result<(), ParseError> {
         self.reader.borrow_mut().skip_white_and_colon();
         ea.cmdpos = self.reader.borrow().getpos();
-        if ["\n", "\"", "<EOF>", ""].contains(&self.reader.borrow().peek().as_str()) {
+        let peeked = self.reader.borrow().peek();
+        if ["\n", "\"", "<EOF>", ""].contains(&peeked.as_str()) {
             if ea.modifiers.len() > 0 || ea.range.len() > 0 {
                 self.parse_cmd_modifier_range(ea);
             }
