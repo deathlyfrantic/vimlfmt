@@ -235,7 +235,7 @@ impl Reader {
     }
 
     pub fn skip_white_and_colon(&mut self) {
-        self.read_base(|c| c.is_whitespace() || c == ':');
+        self.read_base(|c| (c != '\n' && c.is_whitespace()) || c == ':');
     }
 }
 
@@ -418,6 +418,12 @@ mod tests {
         reader.skip_white_and_colon();
         assert_eq!(reader.cursor, 5);
         assert_eq!(&reader.get(), "f");
+        let mut reader = Reader::from_lines(vec!["1", "d"]);
+        assert_eq!(reader.cursor, 0);
+        assert_eq!(&reader.get(), "1");
+        assert_eq!(reader.cursor, 1);
+        reader.skip_white_and_colon();
+        assert_eq!(reader.cursor, 1);
     }
 
     #[test]
