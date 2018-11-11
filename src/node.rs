@@ -1385,7 +1385,9 @@ impl NodeParser {
                 node = self.parse_identifier()?;
                 node.value = token.value;
             }
-            _ if self.reader.borrow().peekn(5).eq_ignore_ascii_case("<SID>") => {
+            _ if token.kind == TokenKind::LT
+                && self.reader.borrow().peekn(4).eq_ignore_ascii_case("SID>") =>
+            {
                 self.reader.borrow_mut().seek_set(pos);
                 node = self.parse_identifier()?;
                 node.value = token.value;
