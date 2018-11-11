@@ -420,7 +420,10 @@ impl Parser {
             && ea.force_it
             && !ea.cmd.flags.contains(&Flag::Usercmd)
         {
-            return self.err("E477: No ! allowed");
+            return Err(ParseError {
+                msg: "E477: No ! allowed".to_string(),
+                pos: ea.cmdpos,
+            });
         }
         if ea.cmd.name != "!" {
             self.reader.borrow_mut().skip_white();
