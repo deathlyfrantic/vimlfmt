@@ -1018,7 +1018,10 @@ impl Parser {
             } else if ends_excmds(&c) {
                 break;
             }
-            self.reader.borrow_mut().getn(1);
+            let peeked = self.reader.borrow().peek();
+            if !["/", "'", "\"", "="].contains(&peeked.as_str()) {
+                self.reader.borrow_mut().getn(1);
+            }
         }
         let mut node = Node::new(NodeKind::ExCmd);
         node.pos = ea.cmdpos;
