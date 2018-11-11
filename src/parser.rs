@@ -1048,7 +1048,7 @@ impl Parser {
         node.pos = ea.cmdpos;
         node.ea = Some(ea);
         node.list = self
-            .parse_exprlist()?
+            .parse_lvaluelist()?
             .into_iter()
             .map(|n| Box::new(n))
             .collect::<Vec<Box<Node>>>();
