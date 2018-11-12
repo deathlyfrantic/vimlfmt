@@ -52,28 +52,42 @@ impl fmt::Display for ParseError {
     }
 }
 
+fn str_is<F>(s: &str, func: F) -> bool
+where
+    F: Fn(char) -> bool,
+{
+    for c in s.chars() {
+        if !func(c) {
+            return false;
+        }
+    }
+    true
+}
+
 fn isdigit(s: &str) -> bool {
-    Regex::new("^[0-9]$").unwrap().is_match(s)
+    str_is(s, |c| c.is_ascii_digit())
 }
 
 fn isxdigit(s: &str) -> bool {
-    Regex::new("^[0-9A-Fa-f]$").unwrap().is_match(s)
+    str_is(s, |c| c.is_ascii_hexdigit())
 }
 
 fn iswordc(s: &str) -> bool {
-    Regex::new("^[0-9A-Za-z_]$").unwrap().is_match(s)
+    str_is(s, |c| c.is_ascii_alphanumeric() || c == '_')
 }
 
 fn iswordc1(s: &str) -> bool {
-    Regex::new("^[A-Za-z_]$").unwrap().is_match(s)
+    str_is(s, |c| c.is_ascii_alphabetic() || c == '_')
 }
 
 fn iswhite(s: &str) -> bool {
-    Regex::new("^[ \\t]$").unwrap().is_match(s)
+    str_is(s, |c| c == '\t' || c == ' ')
 }
 
 fn isnamec(s: &str) -> bool {
-    Regex::new("^[0-9A-Za-z_:#]$").unwrap().is_match(s)
+    str_is(s, |c| {
+        c.is_ascii_alphanumeric() || c == '_' || c == ':' || c == '#'
+    })
 }
 
 fn isnamec1(s: &str) -> bool {
