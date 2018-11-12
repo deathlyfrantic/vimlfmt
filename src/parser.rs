@@ -1497,7 +1497,7 @@ impl Parser {
                 } else {
                     self.reader.borrow_mut().get();
                 }
-            } else if Regex::new("^\\+\\+").unwrap().is_match(&s) {
+            } else if s.starts_with("++") {
                 return self.err("E474: Invalid Argument");
             } else {
                 break;
@@ -1518,7 +1518,7 @@ impl Parser {
         {
             self.reader.borrow_mut().get();
             name.push_str("substitute");
-        } else if Regex::new("[@*!=><&~#]").unwrap().is_match(&c) {
+        } else if ["@", "*", "!", "=", ">", "<", "&", "~", "#"].contains(&c.as_str()) {
             name.push_str(&self.reader.borrow_mut().get());
         } else if self.reader.borrow().peekn(2) == "py" {
             name.push_str(&self.reader.borrow_mut().read_alnum());
