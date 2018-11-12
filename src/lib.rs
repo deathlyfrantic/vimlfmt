@@ -107,3 +107,52 @@ fn isvarname(s: &str) -> bool {
 fn isidc(s: &str) -> bool {
     iswordc(s)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_isdigit() {
+        assert!(isdigit("0123456789"));
+        assert!(!isdigit("abc"));
+    }
+
+    #[test]
+    fn test_isxdigit() {
+        assert!(isxdigit("0123456789ABCDEFabcdef"));
+        assert!(!isxdigit("xqz"));
+    }
+
+    #[test]
+    fn test_iswordc() {
+        assert!(iswordc("Abc_123"));
+        assert!(!iswordc("*@"));
+    }
+
+    #[test]
+    fn test_iswordc1() {
+        assert!(iswordc1("Abc_foo"));
+        assert!(!iswordc1("Abc_123"));
+    }
+
+    #[test]
+    fn test_iswhite() {
+        assert!(iswhite(" \t"));
+        assert!(!iswhite("\nX"));
+    }
+
+    #[test]
+    fn test_isnamec() {
+        assert!(isnamec("Abc_123:#"));
+        assert!(!isnamec("*@"));
+    }
+
+    #[test]
+    fn test_isargname() {
+        assert!(isargname("g:"));
+        assert!(isargname("v:Foo_123#bar"));
+        assert!(!isargname("x:foo"));
+        assert!(!isargname("fo|o"));
+    }
+}
