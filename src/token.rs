@@ -109,10 +109,10 @@ impl Tokenizer {
 
     pub fn get(&mut self) -> Result<Token, ParseError> {
         self.reader.borrow_mut().skip_white();
-        self.get2()
+        self._get()
     }
 
-    pub fn get2(&mut self) -> Result<Token, ParseError> {
+    fn _get(&mut self) -> Result<Token, ParseError> {
         let c = self.reader.borrow().peek();
         let pos = self.reader.borrow().getpos();
         if c == "<EOF>" {
