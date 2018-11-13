@@ -65,8 +65,6 @@ pub enum TokenKind {
     Reg,
     SQuote,
     Semicolon,
-    Backtick,
-    DotDotDot,
     Sharp,
     Slash,
     Space,
