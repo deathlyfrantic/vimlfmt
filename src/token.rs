@@ -1,4 +1,4 @@
-use super::{isdigit, isidc, isnamec1, iswhite, isxdigit, ParseError, Position};
+use super::{isdigit, iswhite, iswordc, iswordc1, isxdigit, ParseError, Position};
 use reader::Reader;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -157,7 +157,7 @@ impl Tokenizer {
         }
         if c == "i"
             && self.reader.borrow().peek_ahead(1) == "s"
-            && !isidc(&self.reader.borrow().peek_ahead(2))
+            && !iswordc(&self.reader.borrow().peek_ahead(2))
         {
             if self.reader.borrow().peek_ahead(2) == "?" {
                 return Ok(Token::new(
@@ -179,7 +179,8 @@ impl Tokenizer {
                 pos,
             ));
         }
-        if self.reader.borrow().peekn(5) == "isnot" && !isidc(&self.reader.borrow().peek_ahead(5)) {
+        if self.reader.borrow().peekn(5) == "isnot" && !iswordc(&self.reader.borrow().peek_ahead(5))
+        {
             if self.reader.borrow().peek_ahead(5) == "?" {
                 return Ok(Token::new(
                     TokenKind::IsNotCI,
@@ -200,7 +201,7 @@ impl Tokenizer {
                 pos,
             ));
         }
-        if isnamec1(&c) {
+        if iswordc1(&c) {
             return Ok(Token::new(
                 TokenKind::Identifier,
                 self.reader.borrow_mut().read_name(),
