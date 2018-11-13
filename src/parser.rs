@@ -1,4 +1,4 @@
-use super::{isargname, isdigit, isidc, isvarname, iswhite, ParseError, Position};
+use super::{isargname, isdigit, isvarname, iswhite, iswordc, ParseError, Position};
 use command::{neovim_commands, vim_commands, Command, Flag, ParserKind};
 use exarg::ExArg;
 use modifier::Modifier;
@@ -1425,7 +1425,7 @@ impl Parser {
     fn skip_vimgrep_pat(&mut self) -> Result<(), ParseError> {
         let c = self.reader.borrow().peek();
         if c == "\n" {
-        } else if isidc(&c) {
+        } else if iswordc(&c) {
             self.reader.borrow_mut().read_nonwhite();
         } else {
             let c = self.reader.borrow_mut().get();

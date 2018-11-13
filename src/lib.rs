@@ -92,10 +92,6 @@ fn isnamec(s: &str) -> bool {
     })
 }
 
-fn isnamec1(s: &str) -> bool {
-    iswordc1(s)
-}
-
 fn isargname(s: &str) -> bool {
     lazy_static! {
         static ref RE: Regex = Regex::new("^[A-Za-z_][0-9A-Za-z_]*$").unwrap();
@@ -109,10 +105,6 @@ fn isvarname(s: &str) -> bool {
             Regex::new("^[vgslabwt]:$|^([vgslabwt]:)?[A-Za-z_][0-9A-Za-z_#]*$").unwrap();
     }
     RE.is_match(s)
-}
-
-fn isidc(s: &str) -> bool {
-    iswordc(s)
 }
 
 #[cfg(test)]
