@@ -311,7 +311,7 @@ mod tests {
         let mut reader = Reader::from_lines(vec!["foo", "bar"]);
         assert_eq!(reader.cursor, 0);
         assert_eq!(&reader.get_line(), "foo");
-        assert_eq!(reader.cursor, 4);
+        assert_eq!(reader.cursor, 3);
         assert_eq!(&reader.peek(), "\n");
     }
 

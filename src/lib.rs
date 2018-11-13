@@ -149,9 +149,17 @@ mod tests {
 
     #[test]
     fn test_isargname() {
-        assert!(isargname("g:"));
-        assert!(isargname("v:Foo_123#bar"));
-        assert!(!isargname("x:foo"));
-        assert!(!isargname("fo|o"));
+        assert!(isargname("_foo1"));
+        assert!(isargname("Foo2"));
+        assert!(isargname("foo_3"));
+        assert!(!isargname("2foo"));
+    }
+
+    #[test]
+    fn test_isvarname() {
+        assert!(isvarname("g:"));
+        assert!(isvarname("v:Foo_123#bar"));
+        assert!(!isvarname("x:foo"));
+        assert!(!isvarname("fo|o"));
     }
 }
