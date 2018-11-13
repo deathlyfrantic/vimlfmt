@@ -1463,36 +1463,39 @@ impl Parser {
     }
 
     fn parse_argopt(&mut self) -> Result<(), ParseError> {
+        lazy_static! {
+            static ref BIN_RE: Regex = Regex::new("^\\+\\+bin\\b").unwrap();
+            static ref NOBIN_RE: Regex = Regex::new("^\\+\\+nobin\\b").unwrap();
+            static ref EDIT_RE: Regex = Regex::new("^\\+\\+edit\\b").unwrap();
+            static ref FF_RE: Regex = Regex::new("^\\+\\+ff=(dos|unix|mac)\\b").unwrap();
+            static ref FILEFORMAT_RE: Regex =
+                Regex::new("^\\+\\+fileformat=(dos|unix|mac)\\b").unwrap();
+            static ref ENC_RE: Regex = Regex::new("^\\+\\+enc=\\S").unwrap();
+            static ref ENCODING_RE: Regex = Regex::new("^\\+\\+encoding=\\S").unwrap();
+            static ref BAD_OUTER_RE: Regex = Regex::new("^\\+\\+bad=(keep|drop|.)\\b").unwrap();
+            static ref BAD_INNER_RE: Regex = Regex::new("^\\+\\+bad=(keep|drop)").unwrap();
+        }
         while self.reader.borrow().peekn(2) == "++" {
             let s = self.reader.borrow().peekn(20);
-            if Regex::new("^\\+\\+bin\\b").unwrap().is_match(&s) {
+            if BIN_RE.is_match(&s) {
                 self.reader.borrow_mut().getn(5);
-            } else if Regex::new("^\\+\\+nobin\\b").unwrap().is_match(&s) {
+            } else if NOBIN_RE.is_match(&s) {
                 self.reader.borrow_mut().getn(7);
-            } else if Regex::new("^\\+\\+edit\\b").unwrap().is_match(&s) {
+            } else if EDIT_RE.is_match(&s) {
                 self.reader.borrow_mut().getn(6);
-            } else if Regex::new("^\\+\\+ff=(dos|unix|mac)\\b")
-                .unwrap()
-                .is_match(&s)
-            {
+            } else if FF_RE.is_match(&s) {
                 self.reader.borrow_mut().getn(5);
-            } else if Regex::new("^\\+\\+fileformat=(dos|unix|mac)\\b")
-                .unwrap()
-                .is_match(&s)
-            {
+            } else if FILEFORMAT_RE.is_match(&s) {
                 self.reader.borrow_mut().getn(13);
-            } else if Regex::new("^\\+\\+enc=\\S").unwrap().is_match(&s) {
+            } else if ENC_RE.is_match(&s) {
                 self.reader.borrow_mut().getn(6);
                 self.reader.borrow_mut().read_nonwhite();
-            } else if Regex::new("^\\+\\+encoding=\\S").unwrap().is_match(&s) {
+            } else if ENCODING_RE.is_match(&s) {
                 self.reader.borrow_mut().getn(11);
                 self.reader.borrow_mut().read_nonwhite();
-            } else if Regex::new("^\\+\\+bad=(keep|drop|.)\\b")
-                .unwrap()
-                .is_match(&s)
-            {
+            } else if BAD_OUTER_RE.is_match(&s) {
                 self.reader.borrow_mut().getn(6);
-                if Regex::new("^\\+\\+bad=(keep|drop)").unwrap().is_match(&s) {
+                if BAD_INNER_RE.is_match(&s) {
                     self.reader.borrow_mut().getn(4);
                 } else {
                     self.reader.borrow_mut().get();
@@ -1510,12 +1513,13 @@ impl Parser {
     fn find_command(&mut self) -> Option<Command> {
         let c = self.reader.borrow().peek();
         let mut name = "".to_string();
+        lazy_static! {
+            static ref SUB_RE: Regex = Regex::new("^s(c[^sr][^i][^p]|g|i[^mlg]|I|r[^e])").unwrap();
+            static ref DEL_RE: Regex = Regex::new("^d(elete|elet|ele|el|e)[lp]$").unwrap();
+        }
         if c == "k" {
             name.push_str(&self.reader.borrow_mut().get());
-        } else if c == "s" && Regex::new("^s(c[^sr][^i][^p]|g|i[^mlg]|I|r[^e])")
-            .unwrap()
-            .is_match(&self.reader.borrow().peekn(5))
-        {
+        } else if c == "s" && SUB_RE.is_match(&self.reader.borrow().peekn(5)) {
             self.reader.borrow_mut().get();
             name.push_str("substitute");
         } else if ["@", "*", "!", "=", ">", "<", "&", "~", "#"].contains(&c.as_str()) {
@@ -1525,10 +1529,7 @@ impl Parser {
         } else {
             let pos = self.reader.borrow().tell();
             name.push_str(&self.reader.borrow_mut().read_alpha());
-            if name != "del" && Regex::new("^d(elete|elet|ele|el|e)[lp]$")
-                .unwrap()
-                .is_match(&name)
-            {
+            if name != "del" && DEL_RE.is_match(&name) {
                 self.reader.borrow_mut().seek_set(pos);
                 name = self.reader.borrow_mut().getn(name.len() - 1);
             }
