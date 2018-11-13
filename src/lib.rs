@@ -13,7 +13,7 @@ mod parser;
 mod reader;
 mod token;
 
-#[derive(Debug, PartialEq, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
 pub struct Position {
     cursor: usize,
     line: usize,

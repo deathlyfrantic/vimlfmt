@@ -1,9 +1,10 @@
 use super::{isdigit, iswhite, iswordc, iswordc1, isxdigit, ParseError, Position};
 use reader::Reader;
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::rc::Rc;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum TokenKind {
     AndAnd,
     Arrow,
@@ -74,7 +75,7 @@ pub enum TokenKind {
     Star,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Token {
     pub kind: TokenKind,
     pub value: String,
@@ -94,12 +95,15 @@ impl Token {
 #[derive(Debug)]
 pub struct Tokenizer {
     reader: Rc<RefCell<Reader>>,
-    // TODO: add cache here
+    cache: HashMap<Position, (Token, Position)>,
 }
 
 impl Tokenizer {
     pub fn new(reader: Rc<RefCell<Reader>>) -> Tokenizer {
-        Tokenizer { reader: reader }
+        Tokenizer {
+            reader: reader,
+            cache: HashMap::new(),
+        }
     }
 
     pub fn peek(&mut self) -> Result<Token, ParseError> {
@@ -110,8 +114,21 @@ impl Tokenizer {
     }
 
     pub fn get(&mut self) -> Result<Token, ParseError> {
+        let pos = self.reader.borrow().getpos();
+        if self.cache.contains_key(&pos) {
+            let (token, new_pos) = self.cache.get(&pos).unwrap();
+            self.reader.borrow_mut().setpos(*new_pos);
+            let token = token.clone();
+            return Ok(token);
+        }
         self.reader.borrow_mut().skip_white();
-        self._get()
+        let token = self._get();
+        if token.is_ok() {
+            let cloned = token.as_ref().unwrap().clone();
+            self.cache
+                .insert(pos, (cloned, self.reader.borrow().getpos()));
+        }
+        token
     }
 
     fn _get(&mut self) -> Result<Token, ParseError> {
