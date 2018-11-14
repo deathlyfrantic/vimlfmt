@@ -693,7 +693,7 @@ impl Parser {
             && self.context[0].borrow().kind != NodeKind::ElseIf
         {
             return Err(ParseError {
-                msg: "E581: :elseif without :if".to_string(),
+                msg: "E582: :elseif without :if".to_string(),
                 pos: ea.cmdpos,
             });
         }
