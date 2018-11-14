@@ -40,6 +40,11 @@ impl Parser {
         }
     }
 
+    fn current_context(&self) -> &Rc<RefCell<Node>> {
+        self.ensure_context();
+        &self.context[0]
+    }
+
     fn push_context(&mut self, node: Rc<RefCell<Node>>) {
         self.context.insert(0, node)
     }
@@ -64,7 +69,7 @@ impl Parser {
     }
 
     fn check_missing_endfunction(&self, end: &str, pos: Position) -> Result<(), ParseError> {
-        if self.context[0].borrow().kind == NodeKind::Function {
+        if self.current_context().borrow().kind == NodeKind::Function {
             return Err(ParseError {
                 msg: format!("E126: Missing :endfunction:    {}", end),
                 pos: pos,
@@ -74,7 +79,8 @@ impl Parser {
     }
 
     fn check_missing_endif(&self, end: &str, pos: Position) -> Result<(), ParseError> {
-        if [NodeKind::If, NodeKind::ElseIf, NodeKind::Else].contains(&self.context[0].borrow().kind)
+        if [NodeKind::If, NodeKind::ElseIf, NodeKind::Else]
+            .contains(&self.current_context().borrow().kind)
         {
             return Err(ParseError {
                 msg: format!("E126: Missing :endif:    {}", end),
@@ -86,7 +92,7 @@ impl Parser {
 
     fn check_missing_endtry(&self, end: &str, pos: Position) -> Result<(), ParseError> {
         if [NodeKind::Try, NodeKind::Catch, NodeKind::Finally]
-            .contains(&self.context[0].borrow().kind)
+            .contains(&self.current_context().borrow().kind)
         {
             return Err(ParseError {
                 msg: format!("E126: Missing :endtry:    {}", end),
@@ -97,7 +103,7 @@ impl Parser {
     }
 
     fn check_missing_endwhile(&self, end: &str, pos: Position) -> Result<(), ParseError> {
-        if self.context[0].borrow().kind == NodeKind::While {
+        if self.current_context().borrow().kind == NodeKind::While {
             return Err(ParseError {
                 msg: format!("E126: Missing :endwhile:    {}", end),
                 pos: pos,
@@ -107,7 +113,7 @@ impl Parser {
     }
 
     fn check_missing_endfor(&self, end: &str, pos: Position) -> Result<(), ParseError> {
-        if self.context[0].borrow().kind == NodeKind::For {
+        if self.current_context().borrow().kind == NodeKind::For {
             return Err(ParseError {
                 msg: format!("E126: Missing :endfor:    {}", end),
                 pos: pos,
@@ -569,20 +575,20 @@ impl Parser {
     }
 
     fn parse_cmd_catch(&mut self, ea: ExArg) -> Result<(), ParseError> {
-        if self.context[0].borrow().kind == NodeKind::Finally {
+        if self.current_context().borrow().kind == NodeKind::Finally {
             return Err(ParseError {
                 msg: "E604: :catch after :finally".to_string(),
                 pos: ea.cmdpos,
             });
-        } else if self.context[0].borrow().kind != NodeKind::Try
-            && self.context[0].borrow().kind != NodeKind::Catch
+        } else if self.current_context().borrow().kind != NodeKind::Try
+            && self.current_context().borrow().kind != NodeKind::Catch
         {
             return Err(ParseError {
                 msg: "E604: :catch without :try".to_string(),
                 pos: ea.cmdpos,
             });
         }
-        if self.context[0].borrow().kind != NodeKind::Try {
+        if self.current_context().borrow().kind != NodeKind::Try {
             self.pop_context();
         }
         let mut node = Node::new(NodeKind::Catch);
@@ -594,7 +600,10 @@ impl Parser {
             node.pattern = pattern;
         }
         let rc_node = Rc::new(RefCell::new(node));
-        self.context[0].borrow_mut().catch.push(Rc::clone(&rc_node));
+        self.current_context()
+            .borrow_mut()
+            .catch
+            .push(Rc::clone(&rc_node));
         self.push_context(rc_node);
         Ok(())
     }
@@ -668,36 +677,32 @@ impl Parser {
     }
 
     fn parse_cmd_else(&mut self, ea: ExArg) -> Result<(), ParseError> {
-        if self.context[0].borrow().kind != NodeKind::If
-            && self.context[0].borrow().kind != NodeKind::ElseIf
-        {
+        if ![NodeKind::If, NodeKind::ElseIf].contains(&self.current_context().borrow().kind) {
             return Err(ParseError {
                 msg: "E581: :else without :if".to_string(),
                 pos: ea.cmdpos,
             });
         }
-        if self.context[0].borrow().kind != NodeKind::If {
+        if self.current_context().borrow().kind != NodeKind::If {
             self.pop_context();
         }
         let mut node = Node::new(NodeKind::Else);
         node.pos = ea.cmdpos;
         node.ea = Some(ea);
         let rc_node = Rc::new(RefCell::new(node));
-        self.context[0].borrow_mut().else_ = Some(Rc::clone(&rc_node));
+        self.current_context().borrow_mut().else_ = Some(Rc::clone(&rc_node));
         self.push_context(rc_node);
         Ok(())
     }
 
     fn parse_cmd_elseif(&mut self, ea: ExArg) -> Result<(), ParseError> {
-        if self.context[0].borrow().kind != NodeKind::If
-            && self.context[0].borrow().kind != NodeKind::ElseIf
-        {
+        if ![NodeKind::If, NodeKind::ElseIf].contains(&self.current_context().borrow().kind) {
             return Err(ParseError {
                 msg: "E582: :elseif without :if".to_string(),
                 pos: ea.cmdpos,
             });
         }
-        if self.context[0].borrow().kind != NodeKind::If {
+        if self.current_context().borrow().kind != NodeKind::If {
             self.pop_context();
         }
         let mut node = Node::new(NodeKind::ElseIf);
@@ -705,7 +710,7 @@ impl Parser {
         node.ea = Some(ea);
         node.cond = Some(Box::new(self.parse_expr()?));
         let rc_node = Rc::new(RefCell::new(node));
-        self.context[0]
+        self.current_context()
             .borrow_mut()
             .elseif
             .push(Rc::clone(&rc_node));
@@ -714,7 +719,7 @@ impl Parser {
     }
 
     fn parse_cmd_endfor(&mut self, ea: ExArg) -> Result<(), ParseError> {
-        if self.context[0].borrow().kind != NodeKind::For {
+        if self.current_context().borrow().kind != NodeKind::For {
             return Err(ParseError {
                 msg: "E588: :endfor without :for".to_string(),
                 pos: ea.cmdpos,
@@ -723,7 +728,7 @@ impl Parser {
         let mut node = Node::new(NodeKind::EndFor);
         node.pos = ea.cmdpos;
         node.ea = Some(ea);
-        self.context[0].borrow_mut().end = Some(Box::new(node));
+        self.current_context().borrow_mut().end = Some(Box::new(node));
         self.pop_context();
         Ok(())
     }
@@ -733,7 +738,7 @@ impl Parser {
         self.check_missing_endtry("ENDFUNCTION", ea.cmdpos)?;
         self.check_missing_endwhile("ENDFUNCTION", ea.cmdpos)?;
         self.check_missing_endfor("ENDFUNCTION", ea.cmdpos)?;
-        if self.context[0].borrow().kind != NodeKind::Function {
+        if self.current_context().borrow().kind != NodeKind::Function {
             return Err(ParseError {
                 msg: "E193: :endfunction not inside a function".to_string(),
                 pos: ea.cmdpos,
@@ -743,53 +748,53 @@ impl Parser {
         let mut node = Node::new(NodeKind::EndFunction);
         node.pos = ea.cmdpos;
         node.ea = Some(ea);
-        self.context[0].borrow_mut().end = Some(Box::new(node));
+        self.current_context().borrow_mut().end = Some(Box::new(node));
         self.pop_context();
         Ok(())
     }
 
     fn parse_cmd_endif(&mut self, ea: ExArg) -> Result<(), ParseError> {
         if ![NodeKind::If, NodeKind::ElseIf, NodeKind::Else]
-            .contains(&self.context[0].borrow().kind)
+            .contains(&self.current_context().borrow().kind)
         {
             return Err(ParseError {
                 msg: "E580: :endif without :if".to_string(),
                 pos: ea.cmdpos,
             });
         }
-        if self.context[0].borrow().kind != NodeKind::If {
+        if self.current_context().borrow().kind != NodeKind::If {
             self.pop_context();
         }
         let mut node = Node::new(NodeKind::EndIf);
         node.pos = ea.cmdpos;
         node.ea = Some(ea);
-        self.context[0].borrow_mut().end = Some(Box::new(node));
+        self.current_context().borrow_mut().end = Some(Box::new(node));
         self.pop_context();
         Ok(())
     }
 
     fn parse_cmd_endtry(&mut self, ea: ExArg) -> Result<(), ParseError> {
         if ![NodeKind::Try, NodeKind::Catch, NodeKind::Finally]
-            .contains(&self.context[0].borrow().kind)
+            .contains(&self.current_context().borrow().kind)
         {
             return Err(ParseError {
                 msg: "E580: :endtry without :try".to_string(),
                 pos: ea.cmdpos,
             });
         }
-        if self.context[0].borrow().kind != NodeKind::Try {
+        if self.current_context().borrow().kind != NodeKind::Try {
             self.pop_context();
         }
         let mut node = Node::new(NodeKind::EndTry);
         node.pos = ea.cmdpos;
         node.ea = Some(ea);
-        self.context[0].borrow_mut().end = Some(Box::new(node));
+        self.current_context().borrow_mut().end = Some(Box::new(node));
         self.pop_context();
         Ok(())
     }
 
     fn parse_cmd_endwhile(&mut self, ea: ExArg) -> Result<(), ParseError> {
-        if self.context[0].borrow().kind != NodeKind::While {
+        if self.current_context().borrow().kind != NodeKind::While {
             return Err(ParseError {
                 msg: "E588: :endwhile without :while".to_string(),
                 pos: ea.cmdpos,
@@ -798,33 +803,33 @@ impl Parser {
         let mut node = Node::new(NodeKind::EndWhile);
         node.pos = ea.cmdpos;
         node.ea = Some(ea);
-        self.context[0].borrow_mut().end = Some(Box::new(node));
+        self.current_context().borrow_mut().end = Some(Box::new(node));
         self.pop_context();
         Ok(())
     }
 
     fn parse_cmd_finally(&mut self, ea: ExArg) -> Result<(), ParseError> {
-        if ![NodeKind::Try, NodeKind::Catch].contains(&self.context[0].borrow().kind) {
+        if ![NodeKind::Try, NodeKind::Catch].contains(&self.current_context().borrow().kind) {
             return Err(ParseError {
                 msg: "E606: :finally without :try".to_string(),
                 pos: ea.cmdpos,
             });
         }
-        if self.context[0].borrow().kind != NodeKind::Try {
+        if self.current_context().borrow().kind != NodeKind::Try {
             self.pop_context();
         }
         let mut node = Node::new(NodeKind::Finally);
         node.pos = ea.cmdpos;
         node.ea = Some(ea);
         let rc_node = Rc::new(RefCell::new(node));
-        self.context[0].borrow_mut().finally = Some(Rc::clone(&rc_node));
+        self.current_context().borrow_mut().finally = Some(Rc::clone(&rc_node));
         self.push_context(rc_node);
         Ok(())
     }
 
     fn parse_cmd_finish(&mut self, ea: ExArg) -> Result<(), ParseError> {
         let rv = self.parse_cmd_common(ea);
-        if self.context[0].borrow().kind == NodeKind::TopLevel {
+        if self.current_context().borrow().kind == NodeKind::TopLevel {
             self.reader.borrow_mut().seek_end();
         }
         rv
