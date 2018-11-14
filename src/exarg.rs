@@ -27,7 +27,7 @@ impl ExArg {
                 name: "Dummy".to_string(),
                 minlen: 0,
                 flags: vec![],
-                parser: ParserKind::Usercmd,
+                parser: ParserKind::UserCmd,
             }),
             modifiers: vec![],
             range: vec![],

@@ -419,7 +419,7 @@ impl Parser {
         }
         if !ea.cmd.flags.contains(&Flag::Bang)
             && ea.force_it
-            && !ea.cmd.flags.contains(&Flag::Usercmd)
+            && !ea.cmd.flags.contains(&Flag::UserCmd)
         {
             return Err(ParseError {
                 msg: "E477: No ! allowed".to_string(),
@@ -430,7 +430,7 @@ impl Parser {
             self.reader.borrow_mut().skip_white();
         }
         ea.argpos = self.reader.borrow().getpos();
-        if ea.cmd.flags.contains(&Flag::Argopt) {
+        if ea.cmd.flags.contains(&Flag::ArgOpt) {
             self.parse_argopt()?;
         }
         if ea.cmd.name == "write" || ea.cmd.name == "update" {
@@ -460,7 +460,7 @@ impl Parser {
             }
             self.reader.borrow_mut().skip_white();
         }
-        if ea.cmd.flags.contains(&Flag::Editcmd) && !ea.use_filter {
+        if ea.cmd.flags.contains(&Flag::EditCmd) && !ea.use_filter {
             self.parse_argcmd();
         }
         self._parse_command(ea)
@@ -472,21 +472,21 @@ impl Parser {
             ParserKind::Break => self.parse_cmd_break(ea),
             ParserKind::Call => self.parse_cmd_call(ea),
             ParserKind::Catch => self.parse_cmd_catch(ea),
-            ParserKind::Common | ParserKind::Usercmd => self.parse_cmd_common(ea),
+            ParserKind::Common | ParserKind::UserCmd => self.parse_cmd_common(ea),
             ParserKind::Continue => self.parse_cmd_continue(ea),
-            ParserKind::Delfunction => self.parse_cmd_delfunction(ea),
+            ParserKind::DelFunction => self.parse_cmd_delfunction(ea),
             ParserKind::Echo => self.parse_cmd_with_exprlist(ea, NodeKind::Echo),
-            ParserKind::Echoerr => self.parse_cmd_with_exprlist(ea, NodeKind::EchoErr),
-            ParserKind::Echohl => self.parse_cmd_echohl(ea),
-            ParserKind::Echomsg => self.parse_cmd_with_exprlist(ea, NodeKind::EchoMsg),
-            ParserKind::Echon => self.parse_cmd_with_exprlist(ea, NodeKind::EchoN),
+            ParserKind::EchoErr => self.parse_cmd_with_exprlist(ea, NodeKind::EchoErr),
+            ParserKind::EchoHl => self.parse_cmd_echohl(ea),
+            ParserKind::EchoMsg => self.parse_cmd_with_exprlist(ea, NodeKind::EchoMsg),
+            ParserKind::EchoN => self.parse_cmd_with_exprlist(ea, NodeKind::EchoN),
             ParserKind::Else => self.parse_cmd_else(ea),
-            ParserKind::Elseif => self.parse_cmd_elseif(ea),
-            ParserKind::Endfor => self.parse_cmd_endfor(ea),
-            ParserKind::Endfunction => self.parse_cmd_endfunction(ea),
-            ParserKind::Endif => self.parse_cmd_endif(ea),
-            ParserKind::Endtry => self.parse_cmd_endtry(ea),
-            ParserKind::Endwhile => self.parse_cmd_endwhile(ea),
+            ParserKind::ElseIf => self.parse_cmd_elseif(ea),
+            ParserKind::EndFor => self.parse_cmd_endfor(ea),
+            ParserKind::EndFunction => self.parse_cmd_endfunction(ea),
+            ParserKind::EndIf => self.parse_cmd_endif(ea),
+            ParserKind::EndTry => self.parse_cmd_endtry(ea),
+            ParserKind::EndWhile => self.parse_cmd_endwhile(ea),
             ParserKind::Execute => self.parse_cmd_with_exprlist(ea, NodeKind::Execute),
             ParserKind::Finally => self.parse_cmd_finally(ea),
             ParserKind::Finish => self.parse_cmd_finish(ea),
@@ -494,17 +494,17 @@ impl Parser {
             ParserKind::Function => self.parse_cmd_function(ea),
             ParserKind::If => self.parse_cmd_if(ea),
             ParserKind::Let => self.parse_cmd_let(ea),
-            ParserKind::Loadkeymap => self.parse_cmd_loadkeymap(ea),
-            ParserKind::Lockvar => self.parse_cmd_lockvar(ea),
+            ParserKind::LoadKeymap => self.parse_cmd_loadkeymap(ea),
+            ParserKind::LockVar => self.parse_cmd_lockvar(ea),
             ParserKind::Lang => self.parse_cmd_lang(ea),
             ParserKind::Return => self.parse_cmd_return(ea),
             ParserKind::Syntax => self.parse_cmd_syntax(ea),
             ParserKind::Throw => self.parse_cmd_throw(ea),
             ParserKind::Try => self.parse_cmd_try(ea),
             ParserKind::Unlet => self.parse_cmd_unlet(ea),
-            ParserKind::Unlockvar => self.parse_cmd_unlockvar(ea),
+            ParserKind::UnlockVar => self.parse_cmd_unlockvar(ea),
             ParserKind::While => self.parse_cmd_while(ea),
-            ParserKind::Wincmd => self.parse_cmd_wincmd(ea),
+            ParserKind::WinCmd => self.parse_cmd_wincmd(ea),
         }
     }
 
@@ -593,7 +593,7 @@ impl Parser {
 
     fn parse_cmd_common(&mut self, ea: ExArg) -> Result<(), ParseError> {
         let mut end;
-        if ea.cmd.flags.contains(&Flag::Trlbar) && !ea.use_filter {
+        if ea.cmd.flags.contains(&Flag::TrlBar) && !ea.use_filter {
             end = self.separate_nextcmd(&ea)?;
         } else {
             loop {
@@ -1400,14 +1400,14 @@ impl Parser {
                 }
                 self.reader.borrow_mut().getn(1);
             } else if ["|", "\n", "\""].contains(&c.as_str())
-                && !ea.cmd.flags.contains(&Flag::Notrlcom)
+                && !ea.cmd.flags.contains(&Flag::NoTrlCom)
                 && (ea.cmd.name != "@" && ea.cmd.name != "*"
                     || self.reader.borrow().getpos() != ea.argpos)
                 && (ea.cmd.name != "redir"
                     || self.reader.borrow().getpos().cursor != ea.argpos.cursor + 1
                     || pc != "@")
             {
-                if !ea.cmd.flags.contains(&Flag::Usectrlv) && pc == "\\" {
+                if !ea.cmd.flags.contains(&Flag::UseCtrlV) && pc == "\\" {
                     self.reader.borrow_mut().get();
                 } else {
                     break;
@@ -1417,7 +1417,7 @@ impl Parser {
             }
             pc = c
         }
-        if !ea.cmd.flags.contains(&Flag::Notrlcom) {
+        if !ea.cmd.flags.contains(&Flag::NoTrlCom) {
             end = nospend;
         }
         Ok(end)
@@ -1545,8 +1545,8 @@ impl Parser {
             let cmd = Rc::new(Command {
                 name: name.clone(),
                 minlen: 0,
-                flags: vec![Flag::Usercmd],
-                parser: ParserKind::Usercmd,
+                flags: vec![Flag::UserCmd],
+                parser: ParserKind::UserCmd,
             });
             self.commands.insert(name, Rc::clone(&cmd));
             Some(cmd)
