@@ -1,6 +1,7 @@
 use super::Position;
 use command::{Command, ParserKind};
 use modifier::Modifier;
+use std::rc::Rc;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct ExArg {
@@ -9,7 +10,7 @@ pub struct ExArg {
     pub linepos: Position,
     pub cmdpos: Position,
     pub argpos: Position,
-    pub cmd: Command,
+    pub cmd: Rc<Command>,
     pub modifiers: Vec<Modifier>,
     pub range: Vec<String>,
 }
@@ -22,12 +23,12 @@ impl ExArg {
             linepos: Position::empty(),
             cmdpos: Position::empty(),
             argpos: Position::empty(),
-            cmd: Command {
+            cmd: Rc::new(Command {
                 name: "Dummy".to_string(),
                 minlen: 0,
                 flags: vec![],
                 parser: ParserKind::Usercmd,
-            },
+            }),
             modifiers: vec![],
             range: vec![],
         }

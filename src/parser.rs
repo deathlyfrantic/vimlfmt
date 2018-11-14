@@ -6,6 +6,7 @@ use node::{Node, NodeKind, NodeParser};
 use reader::Reader;
 use regex::Regex;
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::rc::Rc;
 use token::{TokenKind, Tokenizer};
 
@@ -17,7 +18,7 @@ fn ends_excmds(s: &str) -> bool {
 pub struct Parser {
     reader: Rc<RefCell<Reader>>,
     context: Vec<Rc<RefCell<Node>>>,
-    commands: Vec<Command>,
+    commands: HashMap<String, Rc<Command>>,
 }
 
 impl Parser {
@@ -1510,7 +1511,7 @@ impl Parser {
         Ok(())
     }
 
-    fn find_command(&mut self) -> Option<Command> {
+    fn find_command(&mut self) -> Option<Rc<Command>> {
         let c = self.reader.borrow().peek();
         let mut name = "".to_string();
         lazy_static! {
@@ -1537,24 +1538,21 @@ impl Parser {
         if name == "" {
             return None;
         }
-        // TODO: add command cache here?
-        let mut cmd: Option<Command> = None;
-        for command in self.commands.iter() {
-            if command.name.starts_with(&name) && name.len() >= command.minlen {
-                cmd = Some(command.clone());
-                break;
-            }
-        }
-        if cmd.is_none() && name.starts_with(|c: char| c.is_uppercase()) {
+        if self.commands.contains_key(&name) {
+            Some(Rc::clone(self.commands.get(&name).unwrap()))
+        } else if name.starts_with(|c: char| c.is_uppercase()) {
             name.push_str(&self.reader.borrow_mut().read_alnum());
-            cmd = Some(Command {
-                name: name,
+            let cmd = Rc::new(Command {
+                name: name.clone(),
                 minlen: 0,
                 flags: vec![Flag::Usercmd],
                 parser: ParserKind::Usercmd,
-            })
+            });
+            self.commands.insert(name, Rc::clone(&cmd));
+            Some(cmd)
+        } else {
+            None
         }
-        cmd
     }
 
     fn parse_cmd_modifier_range(&mut self, ea: ExArg) {

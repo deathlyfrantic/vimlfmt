@@ -1,3 +1,6 @@
+use std::collections::HashMap;
+use std::rc::Rc;
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum Flag {
     Argopt,
@@ -5333,14 +5336,26 @@ fn vim_only() -> Vec<Command> {
     ]
 }
 
-pub fn vim_commands() -> Vec<Command> {
-    let mut commands = common();
-    commands.extend(vim_only());
-    commands
+fn command_hashmap(commands: Vec<Command>) -> HashMap<String, Rc<Command>> {
+    let mut map = HashMap::new();
+    for cmd in commands {
+        let cmd = Rc::new(cmd);
+        for i in cmd.minlen..=cmd.name.len() {
+            let key = cmd.name.get(0..i).unwrap().to_string();
+            map.insert(key, Rc::clone(&cmd));
+        }
+    }
+    map
 }
 
-pub fn neovim_commands() -> Vec<Command> {
+pub fn vim_commands() -> HashMap<String, Rc<Command>> {
+    let mut commands = common();
+    commands.extend(vim_only());
+    command_hashmap(commands)
+}
+
+pub fn neovim_commands() -> HashMap<String, Rc<Command>> {
     let mut commands = common();
     commands.extend(neovim_only());
-    commands
+    command_hashmap(commands)
 }
