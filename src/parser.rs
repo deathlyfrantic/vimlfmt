@@ -34,11 +34,18 @@ impl Parser {
         }
     }
 
+    fn ensure_context(&self) {
+        if self.context.len() == 0 {
+            panic!("no context found");
+        }
+    }
+
     fn push_context(&mut self, node: Rc<RefCell<Node>>) {
         self.context.insert(0, node)
     }
 
     fn pop_context(&mut self) -> Rc<RefCell<Node>> {
+        self.ensure_context();
         self.context.remove(0)
     }
 
@@ -52,6 +59,7 @@ impl Parser {
     }
 
     fn add_node(&mut self, node: Rc<RefCell<Node>>) {
+        self.ensure_context();
         self.context[0].borrow_mut().body.push(node);
     }
 
