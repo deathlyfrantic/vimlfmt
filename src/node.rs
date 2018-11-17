@@ -11,6 +11,7 @@ const MAX_FUNC_ARGS: usize = 20;
 pub enum NodeKind {
     Add,
     And,
+    BinOp,
     Break,
     Call,
     Catch,
@@ -38,44 +39,20 @@ pub enum NodeKind {
     EndWhile,
     EndIf,
     Env,
-    Equal,
-    EqualCI,
-    EqualCS,
     ExCall,
     ExCmd,
     Execute,
     Finally,
     For,
     Function,
-    GEqual,
-    GEqualCI,
-    GEqualCS,
-    Greater,
-    GreaterCI,
-    GreaterCS,
     Identifier,
     If,
-    Is,
-    IsCI,
-    IsCS,
-    IsNot,
-    IsNotCI,
-    IsNotCS,
     Lambda,
     Let,
     List,
     LockVar,
-    Match,
-    MatchCI,
-    MatchCS,
     Minus,
     Multiply,
-    NotEqual,
-    NotEqualCI,
-    NotEqualCS,
-    NoMatch,
-    NoMatchCI,
-    NoMatchCS,
     Not,
     Number,
     Option,
@@ -84,14 +61,8 @@ pub enum NodeKind {
     Reg,
     Remainder,
     Return,
-    SEqual,
-    SEqualCI,
-    SEqualCS,
     Shebang,
     Slice,
-    Smaller,
-    SmallerCI,
-    SmallerCS,
     String,
     Subscript,
     Subtract,
@@ -217,6 +188,7 @@ impl fmt::Display for Node {
             match self.kind {
                 NodeKind::Add => display_lr("+", self),
                 NodeKind::And => display_lr("&&", self),
+                NodeKind::BinOp => display_lr(&self.op, self),
                 NodeKind::Break => "(break)".to_string(),
                 NodeKind::Call => {
                     let left = match self.left {
@@ -285,9 +257,6 @@ impl fmt::Display for Node {
                 NodeKind::EchoHl => format!("(echohl \"{}\")", escape(&self.string)),
                 NodeKind::EchoMsg => display_with_list("echomsg", self),
                 NodeKind::EchoN => display_with_list("echon", self),
-                NodeKind::Equal => display_lr("==", self),
-                NodeKind::EqualCI => display_lr("==?", self),
-                NodeKind::EqualCS => display_lr("==#", self),
                 NodeKind::ExCall => {
                     let left = match self.left {
                         Some(ref b) => format!("{}", *b),
@@ -358,12 +327,6 @@ impl fmt::Display for Node {
                     rv.push_str(")");
                     rv
                 }
-                NodeKind::GEqual => display_lr(">=", self),
-                NodeKind::GEqualCI => display_lr(">=?", self),
-                NodeKind::GEqualCS => display_lr(">=#", self),
-                NodeKind::Greater => display_lr(">", self),
-                NodeKind::GreaterCI => display_lr(">?", self),
-                NodeKind::GreaterCS => display_lr(">#", self),
                 NodeKind::If => {
                     let cond = match self.cond {
                         Some(ref b) => format!("{}", *b),
@@ -398,12 +361,6 @@ impl fmt::Display for Node {
                     rv.push_str(")");
                     rv
                 }
-                NodeKind::Is => display_lr("is", self),
-                NodeKind::IsCI => display_lr("is?", self),
-                NodeKind::IsCS => display_lr("is#", self),
-                NodeKind::IsNot => display_lr("isnot", self),
-                NodeKind::IsNotCI => display_lr("isnot?", self),
-                NodeKind::IsNotCS => display_lr("isnot#", self),
                 NodeKind::Lambda => {
                     let left = match self.left {
                         Some(ref b) => format!("{}", *b),
@@ -463,17 +420,8 @@ impl fmt::Display for Node {
                         display_with_list("lockvar", self)
                     }
                 }
-                NodeKind::Match => display_lr("=~", self),
-                NodeKind::MatchCI => display_lr("=~?", self),
-                NodeKind::MatchCS => display_lr("=~#", self),
                 NodeKind::Minus => display_left("-", self),
                 NodeKind::Multiply => display_lr("*", self),
-                NodeKind::NotEqual => display_lr("!=", self),
-                NodeKind::NotEqualCI => display_lr("!=?", self),
-                NodeKind::NotEqualCS => display_lr("!=#", self),
-                NodeKind::NoMatch => display_lr("!~", self),
-                NodeKind::NoMatchCI => display_lr("!~?", self),
-                NodeKind::NoMatchCS => display_lr("!~#", self),
                 NodeKind::Not => display_left("!", self),
                 NodeKind::Or => display_lr("||", self),
                 NodeKind::Plus => display_left("+", self),
@@ -485,9 +433,6 @@ impl fmt::Display for Node {
                         "(return)".to_string()
                     }
                 }
-                NodeKind::SEqual => display_lr("<=", self),
-                NodeKind::SEqualCI => display_lr("<=?", self),
-                NodeKind::SEqualCS => display_lr("<=#", self),
                 NodeKind::Shebang => format!("(#! \"{}\")", escape(&self.string)),
                 NodeKind::Slice => {
                     let r0 = match self.rlist[0].kind {
@@ -504,9 +449,6 @@ impl fmt::Display for Node {
                     };
                     format!("(slice {} {} {})", left, r0, r1)
                 }
-                NodeKind::Smaller => display_lr("<", self),
-                NodeKind::SmallerCI => display_lr("<?", self),
-                NodeKind::SmallerCS => display_lr("<#", self),
                 NodeKind::Subscript => display_lr("subscript", self),
                 NodeKind::Subtract => display_lr("-", self),
                 NodeKind::Ternary => {
@@ -674,45 +616,45 @@ impl NodeParser {
         let mut left = self.parse_expr5()?;
         let pos = self.reader.borrow().tell();
         let token = self.tokenizer.get()?;
-        let mut node = Node::new(NodeKind::Dummy);
+        let mut node = Node::new(NodeKind::BinOp);
         node.pos = token.pos;
         node.left = Some(Box::new(left.clone()));
-        node.kind = match token.kind {
-            TokenKind::EqEq => NodeKind::Equal,
-            TokenKind::EqEqCI => NodeKind::EqualCI,
-            TokenKind::EqEqCS => NodeKind::EqualCS,
-            TokenKind::NotEq => NodeKind::NotEqual,
-            TokenKind::NotEqCI => NodeKind::NotEqualCI,
-            TokenKind::NotEqCS => NodeKind::NotEqualCS,
-            TokenKind::GT => NodeKind::Greater,
-            TokenKind::GTCI => NodeKind::GreaterCI,
-            TokenKind::GTCS => NodeKind::GreaterCS,
-            TokenKind::GTEq => NodeKind::GEqual,
-            TokenKind::GTEqCI => NodeKind::GEqualCI,
-            TokenKind::GTEqCS => NodeKind::GEqualCS,
-            TokenKind::LT => NodeKind::Smaller,
-            TokenKind::LTCI => NodeKind::SmallerCI,
-            TokenKind::LTCS => NodeKind::SmallerCS,
-            TokenKind::LTEq => NodeKind::SEqual,
-            TokenKind::LTEqCI => NodeKind::SEqualCI,
-            TokenKind::LTEqCS => NodeKind::SEqualCS,
-            TokenKind::Match => NodeKind::Match,
-            TokenKind::MatchCI => NodeKind::MatchCI,
-            TokenKind::MatchCS => NodeKind::MatchCS,
-            TokenKind::NoMatch => NodeKind::NoMatch,
-            TokenKind::NoMatchCI => NodeKind::NoMatchCI,
-            TokenKind::NoMatchCS => NodeKind::NoMatchCS,
-            TokenKind::Is => NodeKind::Is,
-            TokenKind::IsCI => NodeKind::IsCI,
-            TokenKind::IsCS => NodeKind::IsCS,
-            TokenKind::IsNot => NodeKind::IsNot,
-            TokenKind::IsNotCI => NodeKind::IsNotCI,
-            TokenKind::IsNotCS => NodeKind::IsNotCS,
+        node.op = match token.kind {
+            TokenKind::EqEq => "==",
+            TokenKind::EqEqCI => "==?",
+            TokenKind::EqEqCS => "==#",
+            TokenKind::NotEq => "!=",
+            TokenKind::NotEqCI => "!=?",
+            TokenKind::NotEqCS => "!=#",
+            TokenKind::GT => ">",
+            TokenKind::GTCI => ">?",
+            TokenKind::GTCS => ">#",
+            TokenKind::GTEq => ">=",
+            TokenKind::GTEqCI => ">=?",
+            TokenKind::GTEqCS => ">=#",
+            TokenKind::LT => "<",
+            TokenKind::LTCI => "<?",
+            TokenKind::LTCS => "<#",
+            TokenKind::LTEq => "<=",
+            TokenKind::LTEqCI => "<=?",
+            TokenKind::LTEqCS => "<=#",
+            TokenKind::Match => "=~",
+            TokenKind::MatchCI => "=~?",
+            TokenKind::MatchCS => "=~#",
+            TokenKind::NoMatch => "!~",
+            TokenKind::NoMatchCI => "!~?",
+            TokenKind::NoMatchCS => "!~#",
+            TokenKind::Is => "is",
+            TokenKind::IsCI => "is?",
+            TokenKind::IsCS => "is#",
+            TokenKind::IsNot => "isnot",
+            TokenKind::IsNotCI => "isnot?",
+            TokenKind::IsNotCS => "isnot#",
             _ => {
                 self.reader.borrow_mut().seek_set(pos);
                 return Ok(left);
             }
-        };
+        }.to_string();
         node.right = Some(Box::new(self.parse_expr5()?));
         if node.kind != NodeKind::Dummy {
             left = node;
