@@ -13,6 +13,18 @@ mod parser;
 mod reader;
 mod token;
 
+pub fn parse_lines(lines: Vec<&str>, neovim: bool) -> Result<node::Node, ParseError> {
+    let reader = reader::Reader::from_lines(lines);
+    let mut parser = parser::Parser::new(reader, neovim);
+    parser.parse()
+}
+
+pub fn parse_file(path: &str, neovim: bool) -> Result<node::Node, ParseError> {
+    let reader = reader::Reader::from_file(path)?;
+    let mut parser = parser::Parser::new(reader, neovim);
+    parser.parse()
+}
+
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
 pub struct Position {
     cursor: usize,
