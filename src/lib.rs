@@ -66,6 +66,15 @@ impl fmt::Display for ParseError {
     }
 }
 
+impl From<std::io::Error> for ParseError {
+    fn from(err: std::io::Error) -> Self {
+        ParseError {
+            msg: format!("{}", err),
+            pos: Position::empty(),
+        }
+    }
+}
+
 fn str_is<F>(s: &str, func: F) -> bool
 where
     F: Fn(char) -> bool,
