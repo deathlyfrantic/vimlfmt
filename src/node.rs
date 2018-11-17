@@ -677,97 +677,37 @@ impl NodeParser {
         let mut node = Node::new(NodeKind::Dummy);
         node.pos = token.pos;
         node.left = Some(Box::new(left.clone()));
-        match token.kind {
-            TokenKind::EqEq => {
-                node.kind = NodeKind::Equal;
-            }
-            TokenKind::EqEqCI => {
-                node.kind = NodeKind::EqualCI;
-            }
-            TokenKind::EqEqCS => {
-                node.kind = NodeKind::EqualCS;
-            }
-            TokenKind::NotEq => {
-                node.kind = NodeKind::NotEqual;
-            }
-            TokenKind::NotEqCI => {
-                node.kind = NodeKind::NotEqualCI;
-            }
-            TokenKind::NotEqCS => {
-                node.kind = NodeKind::NotEqualCS;
-            }
-            TokenKind::GT => {
-                node.kind = NodeKind::Greater;
-            }
-            TokenKind::GTCI => {
-                node.kind = NodeKind::GreaterCI;
-            }
-            TokenKind::GTCS => {
-                node.kind = NodeKind::GreaterCS;
-            }
-            TokenKind::GTEq => {
-                node.kind = NodeKind::GEqual;
-            }
-            TokenKind::GTEqCI => {
-                node.kind = NodeKind::GEqualCI;
-            }
-            TokenKind::GTEqCS => {
-                node.kind = NodeKind::GEqualCS;
-            }
-            TokenKind::LT => {
-                node.kind = NodeKind::Smaller;
-            }
-            TokenKind::LTCI => {
-                node.kind = NodeKind::SmallerCI;
-            }
-            TokenKind::LTCS => {
-                node.kind = NodeKind::SmallerCS;
-            }
-            TokenKind::LTEq => {
-                node.kind = NodeKind::SEqual;
-            }
-            TokenKind::LTEqCI => {
-                node.kind = NodeKind::SEqualCI;
-            }
-            TokenKind::LTEqCS => {
-                node.kind = NodeKind::SEqualCS;
-            }
-            TokenKind::Match => {
-                node.kind = NodeKind::Match;
-            }
-            TokenKind::MatchCI => {
-                node.kind = NodeKind::MatchCI;
-            }
-            TokenKind::MatchCS => {
-                node.kind = NodeKind::MatchCS;
-            }
-            TokenKind::NoMatch => {
-                node.kind = NodeKind::NoMatch;
-            }
-            TokenKind::NoMatchCI => {
-                node.kind = NodeKind::NoMatchCI;
-            }
-            TokenKind::NoMatchCS => {
-                node.kind = NodeKind::NoMatchCS;
-            }
-            TokenKind::Is => {
-                node.kind = NodeKind::Is;
-            }
-            TokenKind::IsCI => {
-                node.kind = NodeKind::IsCI;
-            }
-            TokenKind::IsCS => {
-                node.kind = NodeKind::IsCS;
-            }
-            TokenKind::IsNot => {
-                node.kind = NodeKind::IsNot;
-            }
-            TokenKind::IsNotCI => {
-                node.kind = NodeKind::IsNotCI;
-            }
-            TokenKind::IsNotCS => {
-                node.kind = NodeKind::IsNotCS;
-            }
+        node.kind = match token.kind {
+            TokenKind::EqEq => NodeKind::Equal,
+            TokenKind::EqEqCI => NodeKind::EqualCI,
+            TokenKind::EqEqCS => NodeKind::EqualCS,
+            TokenKind::NotEq => NodeKind::NotEqual,
+            TokenKind::NotEqCI => NodeKind::NotEqualCI,
+            TokenKind::NotEqCS => NodeKind::NotEqualCS,
+            TokenKind::GT => NodeKind::Greater,
+            TokenKind::GTCI => NodeKind::GreaterCI,
+            TokenKind::GTCS => NodeKind::GreaterCS,
+            TokenKind::GTEq => NodeKind::GEqual,
+            TokenKind::GTEqCI => NodeKind::GEqualCI,
+            TokenKind::GTEqCS => NodeKind::GEqualCS,
+            TokenKind::LT => NodeKind::Smaller,
+            TokenKind::LTCI => NodeKind::SmallerCI,
+            TokenKind::LTCS => NodeKind::SmallerCS,
+            TokenKind::LTEq => NodeKind::SEqual,
+            TokenKind::LTEqCI => NodeKind::SEqualCI,
+            TokenKind::LTEqCS => NodeKind::SEqualCS,
+            TokenKind::Match => NodeKind::Match,
+            TokenKind::MatchCI => NodeKind::MatchCI,
+            TokenKind::MatchCS => NodeKind::MatchCS,
+            TokenKind::NoMatch => NodeKind::NoMatch,
+            TokenKind::NoMatchCI => NodeKind::NoMatchCI,
+            TokenKind::NoMatchCS => NodeKind::NoMatchCS,
+            TokenKind::Is => NodeKind::Is,
+            TokenKind::IsCI => NodeKind::IsCI,
+            TokenKind::IsCS => NodeKind::IsCS,
+            TokenKind::IsNot => NodeKind::IsNot,
+            TokenKind::IsNotCI => NodeKind::IsNotCI,
+            TokenKind::IsNotCS => NodeKind::IsNotCS,
             _ => {
                 self.reader.borrow_mut().seek_set(pos);
                 return Ok(left);
@@ -787,30 +727,18 @@ impl NodeParser {
             let token = self.tokenizer.get()?;
             let mut node = Node::new(NodeKind::Dummy);
             node.pos = token.pos;
-            match token.kind {
-                TokenKind::Plus => {
-                    node.kind = NodeKind::Add;
-                    node.left = Some(Box::new(left));
-                    node.right = Some(Box::new(self.parse_expr6()?));
-                    left = node;
-                }
-                TokenKind::Minus => {
-                    node.kind = NodeKind::Subtract;
-                    node.left = Some(Box::new(left));
-                    node.right = Some(Box::new(self.parse_expr6()?));
-                    left = node;
-                }
-                TokenKind::Dot => {
-                    node.kind = NodeKind::Concat;
-                    node.left = Some(Box::new(left));
-                    node.right = Some(Box::new(self.parse_expr6()?));
-                    left = node;
-                }
+            node.kind = match token.kind {
+                TokenKind::Plus => NodeKind::Add,
+                TokenKind::Minus => NodeKind::Subtract,
+                TokenKind::Dot => NodeKind::Concat,
                 _ => {
                     self.reader.borrow_mut().seek_set(pos);
                     break;
                 }
             };
+            node.left = Some(Box::new(left));
+            node.right = Some(Box::new(self.parse_expr6()?));
+            left = node;
         }
         Ok(left)
     }
@@ -822,30 +750,18 @@ impl NodeParser {
             let token = self.tokenizer.get()?;
             let mut node = Node::new(NodeKind::Dummy);
             node.pos = token.pos;
-            match token.kind {
-                TokenKind::Star => {
-                    node.kind = NodeKind::Multiply;
-                    node.left = Some(Box::new(left));
-                    node.right = Some(Box::new(self.parse_expr7()?));
-                    left = node;
-                }
-                TokenKind::Slash => {
-                    node.kind = NodeKind::Divide;
-                    node.left = Some(Box::new(left));
-                    node.right = Some(Box::new(self.parse_expr7()?));
-                    left = node;
-                }
-                TokenKind::Percent => {
-                    node.kind = NodeKind::Remainder;
-                    node.left = Some(Box::new(left));
-                    node.right = Some(Box::new(self.parse_expr7()?));
-                    left = node;
-                }
+            node.kind = match token.kind {
+                TokenKind::Star => NodeKind::Multiply,
+                TokenKind::Slash => NodeKind::Divide,
+                TokenKind::Percent => NodeKind::Remainder,
                 _ => {
                     self.reader.borrow_mut().seek_set(pos);
                     break;
                 }
-            }
+            };
+            node.left = Some(Box::new(left));
+            node.right = Some(Box::new(self.parse_expr7()?));
+            left = node;
         }
         Ok(left)
     }
@@ -855,24 +771,16 @@ impl NodeParser {
         let token = self.tokenizer.get()?;
         let mut node = Node::new(NodeKind::Dummy);
         node.pos = token.pos;
-        match token.kind {
-            TokenKind::Not => {
-                node.kind = NodeKind::Not;
-                node.left = Some(Box::new(self.parse_expr7()?));
-            }
-            TokenKind::Minus => {
-                node.kind = NodeKind::Minus;
-                node.left = Some(Box::new(self.parse_expr7()?));
-            }
-            TokenKind::Plus => {
-                node.kind = NodeKind::Plus;
-                node.left = Some(Box::new(self.parse_expr7()?));
-            }
+        node.kind = match token.kind {
+            TokenKind::Not => NodeKind::Not,
+            TokenKind::Minus => NodeKind::Minus,
+            TokenKind::Plus => NodeKind::Plus,
             _ => {
                 self.reader.borrow_mut().seek_set(pos);
-                node = self.parse_expr8()?;
+                return self.parse_expr8();
             }
-        }
+        };
+        node.left = Some(Box::new(self.parse_expr7()?));
         Ok(node)
     }
 
