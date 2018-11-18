@@ -55,7 +55,6 @@ where
     )
 }
 
-
 #[derive(Debug, PartialEq, Clone)]
 pub enum Node {
     Add {
