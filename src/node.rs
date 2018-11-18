@@ -8,6 +8,54 @@ use token::{Token, TokenKind, Tokenizer};
 
 const MAX_FUNC_ARGS: usize = 20;
 
+fn indent(n: usize) -> String {
+    "  ".repeat(n)
+}
+
+fn escape(s: &str) -> String {
+    let mut rv = String::new();
+    for c in s.chars() {
+        if c == '\r' {
+            rv.push_str("\\r");
+        } else {
+            if c == '\\' || c == '"' {
+                rv.push('\\');
+            }
+            rv.push(c);
+        }
+    }
+    rv
+}
+
+fn display_left<T>(name: &str, left: T) -> String
+where
+    T: fmt::Display,
+{
+    format!("({} {})", name, left)
+}
+
+fn display_lr<T>(name: &str, left: T, right: T) -> String
+where
+    T: fmt::Display,
+{
+    format!("({} {} {})", name, left, right)
+}
+
+fn display_with_list<T>(name: &str, list: &Vec<T>) -> String
+where
+    T: fmt::Display,
+{
+    format!(
+        "({} {})",
+        name,
+        list.iter()
+            .map(|n| format!("{}", *n))
+            .collect::<Vec<String>>()
+            .join(" ")
+    )
+}
+
+
 #[derive(Debug, PartialEq, Clone)]
 pub enum Node {
     Add {
@@ -314,53 +362,6 @@ pub enum Node {
         cond: Box<Node>,
         end: Option<Box<Node>>,
     },
-}
-
-fn indent(n: usize) -> String {
-    "  ".repeat(n)
-}
-
-fn escape(s: &str) -> String {
-    let mut rv = String::new();
-    for c in s.chars() {
-        if c == '\r' {
-            rv.push_str("\\r");
-        } else {
-            if c == '\\' || c == '"' {
-                rv.push('\\');
-            }
-            rv.push(c);
-        }
-    }
-    rv
-}
-
-fn display_left<T>(name: &str, left: T) -> String
-where
-    T: fmt::Display,
-{
-    format!("({} {})", name, left)
-}
-
-fn display_lr<T>(name: &str, left: T, right: T) -> String
-where
-    T: fmt::Display,
-{
-    format!("({} {} {})", name, left, right)
-}
-
-fn display_with_list<T>(name: &str, list: &Vec<T>) -> String
-where
-    T: fmt::Display,
-{
-    format!(
-        "({} {})",
-        name,
-        list.iter()
-            .map(|n| format!("{}", *n))
-            .collect::<Vec<String>>()
-            .join(" ")
-    )
 }
 
 impl fmt::Display for Node {
