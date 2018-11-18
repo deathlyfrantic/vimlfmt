@@ -54,34 +54,11 @@ impl Parser {
         self.context.remove(0)
     }
 
-    fn find_context_function(&self) -> bool {
-        self.context.iter().any(|node| {
-            if let Node::Function { .. } = *node.borrow() {
-                true
-            } else {
-                false
-            }
-        })
-    }
-
-    fn find_context_for(&self) -> bool {
-        self.context.iter().any(|node| {
-            if let Node::For { .. } = *node.borrow() {
-                true
-            } else {
-                false
-            }
-        })
-    }
-
-    fn find_context_while(&self) -> bool {
-        self.context.iter().any(|node| {
-            if let Node::While { .. } = *node.borrow() {
-                true
-            } else {
-                false
-            }
-        })
+    fn find_context<T>(&self, func: T) -> bool
+    where
+        T: Fn(&Node) -> bool,
+    {
+        self.context.iter().any(|node| func(&node.borrow()))
     }
 
     fn add_node(&mut self, node: Rc<RefCell<Node>>) {
@@ -583,7 +560,7 @@ impl Parser {
     }
 
     fn parse_cmd_break(&mut self, ea: ExArg) -> Result<(), ParseError> {
-        if !self.find_context_while() && !self.find_context_for() {
+        if !self.find_context(Node::is_while) && !self.find_context(Node::is_for) {
             return self.err("E587: :break without :while or :for");
         }
         let node = Node::Break { pos: ea.cmdpos, ea };
@@ -685,7 +662,7 @@ impl Parser {
     }
 
     fn parse_cmd_continue(&mut self, ea: ExArg) -> Result<(), ParseError> {
-        if !self.find_context_while() && !self.find_context_for() {
+        if !self.find_context(Node::is_while) && !self.find_context(Node::is_for) {
             return Err(ParseError {
                 msg: "E586: :continue without :while or :for".to_string(),
                 pos: ea.cmdpos,
@@ -1177,7 +1154,7 @@ impl Parser {
     }
 
     fn parse_cmd_return(&mut self, ea: ExArg) -> Result<(), ParseError> {
-        if !self.find_context_function() {
+        if !self.find_context(Node::is_function) {
             return Err(ParseError {
                 msg: "E133: :return not inside a function".to_string(),
                 pos: ea.cmdpos,
