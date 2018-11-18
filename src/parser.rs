@@ -540,6 +540,7 @@ impl Parser {
     fn parse_cmd_append(&mut self, ea: ExArg) {
         self.reader.borrow_mut().setpos(ea.linepos);
         let cmdline = self.reader.borrow_mut().get_line();
+        self.reader.borrow_mut().get();
         let mut lines = vec![cmdline];
         loop {
             if self.reader.borrow().peek() == "<EOF>" {
@@ -550,6 +551,7 @@ impl Parser {
             if lines.last().unwrap() == "." {
                 break;
             }
+            self.reader.borrow_mut().get();
         }
         let node = Node::ExCmd {
             pos: ea.cmdpos,
