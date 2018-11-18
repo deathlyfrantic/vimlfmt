@@ -2,132 +2,318 @@ use super::{isargname, isnamec, iswhite, iswordc, ParseError, Position};
 use exarg::ExArg;
 use reader::Reader;
 use std::cell::RefCell;
+use std::fmt;
 use std::rc::Rc;
 use token::{Token, TokenKind, Tokenizer};
 
 const MAX_FUNC_ARGS: usize = 20;
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum NodeKind {
-    Add,
-    And,
-    BinOp,
-    Break,
-    Call,
-    Catch,
-    Comment,
-    Concat,
-    Continue,
-    CurlyName,
-    CurlyNameExpr,
-    CurlyNamePart,
-    DelFunction,
-    Dict,
-    Divide,
-    Dot,
-    Dummy, // for use in returning from a parser early when result won't be used
-    Echo,
-    EchoErr,
-    EchoHl,
-    EchoMsg,
-    EchoN,
-    Else,
-    ElseIf,
-    EndFor,
-    EndFunction,
-    EndTry,
-    EndWhile,
-    EndIf,
-    Env,
-    ExCall,
-    ExCmd,
-    Execute,
-    Finally,
-    For,
-    Function,
-    Identifier,
-    If,
-    Lambda,
-    Let,
-    List,
-    LockVar,
-    Minus,
-    Multiply,
-    Not,
-    Number,
-    Option,
-    Or,
-    Plus,
-    Reg,
-    Remainder,
-    Return,
-    Shebang,
-    Slice,
-    String,
-    Subscript,
-    Subtract,
-    Ternary,
-    Throw,
-    TopLevel,
-    Try,
-    Unlet,
-    UnlockVar,
-    While,
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub struct Node {
-    pub kind: NodeKind,
-    pub body: Vec<Rc<RefCell<Node>>>,
-    pub pos: Position,
-    pub string: String,
-    pub ea: Option<ExArg>,
-    pub cond: Option<Box<Node>>,
-    pub left: Option<Box<Node>>,
-    pub right: Option<Box<Node>>,
-    pub value: String,
-    pub list: Vec<Box<Node>>,
-    pub rlist: Vec<Box<Node>>,
-    pub dict: Vec<(Box<Node>, Box<Node>)>,
-    pub pattern: String,
-    pub catch: Vec<Rc<RefCell<Node>>>,
-    pub else_: Option<Rc<RefCell<Node>>>,
-    pub elseif: Vec<Rc<RefCell<Node>>>,
-    pub end: Option<Box<Node>>,
-    pub attrs: Vec<String>,
-    pub finally: Option<Rc<RefCell<Node>>>,
-    pub rest: Vec<Box<Node>>,
-    pub op: String,
-    pub depth: Option<usize>,
-}
-
-impl Node {
-    pub fn new(kind: NodeKind) -> Node {
-        Node {
-            kind: kind,
-            body: vec![],
-            pos: Position::empty(),
-            string: String::new(),
-            ea: None,
-            cond: None,
-            left: None,
-            right: None,
-            value: String::new(),
-            list: vec![],
-            rlist: vec![],
-            dict: vec![],
-            pattern: String::new(),
-            catch: vec![],
-            else_: None,
-            elseif: vec![],
-            end: None,
-            attrs: vec![],
-            finally: None,
-            rest: vec![],
-            op: String::new(),
-            depth: None,
-        }
-    }
+pub enum Node {
+    Add {
+        pos: Position,
+        left: Box<Node>,
+        right: Box<Node>,
+    },
+    And {
+        pos: Position,
+        left: Box<Node>,
+        right: Box<Node>,
+    },
+    BinOp {
+        pos: Position,
+        op: String,
+        left: Box<Node>,
+        right: Box<Node>,
+    },
+    Break {
+        ea: ExArg,
+        pos: Position,
+    },
+    Call {
+        pos: Position,
+        name: Box<Node>,
+        args: Vec<Box<Node>>,
+    },
+    Catch {
+        ea: ExArg,
+        pos: Position,
+        pattern: Option<String>,
+        body: Vec<Rc<RefCell<Node>>>,
+    },
+    Comment {
+        pos: Position,
+        value: String,
+    },
+    Concat {
+        pos: Position,
+        left: Box<Node>,
+        right: Box<Node>,
+    },
+    Continue {
+        ea: ExArg,
+        pos: Position,
+    },
+    CurlyName {
+        pos: Position,
+        pieces: Vec<Box<Node>>,
+    },
+    CurlyNameExpr {
+        pos: Position,
+        expr: Box<Node>,
+    },
+    CurlyNamePart {
+        pos: Position,
+        value: String,
+    },
+    DelFunction {
+        ea: ExArg,
+        pos: Position,
+        left: Box<Node>,
+    },
+    Dict {
+        pos: Position,
+        items: Vec<(Box<Node>, Box<Node>)>,
+    },
+    Divide {
+        pos: Position,
+        left: Box<Node>,
+        right: Box<Node>,
+    },
+    Dot {
+        pos: Position,
+        left: Box<Node>,
+        right: Box<Node>,
+    },
+    Echo {
+        ea: ExArg,
+        pos: Position,
+        list: Vec<Box<Node>>,
+    },
+    EchoErr {
+        ea: ExArg,
+        pos: Position,
+        list: Vec<Box<Node>>,
+    },
+    EchoHl {
+        ea: ExArg,
+        pos: Position,
+        value: String,
+    },
+    EchoMsg {
+        ea: ExArg,
+        pos: Position,
+        list: Vec<Box<Node>>,
+    },
+    EchoN {
+        ea: ExArg,
+        pos: Position,
+        list: Vec<Box<Node>>,
+    },
+    Else {
+        ea: ExArg,
+        pos: Position,
+        body: Vec<Rc<RefCell<Node>>>,
+    },
+    ElseIf {
+        ea: ExArg,
+        pos: Position,
+        cond: Box<Node>,
+        body: Vec<Rc<RefCell<Node>>>,
+    },
+    End {
+        ea: ExArg,
+        pos: Position,
+    },
+    Env {
+        pos: Position,
+        value: String,
+    },
+    ExCall {
+        ea: ExArg,
+        pos: Position,
+        left: Box<Node>,
+    },
+    ExCmd {
+        ea: ExArg,
+        pos: Position,
+        value: String,
+    },
+    Execute {
+        ea: ExArg,
+        pos: Position,
+        list: Vec<Box<Node>>,
+    },
+    Finally {
+        ea: ExArg,
+        pos: Position,
+        body: Vec<Rc<RefCell<Node>>>,
+    },
+    For {
+        ea: ExArg,
+        pos: Position,
+        var: Option<Box<Node>>,  // this is the x in "for x in something"
+        list: Vec<Box<Node>>,    // this is the a, b in "for [a, b] in something"
+        rest: Option<Box<Node>>, // this is the z in "for [a, b; z] in something" <- REAL SYNTAX :(
+        right: Box<Node>,        // this is the something in "for x in something"
+        body: Vec<Rc<RefCell<Node>>>,
+        end: Option<Box<Node>>,
+    },
+    Function {
+        ea: ExArg,
+        pos: Position,
+        name: Box<Node>,
+        args: Vec<Box<Node>>,
+        body: Vec<Rc<RefCell<Node>>>,
+        attrs: Vec<String>,
+        end: Option<Box<Node>>,
+    },
+    Identifier {
+        pos: Position,
+        value: String,
+    },
+    If {
+        ea: ExArg,
+        pos: Position,
+        cond: Box<Node>,
+        elseifs: Vec<Rc<RefCell<Node>>>,
+        else_: Option<Rc<RefCell<Node>>>,
+        body: Vec<Rc<RefCell<Node>>>,
+        end: Option<Box<Node>>,
+    },
+    Lambda {
+        pos: Position,
+        args: Vec<Box<Node>>,
+        expr: Box<Node>,
+    },
+    Let {
+        ea: ExArg,
+        pos: Position,
+        var: Option<Box<Node>>,  // this is the x in "let x = something"
+        list: Vec<Box<Node>>,    // this is the a, b in "let [a, b] = something"
+        rest: Option<Box<Node>>, // this is the z in "let [a, b; z] = something" <- REAL SYNTAX :(
+        right: Box<Node>,        // this is the something in "let x = something"
+        op: String,
+    },
+    List {
+        pos: Position,
+        items: Vec<Box<Node>>,
+    },
+    LockVar {
+        ea: ExArg,
+        pos: Position,
+        depth: Option<usize>,
+        list: Vec<Box<Node>>,
+    },
+    Minus {
+        pos: Position,
+        left: Box<Node>,
+    },
+    Multiply {
+        pos: Position,
+        left: Box<Node>,
+        right: Box<Node>,
+    },
+    Not {
+        pos: Position,
+        left: Box<Node>,
+    },
+    Number {
+        pos: Position,
+        value: String,
+    },
+    Option {
+        pos: Position,
+        value: String,
+    },
+    Or {
+        pos: Position,
+        left: Box<Node>,
+        right: Box<Node>,
+    },
+    Plus {
+        pos: Position,
+        left: Box<Node>,
+    },
+    Reg {
+        pos: Position,
+        value: String,
+    },
+    Remainder {
+        pos: Position,
+        left: Box<Node>,
+        right: Box<Node>,
+    },
+    Return {
+        ea: ExArg,
+        pos: Position,
+        left: Option<Box<Node>>,
+    },
+    Shebang {
+        pos: Position,
+        value: String,
+    },
+    Slice {
+        pos: Position,
+        name: Box<Node>,
+        left: Option<Box<Node>>,
+        right: Option<Box<Node>>,
+    },
+    String {
+        pos: Position,
+        value: String,
+    },
+    Subscript {
+        pos: Position,
+        name: Box<Node>,
+        index: Box<Node>,
+    },
+    Subtract {
+        pos: Position,
+        left: Box<Node>,
+        right: Box<Node>,
+    },
+    Ternary {
+        pos: Position,
+        cond: Box<Node>,
+        left: Box<Node>,
+        right: Box<Node>,
+    },
+    Throw {
+        ea: ExArg,
+        pos: Position,
+        err: Box<Node>,
+    },
+    TopLevel {
+        pos: Position,
+        body: Vec<Rc<RefCell<Node>>>,
+    },
+    Try {
+        ea: ExArg,
+        pos: Position,
+        body: Vec<Rc<RefCell<Node>>>,
+        catches: Vec<Rc<RefCell<Node>>>,
+        finally: Option<Rc<RefCell<Node>>>,
+        end: Option<Box<Node>>,
+    },
+    Unlet {
+        ea: ExArg,
+        pos: Position,
+        list: Vec<Box<Node>>,
+    },
+    UnlockVar {
+        ea: ExArg,
+        pos: Position,
+        depth: Option<usize>,
+        list: Vec<Box<Node>>,
+    },
+    While {
+        ea: ExArg,
+        pos: Position,
+        body: Vec<Rc<RefCell<Node>>>,
+        cond: Box<Node>,
+        end: Option<Box<Node>>,
+    },
 }
 
 fn indent(n: usize) -> String {
@@ -149,150 +335,127 @@ fn escape(s: &str) -> String {
     rv
 }
 
-fn display_left(name: &str, node: &Node) -> String {
-    let left = match node.left {
-        Some(ref b) => format!("{}", *b),
-        None => "".to_string(),
-    };
+fn display_left<T>(name: &str, left: T) -> String
+where
+    T: fmt::Display,
+{
     format!("({} {})", name, left)
 }
 
-fn display_lr(name: &str, node: &Node) -> String {
-    let left = match node.left {
-        Some(ref b) => format!("{}", *b),
-        None => "".to_string(),
-    };
-    let right = match node.right {
-        Some(ref b) => format!("{}", *b),
-        None => "".to_string(),
-    };
+fn display_lr<T>(name: &str, left: T, right: T) -> String
+where
+    T: fmt::Display,
+{
     format!("({} {} {})", name, left, right)
 }
 
-fn display_with_list(name: &str, node: &Node) -> String {
-    let list = node.list.clone();
-    let list = list
-        .into_iter()
-        .map(|n| format!("{}", *n))
-        .collect::<Vec<String>>()
-        .join(" ");
-    format!("({} {})", name, list)
+fn display_with_list<T>(name: &str, list: &Vec<T>) -> String
+where
+    T: fmt::Display,
+{
+    format!(
+        "({} {})",
+        name,
+        list.iter()
+            .map(|n| format!("{}", *n))
+            .collect::<Vec<String>>()
+            .join(" ")
+    )
 }
 
-use std::fmt;
 impl fmt::Display for Node {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
             "{}",
-            match self.kind {
-                NodeKind::Add => display_lr("+", self),
-                NodeKind::And => display_lr("&&", self),
-                NodeKind::BinOp => display_lr(&self.op, self),
-                NodeKind::Break => "(break)".to_string(),
-                NodeKind::Call => {
-                    let left = match self.left {
-                        Some(ref b) => format!("{}", *b),
-                        None => "".to_string(),
-                    };
-                    if self.rlist.len() > 0 {
-                        let rlist = self.rlist.clone();
-                        let rlist = rlist
-                            .into_iter()
-                            .map(|n| format!("{}", *n))
-                            .collect::<Vec<String>>()
-                            .join(" ");
-                        format!("({} {})", left, rlist)
+            match &self {
+                Node::Add { left, right, .. } => display_lr("+", left, right),
+                Node::And { left, right, .. } => display_lr("&&", left, right),
+                Node::BinOp {
+                    op, left, right, ..
+                } => format!("({} {} {})", op, left, right),
+                Node::Break { .. } => "(break)".to_string(),
+                Node::Call { name, args, .. } => {
+                    if args.len() > 0 {
+                        format!(
+                            "({} {})",
+                            name,
+                            args.iter()
+                                .map(|n| format!("{}", n))
+                                .collect::<Vec<String>>()
+                                .join(" ")
+                        )
                     } else {
-                        format!("({})", left)
+                        format!("({})", name)
                     }
                 }
-                NodeKind::Comment => format!(";{}", self.string),
-                NodeKind::Concat => display_lr("concat", self),
-                NodeKind::Continue => "(continue)".to_string(),
-                NodeKind::CurlyName => {
-                    let body = self.body.clone();
-                    body.into_iter()
-                        .map(|n| format!("{}", n.borrow()))
-                        .collect::<Vec<String>>()
-                        .join("")
-                }
-                NodeKind::CurlyNameExpr => {
-                    let left = match self.left {
-                        Some(ref b) => format!("{}", *b),
-                        None => "".to_string(),
-                    };
-                    format!("{{{}}}", left)
-                }
-                NodeKind::CurlyNamePart
-                | NodeKind::Env
-                | NodeKind::Identifier
-                | NodeKind::Number
-                | NodeKind::Option
-                | NodeKind::Reg
-                | NodeKind::String => self.value.clone(),
-                NodeKind::DelFunction => {
-                    let left = match self.left {
-                        Some(ref b) => format!("{}", *b),
-                        None => "".to_string(),
-                    };
-                    format!("(delfunction {})", left)
-                }
-                NodeKind::Dict => {
-                    let dict = self.dict.clone();
-                    let values = dict
-                        .into_iter()
-                        .map(|(k, v)| format!("({} {})", *k, *v))
-                        .collect::<Vec<String>>();
-                    if values.len() == 0 {
+                Node::Comment { value, .. } => format!(";{}", value),
+                Node::Concat { left, right, .. } => display_lr("concat", left, right),
+                Node::Continue { .. } => "(continue)".to_string(),
+                Node::CurlyName { pieces, .. } => pieces
+                    .iter()
+                    .map(|n| format!("{}", n))
+                    .collect::<Vec<String>>()
+                    .join(""),
+                Node::CurlyNameExpr { expr, .. } => format!("{{{}}}", expr),
+                Node::CurlyNamePart { value, .. }
+                | Node::Env { value, .. }
+                | Node::Identifier { value, .. }
+                | Node::Number { value, .. }
+                | Node::Option { value, .. }
+                | Node::Reg { value, .. }
+                | Node::String { value, .. } => value.clone(),
+                Node::DelFunction { left, .. } => display_left("delfunction", left),
+                Node::Dict { items, .. } => {
+                    if items.len() > 0 {
+                        format!(
+                            "(dict {})",
+                            items
+                                .iter()
+                                .map(|(k, v)| format!("({} {})", k, v))
+                                .collect::<Vec<String>>()
+                                .join(" ")
+                        )
+                    } else {
                         "(dict)".to_string()
-                    } else {
-                        format!("(dict {})", values.join(" "))
                     }
                 }
-                NodeKind::Divide => display_lr("/", self),
-                NodeKind::Dot => display_lr("dot", self),
-                NodeKind::Echo => display_with_list("echo", self),
-                NodeKind::EchoErr => display_with_list("echoerr", self),
-                NodeKind::EchoHl => format!("(echohl \"{}\")", escape(&self.string)),
-                NodeKind::EchoMsg => display_with_list("echomsg", self),
-                NodeKind::EchoN => display_with_list("echon", self),
-                NodeKind::ExCall => {
-                    let left = match self.left {
-                        Some(ref b) => format!("{}", *b),
-                        None => "".to_string(),
-                    };
-                    format!("(call {})", left)
-                }
-                NodeKind::ExCmd => format!("(excmd \"{}\")", escape(&self.string)),
-                NodeKind::Execute => display_with_list("execute", self),
-                NodeKind::For => {
-                    let left = match self.left {
-                        Some(ref b) => format!("{}", *b),
-                        None => {
-                            let mut l = String::from("(");
-                            let list = self.list.clone();
-                            l.push_str(
-                                &list
-                                    .into_iter()
-                                    .map(|n| format!("{}", *n))
-                                    .collect::<Vec<String>>()
-                                    .join(" "),
-                            );
-                            if self.rest.len() > 0 {
-                                l.push_str(" . ");
-                                l.push_str(&format!("{}", self.rest[0]));
-                            }
-                            l.push_str(")");
-                            l
+                Node::Divide { left, right, .. } => display_lr("/", left, right),
+                Node::Dot { left, right, .. } => display_lr("dot", left, right),
+                Node::Echo { list, .. } => display_with_list("echo", list),
+                Node::EchoErr { list, .. } => display_with_list("echoerr", list),
+                Node::EchoHl { value, .. } => format!("(echohl \"{}\")", escape(value)),
+                Node::EchoMsg { list, .. } => display_with_list("echomsg", list),
+                Node::EchoN { list, .. } => display_with_list("echon", list),
+                Node::ExCall { left, .. } => display_left("call", left),
+                Node::ExCmd { value, .. } => format!("(excmd \"{}\")", escape(value)),
+                Node::Execute { list, .. } => display_with_list("execute", list),
+                Node::For {
+                    var,
+                    list,
+                    rest,
+                    right,
+                    body,
+                    ..
+                } => {
+                    let left = if let Some(v) = var {
+                        format!("{}", v)
+                    } else {
+                        let mut l = format!(
+                            "({}",
+                            list.iter()
+                                .map(|n| format!("{}", n))
+                                .collect::<Vec<String>>()
+                                .join(" ")
+                        );
+                        if let Some(r) = rest {
+                            l.push_str(&format!(" . {}", r));
                         }
-                    };
-                    let right = match self.right {
-                        Some(ref b) => format!("{}", *b),
-                        None => "".to_string(),
+                        l.push_str(")");
+                        l
                     };
                     let mut rv = format!("(for {} {}", left, right);
-                    for node in &self.body {
+                    for node in body {
                         for line in format!("{}", node.borrow()).split("\n") {
                             rv.push_str(&format!("\n{}{}", indent(1), line));
                         }
@@ -300,26 +463,23 @@ impl fmt::Display for Node {
                     rv.push_str(")");
                     rv
                 }
-                NodeKind::Function => {
-                    let left = match self.left {
-                        Some(ref b) => format!("{}", *b),
-                        None => "".to_string(),
-                    };
-                    let rlist = self.rlist.clone();
-                    let mut rlist = rlist
-                        .into_iter()
-                        .map(|n| format!("{}", *n))
-                        .collect::<Vec<String>>();
-                    let rlist_len = rlist.len();
-                    if rlist_len > 0 && rlist[rlist_len - 1] == "..." {
-                        rlist[rlist_len - 1] = ". ...".to_string();
+                Node::Function {
+                    name, args, body, ..
+                } => {
+                    let mut rv = format!("(function ({}", name);
+                    if args.len() > 0 {
+                        let mut args = args
+                            .iter()
+                            .map(|n| format!("{}", n))
+                            .collect::<Vec<String>>();
+                        let last = args.len() - 1;
+                        if args[last] == "..." {
+                            args[last] = ". ...".to_string();
+                        }
+                        rv.push_str(&format!(" {}", args.join(" ")));
                     }
-                    let mut rv = if rlist_len == 0 {
-                        format!("(function ({})", left)
-                    } else {
-                        format!("(function ({} {})", left, rlist.join(" "))
-                    };
-                    for node in &self.body {
+                    rv.push_str(")");
+                    for node in body {
                         for line in format!("{}", node.borrow()).split("\n") {
                             rv.push_str(&format!("\n{}{}", indent(1), line));
                         }
@@ -327,193 +487,190 @@ impl fmt::Display for Node {
                     rv.push_str(")");
                     rv
                 }
-                NodeKind::If => {
-                    let cond = match self.cond {
-                        Some(ref b) => format!("{}", *b),
-                        None => "".to_string(),
-                    };
+                Node::If {
+                    cond,
+                    body,
+                    elseifs,
+                    else_,
+                    ..
+                } => {
                     let mut rv = format!("(if {}", cond);
-                    for node in &self.body {
+                    for node in body {
                         for line in format!("{}", node.borrow()).split("\n") {
                             rv.push_str(&format!("\n{}{}", indent(1), line));
                         }
                     }
-                    for elseif in self.elseif.clone() {
-                        let cond = match elseif.borrow().cond {
-                            Some(ref b) => format!("{}", *b),
-                            None => "".to_string(),
-                        };
-                        rv.push_str(&format!("\n elseif {}", cond));
-                        for node in &elseif.borrow().body {
-                            for line in format!("{}", node.borrow()).split("\n") {
-                                rv.push_str(&format!("\n{}{}", indent(1), line));
+                    for elseif in elseifs {
+                        if let Node::ElseIf {
+                            ref mut cond,
+                            ref mut body,
+                            ..
+                        } = *elseif.borrow_mut()
+                        {
+                            rv.push_str(&format!("\n elseif {}", cond));
+                            for node in body {
+                                for line in format!("{}", node.borrow()).split("\n") {
+                                    rv.push_str(&format!("\n{}{}", indent(1), line));
+                                }
                             }
                         }
                     }
-                    if let Some(ref b) = self.else_ {
-                        rv.push_str("\n else");
-                        for node in &b.borrow().body {
-                            for line in format!("{}", node.borrow()).split("\n") {
-                                rv.push_str(&format!("\n{}{}", indent(1), line));
+                    if let Some(e) = else_ {
+                        if let Node::Else { ref mut body, .. } = *e.borrow_mut() {
+                            rv.push_str("\n else");
+                            for node in body {
+                                for line in format!("{}", node.borrow()).split("\n") {
+                                    rv.push_str(&format!("\n{}{}", indent(1), line));
+                                }
                             }
                         }
                     }
                     rv.push_str(")");
                     rv
                 }
-                NodeKind::Lambda => {
-                    let left = match self.left {
-                        Some(ref b) => format!("{}", *b),
-                        None => "".to_string(),
-                    };
-                    let rlist = self.rlist.clone();
-                    let rlist = rlist
-                        .into_iter()
-                        .map(|n| format!("{}", *n))
+                Node::Lambda { args, expr, .. } => format!(
+                    "(lambda ({}) {})",
+                    args.iter()
+                        .map(|n| format!("{}", n))
                         .collect::<Vec<String>>()
-                        .join(" ");
-                    format!("(lambda ({}) {})", rlist, left)
-                }
-                NodeKind::Let => {
-                    let left = match self.left {
-                        Some(ref b) => format!("{}", *b),
-                        None => {
-                            let mut l = String::from("(");
-                            let list = self.list.clone();
-                            l.push_str(
-                                &list
-                                    .into_iter()
-                                    .map(|n| format!("{}", *n))
-                                    .collect::<Vec<String>>()
-                                    .join(" "),
-                            );
-                            if self.rest.len() > 0 {
-                                l.push_str(" . ");
-                                l.push_str(&format!("{}", self.rest[0]));
-                            }
-                            l.push_str(")");
-                            l
+                        .join(" "),
+                    expr
+                ),
+                Node::Let {
+                    var,
+                    list,
+                    rest,
+                    right,
+                    op,
+                    ..
+                } => {
+                    let left = if let Some(v) = var {
+                        format!("{}", v)
+                    } else {
+                        let mut l = format!(
+                            "({}",
+                            list.iter()
+                                .map(|n| format!("{}", n))
+                                .collect::<Vec<String>>()
+                                .join(" ")
+                        );
+                        if let Some(r) = rest {
+                            l.push_str(&format!(" . {}", r));
                         }
+                        l.push_str(")");
+                        l
                     };
-                    let right = match self.right {
-                        Some(ref b) => format!("{}", *b),
-                        None => "".to_string(),
-                    };
-                    format!("(let {} {} {})", self.op, left, right)
+                    format!("(let {} {} {})", op, left, right)
                 }
-                NodeKind::List => {
-                    let body = self.body.clone();
-                    let body = body
-                        .into_iter()
-                        .map(|n| format!("{}", n.borrow()))
-                        .collect::<Vec<String>>();
-                    if body.len() == 0 {
+                Node::List { items, .. } => {
+                    if items.len() == 0 {
                         "(list)".to_string()
                     } else {
-                        format!("(list {})", body.join(" "))
+                        display_with_list("list", items)
                     }
                 }
-                NodeKind::LockVar => {
-                    if let Some(d) = self.depth {
-                        display_with_list(&format!("lockvar {}", d), self)
+                Node::LockVar { depth, list, .. } => {
+                    if let Some(d) = depth {
+                        display_with_list(&format!("lockvar {}", d), list)
                     } else {
-                        display_with_list("lockvar", self)
+                        display_with_list("lockvar", list)
                     }
                 }
-                NodeKind::Minus => display_left("-", self),
-                NodeKind::Multiply => display_lr("*", self),
-                NodeKind::Not => display_left("!", self),
-                NodeKind::Or => display_lr("||", self),
-                NodeKind::Plus => display_left("+", self),
-                NodeKind::Remainder => display_lr("%", self),
-                NodeKind::Return => {
-                    if let Some(ref b) = self.left {
-                        format!("(return {})", format!("{}", *b))
+                Node::Minus { left, .. } => display_left("-", left),
+                Node::Multiply { left, right, .. } => display_lr("*", left, right),
+                Node::Not { left, .. } => display_left("!", left),
+                Node::Or { left, right, .. } => display_lr("||", left, right),
+                Node::Plus { left, .. } => display_left("+", left),
+                Node::Remainder { left, right, .. } => display_lr("%", left, right),
+                Node::Return { left, .. } => {
+                    if let Some(ref l) = left {
+                        display_left("return", l)
                     } else {
                         "(return)".to_string()
                     }
                 }
-                NodeKind::Shebang => format!("(#! \"{}\")", escape(&self.string)),
-                NodeKind::Slice => {
-                    let r0 = match self.rlist[0].kind {
-                        NodeKind::Dummy => "nil".to_string(),
-                        _ => format!("{}", self.rlist[0]),
+                Node::Shebang { value, .. } => format!("(#! \"{}\")", escape(value)),
+                Node::Slice {
+                    name, left, right, ..
+                } => {
+                    let r0 = match left {
+                        Some(l) => format!("{}", l),
+                        None => "nil".to_string(),
                     };
-                    let r1 = match self.rlist[1].kind {
-                        NodeKind::Dummy => "nil".to_string(),
-                        _ => format!("{}", self.rlist[1]),
+                    let r1 = match right {
+                        Some(r) => format!("{}", r),
+                        None => "nil".to_string(),
                     };
-                    let left = match self.left {
-                        Some(ref b) => format!("{}", *b),
-                        None => "".to_string(),
-                    };
-                    format!("(slice {} {} {})", left, r0, r1)
+                    format!("(slice {} {} {})", name, r0, r1)
                 }
-                NodeKind::Subscript => display_lr("subscript", self),
-                NodeKind::Subtract => display_lr("-", self),
-                NodeKind::Ternary => {
-                    let cond = match self.cond {
-                        Some(ref b) => format!("{}", *b),
-                        None => "".to_string(),
-                    };
-                    display_lr(&format!("?: {}", cond), self)
-                }
-                NodeKind::Throw => display_left("throw", self),
-                NodeKind::TopLevel => {
-                    let body = self.body.clone();
-                    format!(
-                        "{}",
-                        body.into_iter()
-                            .map(|n| format!("{}", n.borrow()))
-                            .collect::<Vec<String>>()
-                            .join("\n")
-                    )
-                }
-                NodeKind::Try => {
+                Node::Subscript { name, index, .. } => display_lr("subscript", name, index),
+                Node::Subtract { left, right, .. } => display_lr("-", left, right),
+                Node::Ternary {
+                    cond, left, right, ..
+                } => display_lr(&format!("?: {}", cond), left, right),
+                Node::Throw { err, .. } => display_left("throw", err),
+                Node::TopLevel { body, .. } => format!(
+                    "{}",
+                    body.iter()
+                        .map(|n| format!("{}", n.borrow()))
+                        .collect::<Vec<String>>()
+                        .join("\n")
+                ),
+                Node::Try {
+                    body,
+                    catches,
+                    finally,
+                    ..
+                } => {
                     let mut rv = String::from("(try");
-                    for node in &self.body {
+                    for node in body {
                         for line in format!("{}", node.borrow()).split("\n") {
                             rv.push_str(&format!("\n{}{}", indent(1), line));
                         }
                     }
-                    for catch in self.catch.clone() {
-                        if catch.borrow().pattern.len() > 0 {
-                            rv.push_str(&format!("\n catch /{}/", catch.borrow().pattern));
-                        } else {
-                            rv.push_str("\n catch");
-                        }
-                        for node in &catch.borrow().body {
-                            for line in format!("{}", node.borrow()).split("\n") {
-                                rv.push_str(&format!("\n{}{}", indent(1), line));
+                    for catch in catches {
+                        if let Node::Catch {
+                            ref mut pattern,
+                            ref mut body,
+                            ..
+                        } = *catch.borrow_mut()
+                        {
+                            if let Some(p) = pattern {
+                                rv.push_str(&format!("\n catch /{}/", p));
+                            } else {
+                                rv.push_str("\n catch");
+                            }
+                            for node in body {
+                                for line in format!("{}", node.borrow()).split("\n") {
+                                    rv.push_str(&format!("\n{}{}", indent(1), line));
+                                }
                             }
                         }
                     }
-                    if let Some(ref b) = self.finally {
-                        rv.push_str("\n finally");
-                        for node in &b.borrow().body {
-                            for line in format!("{}", node.borrow()).split("\n") {
-                                rv.push_str(&format!("\n{}{}", indent(1), line));
+                    if let Some(f) = finally {
+                        if let Node::Finally { ref mut body, .. } = *f.borrow_mut() {
+                            rv.push_str("\n finally");
+                            for node in body {
+                                for line in format!("{}", node.borrow()).split("\n") {
+                                    rv.push_str(&format!("\n{}{}", indent(1), line));
+                                }
                             }
                         }
                     }
                     rv.push_str(")");
                     rv
                 }
-                NodeKind::Unlet => display_with_list("unlet", self),
-                NodeKind::UnlockVar => {
-                    if let Some(d) = self.depth {
-                        display_with_list(&format!("unlockvar {}", d), self)
+                Node::Unlet { list, .. } => display_with_list("unlet", list),
+                Node::UnlockVar { depth, list, .. } => {
+                    if let Some(d) = depth {
+                        display_with_list(&format!("unlockvar {}", d), list)
                     } else {
-                        display_with_list("unlockvar", self)
+                        display_with_list("unlockvar", list)
                     }
                 }
-                NodeKind::While => {
-                    let cond = match self.cond {
-                        Some(ref b) => format!("{}", *b),
-                        None => "".to_string(),
-                    };
+                Node::While { cond, body, .. } => {
                     let mut rv = format!("(while {}", cond);
-                    for node in &self.body {
+                    for node in body {
                         for line in format!("{}", node.borrow()).split("\n") {
                             rv.push_str(&format!("\n{}{}", indent(1), line));
                         }
@@ -558,15 +715,20 @@ impl NodeParser {
         let pos = self.reader.borrow().tell();
         let mut token = self.tokenizer.get()?;
         if token.kind == TokenKind::Question {
-            let mut node = Node::new(NodeKind::Ternary);
-            node.pos = token.pos;
-            node.cond = Some(Box::new(left));
-            node.left = Some(Box::new(self.parse_expr1()?));
+            let pos = token.pos;
+            let cond = Box::new(left);
+            let left_side = Box::new(self.parse_expr1()?);
             token = self.tokenizer.get()?;
             if token.kind != TokenKind::Colon {
                 return self.token_err(token);
             }
-            node.right = Some(Box::new(self.parse_expr1()?));
+            let right = Box::new(self.parse_expr1()?);
+            let node = Node::Ternary {
+                pos,
+                cond,
+                left: left_side,
+                right,
+            };
             left = node;
         } else {
             self.reader.borrow_mut().seek_set(pos);
@@ -580,10 +742,11 @@ impl NodeParser {
             let pos = self.reader.borrow().tell();
             let token = self.tokenizer.get()?;
             if token.kind == TokenKind::OrOr {
-                let mut node = Node::new(NodeKind::Or);
-                node.pos = token.pos;
-                node.left = Some(Box::new(left));
-                node.right = Some(Box::new(self.parse_expr3()?));
+                let node = Node::Or {
+                    pos: token.pos,
+                    left: Box::new(left),
+                    right: Box::new(self.parse_expr3()?),
+                };
                 left = node;
             } else {
                 self.reader.borrow_mut().seek_set(pos);
@@ -599,10 +762,11 @@ impl NodeParser {
             let pos = self.reader.borrow().tell();
             let token = self.tokenizer.get()?;
             if token.kind == TokenKind::AndAnd {
-                let mut node = Node::new(NodeKind::And);
-                node.pos = token.pos;
-                node.left = Some(Box::new(left));
-                node.right = Some(Box::new(self.parse_expr4()?));
+                let node = Node::And {
+                    pos: token.pos,
+                    left: Box::new(left),
+                    right: Box::new(self.parse_expr4()?),
+                };
                 left = node;
             } else {
                 self.reader.borrow_mut().seek_set(pos);
@@ -614,12 +778,11 @@ impl NodeParser {
 
     fn parse_expr4(&mut self) -> Result<Node, ParseError> {
         let mut left = self.parse_expr5()?;
-        let pos = self.reader.borrow().tell();
+        let cursor = self.reader.borrow().tell();
         let token = self.tokenizer.get()?;
-        let mut node = Node::new(NodeKind::BinOp);
-        node.pos = token.pos;
-        node.left = Some(Box::new(left.clone()));
-        node.op = match token.kind {
+        let pos = token.pos;
+        let left_side = Box::new(left.clone());
+        let op = match token.kind {
             TokenKind::EqEq => "==",
             TokenKind::EqEqCI => "==?",
             TokenKind::EqEqCS => "==#",
@@ -651,35 +814,48 @@ impl NodeParser {
             TokenKind::IsNotCI => "isnot?",
             TokenKind::IsNotCS => "isnot#",
             _ => {
-                self.reader.borrow_mut().seek_set(pos);
+                self.reader.borrow_mut().seek_set(cursor);
                 return Ok(left);
             }
         }.to_string();
-        node.right = Some(Box::new(self.parse_expr5()?));
-        if node.kind != NodeKind::Dummy {
-            left = node;
-        }
+        let node = Node::BinOp {
+            pos,
+            op,
+            left: left_side,
+            right: Box::new(self.parse_expr5()?),
+        };
+        left = node;
         Ok(left)
     }
 
     fn parse_expr5(&mut self) -> Result<Node, ParseError> {
         let mut left = self.parse_expr6()?;
         loop {
-            let pos = self.reader.borrow().tell();
+            let cursor = self.reader.borrow().tell();
             let token = self.tokenizer.get()?;
-            let mut node = Node::new(NodeKind::Dummy);
-            node.pos = token.pos;
-            node.kind = match token.kind {
-                TokenKind::Plus => NodeKind::Add,
-                TokenKind::Minus => NodeKind::Subtract,
-                TokenKind::Dot => NodeKind::Concat,
+            let pos = token.pos;
+            let left_side = Box::new(left.clone());
+            let node = match token.kind {
+                TokenKind::Plus => Node::Add {
+                    pos,
+                    left: left_side,
+                    right: Box::new(self.parse_expr6()?),
+                },
+                TokenKind::Minus => Node::Subtract {
+                    pos,
+                    left: left_side,
+                    right: Box::new(self.parse_expr6()?),
+                },
+                TokenKind::Dot => Node::Concat {
+                    pos,
+                    left: left_side,
+                    right: Box::new(self.parse_expr6()?),
+                },
                 _ => {
-                    self.reader.borrow_mut().seek_set(pos);
+                    self.reader.borrow_mut().seek_set(cursor);
                     break;
                 }
             };
-            node.left = Some(Box::new(left));
-            node.right = Some(Box::new(self.parse_expr6()?));
             left = node;
         }
         Ok(left)
@@ -688,93 +864,121 @@ impl NodeParser {
     fn parse_expr6(&mut self) -> Result<Node, ParseError> {
         let mut left = self.parse_expr7()?;
         loop {
-            let pos = self.reader.borrow().tell();
+            let cursor = self.reader.borrow().tell();
             let token = self.tokenizer.get()?;
-            let mut node = Node::new(NodeKind::Dummy);
-            node.pos = token.pos;
-            node.kind = match token.kind {
-                TokenKind::Star => NodeKind::Multiply,
-                TokenKind::Slash => NodeKind::Divide,
-                TokenKind::Percent => NodeKind::Remainder,
+            let pos = token.pos;
+            let left_side = Box::new(left.clone());
+            let node = match token.kind {
+                TokenKind::Star => Node::Multiply {
+                    pos,
+                    left: left_side,
+                    right: Box::new(self.parse_expr7()?),
+                },
+                TokenKind::Slash => Node::Divide {
+                    pos,
+                    left: left_side,
+                    right: Box::new(self.parse_expr7()?),
+                },
+                TokenKind::Percent => Node::Remainder {
+                    pos,
+                    left: left_side,
+                    right: Box::new(self.parse_expr7()?),
+                },
                 _ => {
-                    self.reader.borrow_mut().seek_set(pos);
+                    self.reader.borrow_mut().seek_set(cursor);
                     break;
                 }
             };
-            node.left = Some(Box::new(left));
-            node.right = Some(Box::new(self.parse_expr7()?));
             left = node;
         }
         Ok(left)
     }
 
     fn parse_expr7(&mut self) -> Result<Node, ParseError> {
-        let pos = self.reader.borrow().tell();
+        let cursor = self.reader.borrow().tell();
         let token = self.tokenizer.get()?;
-        let mut node = Node::new(NodeKind::Dummy);
-        node.pos = token.pos;
-        node.kind = match token.kind {
-            TokenKind::Not => NodeKind::Not,
-            TokenKind::Minus => NodeKind::Minus,
-            TokenKind::Plus => NodeKind::Plus,
+        let pos = token.pos;
+        let node = match token.kind {
+            TokenKind::Not => Node::Not {
+                pos,
+                left: Box::new(self.parse_expr7()?),
+            },
+            TokenKind::Minus => Node::Minus {
+                pos,
+                left: Box::new(self.parse_expr7()?),
+            },
+            TokenKind::Plus => Node::Plus {
+                pos,
+                left: Box::new(self.parse_expr7()?),
+            },
             _ => {
-                self.reader.borrow_mut().seek_set(pos);
+                self.reader.borrow_mut().seek_set(cursor);
                 return self.parse_expr8();
             }
         };
-        node.left = Some(Box::new(self.parse_expr7()?));
         Ok(node)
     }
 
     fn parse_expr8(&mut self) -> Result<Node, ParseError> {
         let mut left = self.parse_expr9()?;
         loop {
-            let pos = self.reader.borrow().tell();
+            let cursor = self.reader.borrow().tell();
             let c = self.reader.borrow().peek();
             let mut token = self.tokenizer.get()?;
             if !iswhite(&c) && token.kind == TokenKind::SqOpen {
                 let npos = token.pos;
                 if self.tokenizer.peek()?.kind == TokenKind::Colon {
                     self.tokenizer.get()?;
-                    let mut node = Node::new(NodeKind::Slice);
-                    node.pos = npos;
-                    node.left = Some(Box::new(left.clone()));
-                    node.rlist = vec![Box::new(Node::new(NodeKind::Dummy))];
+                    let pos = npos;
+                    let name = Box::new(left.clone());
+                    let left_side = None;
                     token = self.tokenizer.peek()?;
-                    if token.kind != TokenKind::SqClose {
-                        node.rlist.push(Box::new(self.parse_expr1()?));
+                    let right = if token.kind != TokenKind::SqClose {
+                        Some(Box::new(self.parse_expr1()?))
                     } else {
-                        node.rlist.push(Box::new(Node::new(NodeKind::Dummy)));
-                    }
+                        None
+                    };
+                    let node = Node::Slice {
+                        pos,
+                        name,
+                        left: left_side,
+                        right,
+                    };
                     token = self.tokenizer.get()?;
                     if token.kind != TokenKind::SqClose {
                         return self.token_err(token);
                     }
                     left = node;
                 } else {
-                    let right = self.parse_expr1()?;
+                    let expr = self.parse_expr1()?;
                     if self.tokenizer.peek()?.kind == TokenKind::Colon {
                         self.tokenizer.get()?;
-                        let mut node = Node::new(NodeKind::Slice);
-                        node.pos = npos;
-                        node.left = Some(Box::new(left.clone()));
-                        node.rlist = vec![Box::new(right)];
+                        let pos = npos;
+                        let name = Box::new(left.clone());
+                        let left_side = Some(Box::new(expr));
                         token = self.tokenizer.peek()?;
-                        if token.kind != TokenKind::SqClose {
-                            node.rlist.push(Box::new(self.parse_expr1()?));
+                        let right = if token.kind != TokenKind::SqClose {
+                            Some(Box::new(self.parse_expr1()?))
                         } else {
-                            node.rlist.push(Box::new(Node::new(NodeKind::Dummy)));
-                        }
+                            None
+                        };
+                        let node = Node::Slice {
+                            pos,
+                            name,
+                            left: left_side,
+                            right,
+                        };
                         token = self.tokenizer.get()?;
                         if token.kind != TokenKind::SqClose {
                             return self.token_err(token);
                         }
                         left = node;
                     } else {
-                        let mut node = Node::new(NodeKind::Subscript);
-                        node.pos = npos;
-                        node.left = Some(Box::new(left.clone()));
-                        node.right = Some(Box::new(right));
+                        let node = Node::Subscript {
+                            pos: npos,
+                            name: Box::new(left.clone()),
+                            index: Box::new(expr),
+                        };
                         token = self.tokenizer.get()?;
                         if token.kind != TokenKind::SqClose {
                             return self.token_err(token);
@@ -783,14 +987,14 @@ impl NodeParser {
                     }
                 }
             } else if token.kind == TokenKind::POpen {
-                let mut node = Node::new(NodeKind::Call);
-                node.pos = token.pos;
-                node.left = Some(Box::new(left.clone()));
+                let pos = token.pos;
+                let name = Box::new(left.clone());
+                let mut args = vec![];
                 if self.tokenizer.peek()?.kind == TokenKind::PClose {
                     self.tokenizer.get()?;
                 } else {
                     loop {
-                        node.rlist.push(Box::new(self.parse_expr1()?));
+                        args.push(Box::new(self.parse_expr1()?));
                         token = self.tokenizer.get()?;
                         if token.kind == TokenKind::Comma {
                             if self.tokenizer.peek()?.kind == TokenKind::PClose {
@@ -804,12 +1008,13 @@ impl NodeParser {
                         }
                     }
                 }
-                if node.rlist.len() > MAX_FUNC_ARGS {
+                if args.len() > MAX_FUNC_ARGS {
                     return Err(ParseError {
                         msg: "E740: Too many arguments for function".to_string(),
-                        pos: node.pos,
+                        pos,
                     });
                 }
+                let node = Node::Call { pos, name, args };
                 left = node;
             } else if !iswhite(&c) && token.kind == TokenKind::Dot {
                 match self.parse_dot(token, left.clone()) {
@@ -817,12 +1022,12 @@ impl NodeParser {
                         left = node;
                     }
                     None => {
-                        self.reader.borrow_mut().seek_set(pos);
+                        self.reader.borrow_mut().seek_set(cursor);
                         break;
                     }
                 }
             } else {
-                self.reader.borrow_mut().seek_set(pos);
+                self.reader.borrow_mut().seek_set(cursor);
                 break;
             }
         }
@@ -830,33 +1035,36 @@ impl NodeParser {
     }
 
     fn parse_expr9(&mut self) -> Result<Node, ParseError> {
-        let pos = self.reader.borrow().tell();
+        let cursor = self.reader.borrow().tell();
         let token = self.tokenizer.get()?;
-        let mut node = Node::new(NodeKind::Dummy);
-        node.pos = token.pos;
-        match token.kind {
-            TokenKind::Number => {
-                node.kind = NodeKind::Number;
-                node.value = token.value;
-            }
+        let pos = token.pos;
+        Ok(match token.kind {
+            TokenKind::Number => Node::Number {
+                pos,
+                value: token.value,
+            },
             TokenKind::DQuote => {
-                self.reader.borrow_mut().seek_set(pos);
-                node.kind = NodeKind::String;
-                node.value = format!("\"{}\"", self.tokenizer.get_dstring()?);
+                self.reader.borrow_mut().seek_set(cursor);
+                Node::String {
+                    pos,
+                    value: format!("\"{}\"", self.tokenizer.get_dstring()?),
+                }
             }
             TokenKind::SQuote => {
-                self.reader.borrow_mut().seek_set(pos);
-                node.kind = NodeKind::String;
-                node.value = format!("'{}'", self.tokenizer.get_sstring()?);
+                self.reader.borrow_mut().seek_set(cursor);
+                Node::String {
+                    pos,
+                    value: format!("\'{}\'", self.tokenizer.get_sstring()?),
+                }
             }
             TokenKind::SqOpen => {
-                node.kind = NodeKind::List;
                 let token = self.tokenizer.peek()?;
+                let mut items = vec![];
                 if token.kind == TokenKind::SqClose {
                     self.tokenizer.get()?;
                 } else {
                     loop {
-                        node.body.push(Rc::new(RefCell::new(self.parse_expr1()?)));
+                        items.push(Box::new(self.parse_expr1()?));
                         let token = self.tokenizer.peek()?;
                         match token.kind {
                             TokenKind::Comma => {
@@ -876,10 +1084,10 @@ impl NodeParser {
                         }
                     }
                 }
+                Node::List { pos, items }
             }
             TokenKind::COpen => {
                 let savepos = self.reader.borrow().tell();
-                let nodepos = token.pos;
                 let mut token = self.tokenizer.get()?;
                 let mut is_lambda = token.kind == TokenKind::Arrow;
                 if !is_lambda && token.kind != TokenKind::SQuote && token.kind != TokenKind::DQuote
@@ -889,8 +1097,7 @@ impl NodeParser {
                 }
                 let mut fallback = false;
                 if is_lambda {
-                    node.kind = NodeKind::Lambda;
-                    node.pos = nodepos;
+                    let mut args = vec![];
                     let mut named: Vec<String> = vec![];
                     loop {
                         match token.kind {
@@ -913,9 +1120,10 @@ impl NodeParser {
                                     });
                                 }
                                 named.push(token.value.clone());
-                                let mut varnode = Node::new(NodeKind::Identifier);
-                                varnode.pos = token.pos;
-                                varnode.value = token.value;
+                                let varnode = Node::Identifier {
+                                    pos: token.pos,
+                                    value: token.value,
+                                };
                                 let maybe_comma = self.tokenizer.peek()?.kind;
                                 if iswhite(&self.reader.borrow().peek())
                                     && maybe_comma == TokenKind::Comma
@@ -928,7 +1136,7 @@ impl NodeParser {
                                     });
                                 }
                                 token = self.tokenizer.get()?;
-                                node.rlist.push(Box::new(varnode));
+                                args.push(Box::new(varnode));
                                 if token.kind == TokenKind::Comma {
                                     token = self.tokenizer.peek()?;
                                     if token.kind == TokenKind::Arrow {
@@ -948,10 +1156,11 @@ impl NodeParser {
                                 }
                             }
                             TokenKind::DotDotDot => {
-                                let mut varnode = Node::new(NodeKind::Identifier);
-                                varnode.pos = token.pos;
-                                varnode.value = token.value;
-                                node.rlist.push(Box::new(varnode));
+                                let varnode = Node::Identifier {
+                                    pos: token.pos,
+                                    value: token.value,
+                                };
+                                args.push(Box::new(varnode));
                                 token = self.tokenizer.peek()?;
                                 if token.kind == TokenKind::Arrow {
                                     self.tokenizer.get()?;
@@ -968,7 +1177,8 @@ impl NodeParser {
                         token = self.tokenizer.get()?;
                     }
                     if !fallback {
-                        node.left = Some(Box::new(self.parse_expr1()?));
+                        let expr = Box::new(self.parse_expr1()?);
+                        let node = Node::Lambda { pos, args, expr };
                         token = self.tokenizer.get()?;
                         if token.kind != TokenKind::CClose {
                             return self.token_err(token);
@@ -976,30 +1186,29 @@ impl NodeParser {
                         return Ok(node);
                     }
                 }
-                node = Node::new(NodeKind::Dict);
-                node.pos = nodepos;
+                let mut items = vec![];
                 self.reader.borrow_mut().seek_set(savepos);
                 token = self.tokenizer.peek()?;
                 if token.kind == TokenKind::CClose {
                     self.tokenizer.get()?;
-                    return Ok(node);
+                    return Ok(Node::Dict { pos, items });
                 }
                 loop {
                     let key = self.parse_expr1()?;
                     token = self.tokenizer.get()?;
                     if token.kind == TokenKind::CClose {
-                        if node.body.len() > 0 {
+                        // premature closing of dict, e.g. "let d = { 'foo': }"
+                        if items.len() > 0 {
                             return self.token_err(token);
                         }
-                        self.reader.borrow_mut().seek_set(pos);
-                        node = self.parse_identifier()?;
-                        break;
+                        self.reader.borrow_mut().seek_set(cursor);
+                        return self.parse_identifier();
                     }
                     if token.kind != TokenKind::Colon {
                         return self.token_err(token);
                     }
                     let val = self.parse_expr1()?;
-                    node.dict.push((Box::new(key), Box::new(val)));
+                    items.push((Box::new(key), Box::new(val)));
                     token = self.tokenizer.get()?;
                     if token.kind == TokenKind::Comma {
                         if self.tokenizer.peek()?.kind == TokenKind::CClose {
@@ -1012,64 +1221,71 @@ impl NodeParser {
                         return self.token_err(token);
                     }
                 }
-                return Ok(node);
+                Node::Dict { pos, items }
             }
             TokenKind::POpen => {
-                node = self.parse_expr1()?;
+                let node = self.parse_expr1()?;
                 let token = self.tokenizer.get()?;
                 if token.kind != TokenKind::PClose {
                     return self.token_err(token);
                 }
+                node
             }
-            TokenKind::Option => {
-                node.kind = NodeKind::Option;
-                node.value = token.value;
-            }
-            TokenKind::Identifier => {
-                self.reader.borrow_mut().seek_set(pos);
-                node = self.parse_identifier()?;
-            }
+            TokenKind::Option => Node::Option {
+                pos,
+                value: token.value,
+            },
             _ if token.kind == TokenKind::LT
                 && self.reader.borrow().peekn(4).eq_ignore_ascii_case("SID>") =>
             {
-                self.reader.borrow_mut().seek_set(pos);
-                node = self.parse_identifier()?;
+                self.reader.borrow_mut().seek_set(cursor);
+                self.parse_identifier()?
             }
-            TokenKind::Is | TokenKind::IsCS | TokenKind::IsNot | TokenKind::IsNotCS => {
-                self.reader.borrow_mut().seek_set(pos);
-                node = self.parse_identifier()?;
+            TokenKind::Identifier
+            | TokenKind::Is
+            | TokenKind::IsCS
+            | TokenKind::IsNot
+            | TokenKind::IsNotCS => {
+                self.reader.borrow_mut().seek_set(cursor);
+                self.parse_identifier()?
             }
-            TokenKind::Env => {
-                node.kind = NodeKind::Env;
-                node.value = token.value;
-            }
-            TokenKind::Reg => {
-                node.kind = NodeKind::Reg;
-                node.value = token.value;
-            }
+            TokenKind::Env => Node::Env {
+                pos,
+                value: token.value,
+            },
+            TokenKind::Reg => Node::Reg {
+                pos,
+                value: token.value,
+            },
             _ => {
                 return self.token_err(token);
             }
-        };
-        Ok(node)
+        })
     }
 
     fn parse_identifier(&mut self) -> Result<Node, ParseError> {
         self.reader.borrow_mut().skip_white();
-        let mut node = Node::new(NodeKind::Dummy);
-        node.pos = self.reader.borrow().getpos();
-        let curly_parts = self.parse_curly_parts()?;
-        if curly_parts.len() == 1 && curly_parts[0].kind == NodeKind::CurlyNamePart {
-            node.kind = NodeKind::Identifier;
-            node.value = curly_parts.first().unwrap().value.clone();
-        } else {
-            node.kind = NodeKind::CurlyName;
-            node.body = curly_parts
-                .into_iter()
-                .map(|n| Rc::new(RefCell::new(n)))
-                .collect::<Vec<Rc<RefCell<Node>>>>();
+        let pos = self.reader.borrow().getpos();
+        let mut curly_parts = self.parse_curly_parts()?;
+        let mut node = None;
+        if curly_parts.len() == 1 {
+            if let Node::CurlyNamePart { ref mut value, .. } = curly_parts[0] {
+                node = Some(Node::Identifier {
+                    pos,
+                    value: value.to_string(),
+                });
+            }
         }
-        Ok(node)
+        if node.is_none() {
+            node = Some(Node::CurlyName {
+                pos,
+                pieces: curly_parts
+                    .into_iter()
+                    .map(|n| Box::new(n))
+                    .collect::<Vec<Box<Node>>>(),
+            });
+        }
+        Ok(node.unwrap())
     }
 
     fn parse_curly_parts(&mut self) -> Result<Vec<Node>, ParseError> {
@@ -1078,27 +1294,21 @@ impl NodeParser {
         let pos = self.reader.borrow().getpos();
         if c == "<" && self.reader.borrow().peekn(5).eq_ignore_ascii_case("<SID>") {
             let name = self.reader.borrow_mut().getn(5);
-            let mut node = Node::new(NodeKind::CurlyNamePart);
-            node.pos = pos;
-            node.value = name;
-            curly_parts.push(node);
+            curly_parts.push(Node::CurlyNamePart { pos, value: name });
         }
         loop {
             let c = self.reader.borrow().peek();
             if isnamec(&c) {
                 let pos = self.reader.borrow().getpos();
                 let name = self.reader.borrow_mut().read_name();
-                let mut node = Node::new(NodeKind::CurlyNamePart);
-                node.pos = pos;
-                node.value = name;
-                curly_parts.push(node);
+                curly_parts.push(Node::CurlyNamePart { pos, value: name });
             } else if c == "{" {
                 self.reader.borrow_mut().get();
                 let pos = self.reader.borrow().getpos();
-                let mut node = Node::new(NodeKind::CurlyNameExpr);
-                node.pos = pos;
-                node.left = Some(Box::new(self.parse_expr1()?));
-                curly_parts.push(node);
+                curly_parts.push(Node::CurlyNameExpr {
+                    pos,
+                    expr: Box::new(self.parse_expr1()?),
+                });
                 self.reader.borrow_mut().skip_white();
                 let c = self.reader.borrow().peek();
                 if c != "}" {
@@ -1116,17 +1326,14 @@ impl NodeParser {
     }
 
     fn parse_dot(&mut self, token: Token, left: Node) -> Option<Node> {
-        if ![
-            NodeKind::Identifier,
-            NodeKind::CurlyName,
-            NodeKind::Dict,
-            NodeKind::Subscript,
-            NodeKind::Call,
-            NodeKind::Dot,
-        ]
-            .contains(&left.kind)
-        {
-            return None;
+        match &left {
+            Node::Identifier { .. }
+            | Node::CurlyName { .. }
+            | Node::Dict { .. }
+            | Node::Subscript { .. }
+            | Node::Call { .. }
+            | Node::Dot { .. } => (),
+            _ => return None,
         }
         if !iswordc(&self.reader.borrow().peek()) {
             return None;
@@ -1136,14 +1343,12 @@ impl NodeParser {
         if isnamec(&self.reader.borrow().peek()) {
             return None;
         }
-        let mut right = Node::new(NodeKind::Identifier);
-        right.pos = pos;
-        right.value = name;
-        let mut node = Node::new(NodeKind::Dot);
-        node.pos = token.pos;
-        node.left = Some(Box::new(left));
-        node.right = Some(Box::new(right));
-        Some(node)
+        let right = Box::new(Node::Identifier { pos, value: name });
+        Some(Node::Dot {
+            pos: token.pos,
+            left: Box::new(left),
+            right,
+        })
     }
 
     pub fn parse_lv(&mut self) -> Result<Node, ParseError> {
@@ -1153,25 +1358,28 @@ impl NodeParser {
     fn parse_lv8(&mut self) -> Result<Node, ParseError> {
         let mut left = self.parse_lv9()?;
         loop {
-            let pos = self.reader.borrow().tell();
+            let cursor = self.reader.borrow().tell();
             let c = self.reader.borrow().peek();
             let mut token = self.tokenizer.get()?;
+            let node;
             if !iswhite(&c) && token.kind == TokenKind::SqOpen {
-                let npos = token.pos;
-                let mut node = Node::new(NodeKind::Dummy);
-                node.pos = npos;
+                let pos = token.pos;
                 if self.tokenizer.peek()?.kind == TokenKind::Colon {
                     self.tokenizer.get()?;
-                    node = Node::new(NodeKind::Slice);
-                    node.pos = npos;
-                    node.left = Some(Box::new(left));
-                    node.rlist = vec![Box::new(Node::new(NodeKind::Dummy))];
+                    let name = Box::new(left);
+                    let left_side = None;
                     token = self.tokenizer.peek()?;
-                    if token.kind != TokenKind::SqClose {
-                        node.rlist.push(Box::new(self.parse_expr1()?));
+                    let right = if token.kind != TokenKind::SqClose {
+                        Some(Box::new(self.parse_expr1()?))
                     } else {
-                        node.rlist.push(Box::new(Node::new(NodeKind::Dummy)));
-                    }
+                        None
+                    };
+                    node = Node::Slice {
+                        pos,
+                        name,
+                        left: left_side,
+                        right,
+                    };
                     token = self.tokenizer.get()?;
                     if token.kind != TokenKind::SqClose {
                         return self.token_err(token);
@@ -1180,25 +1388,30 @@ impl NodeParser {
                     let right = self.parse_expr1()?;
                     if self.tokenizer.peek()?.kind == TokenKind::Colon {
                         self.tokenizer.get()?;
-                        node = Node::new(NodeKind::Slice);
-                        node.pos = npos;
-                        node.left = Some(Box::new(left));
+                        let name = Box::new(left);
                         token = self.tokenizer.peek()?;
-                        node.rlist = vec![Box::new(right)];
-                        if token.kind != TokenKind::SqClose {
-                            node.rlist.push(Box::new(self.parse_expr1()?));
+                        let left_side = Some(Box::new(right));
+                        let right_side = if token.kind != TokenKind::SqClose {
+                            Some(Box::new(self.parse_expr1()?))
                         } else {
-                            node.rlist.push(Box::new(Node::new(NodeKind::Dummy)));
-                        }
+                            None
+                        };
+                        node = Node::Slice {
+                            pos,
+                            name,
+                            left: left_side,
+                            right: right_side,
+                        };
                         token = self.tokenizer.get()?;
                         if token.kind != TokenKind::SqClose {
                             return self.token_err(token);
                         }
                     } else {
-                        node = Node::new(NodeKind::Subscript);
-                        node.pos = npos;
-                        node.left = Some(Box::new(left));
-                        node.right = Some(Box::new(right));
+                        node = Node::Subscript {
+                            pos,
+                            name: Box::new(left),
+                            index: Box::new(right),
+                        };
                         token = self.tokenizer.get()?;
                         if token.kind != TokenKind::SqClose {
                             return self.token_err(token);
@@ -1212,12 +1425,12 @@ impl NodeParser {
                         left = n;
                     }
                     None => {
-                        self.reader.borrow_mut().seek_set(pos);
+                        self.reader.borrow_mut().seek_set(cursor);
                         break;
                     }
                 }
             } else {
-                self.reader.borrow_mut().seek_set(pos);
+                self.reader.borrow_mut().seek_set(cursor);
                 break;
             }
         }
@@ -1225,39 +1438,43 @@ impl NodeParser {
     }
 
     fn parse_lv9(&mut self) -> Result<Node, ParseError> {
-        let pos = self.reader.borrow().tell();
+        let cursor = self.reader.borrow().tell();
         let token = self.tokenizer.get()?;
-        let mut node = Node::new(NodeKind::Dummy);
-        node.pos = token.pos;
-        match token.kind {
+        let pos = token.pos;
+        Ok(match token.kind {
             TokenKind::COpen | TokenKind::Identifier => {
-                self.reader.borrow_mut().seek_set(pos);
-                node = self.parse_identifier()?;
-                node.value = token.value;
+                self.reader.borrow_mut().seek_set(cursor);
+                let mut node = self.parse_identifier()?;
+                if let Node::Identifier { ref mut value, .. } = node {
+                    *value = token.value;
+                };
+                node
             }
             _ if token.kind == TokenKind::LT
                 && self.reader.borrow().peekn(4).eq_ignore_ascii_case("SID>") =>
             {
-                self.reader.borrow_mut().seek_set(pos);
-                node = self.parse_identifier()?;
-                node.value = token.value;
+                self.reader.borrow_mut().seek_set(cursor);
+                let mut node = self.parse_identifier()?;
+                if let Node::Identifier { ref mut value, .. } = node {
+                    *value = token.value;
+                };
+                node
             }
-            TokenKind::Option => {
-                node.kind = NodeKind::Option;
-                node.value = token.value;
-            }
-            TokenKind::Env => {
-                node.kind = NodeKind::Env;
-                node.value = token.value;
-            }
-            TokenKind::Reg => {
-                node.kind = NodeKind::Reg;
-                node.value = token.value;
-            }
+            TokenKind::Option => Node::Option {
+                pos,
+                value: token.value,
+            },
+            TokenKind::Env => Node::Env {
+                pos,
+                value: token.value,
+            },
+            TokenKind::Reg => Node::Reg {
+                pos,
+                value: token.value,
+            },
             _ => {
                 return self.token_err(token);
             }
-        };
-        Ok(node)
+        })
     }
 }

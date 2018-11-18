@@ -2,7 +2,7 @@ use super::{isargname, isdigit, isvarname, iswhite, iswordc, ParseError, Positio
 use command::{neovim_commands, vim_commands, Command, Flag, ParserKind};
 use exarg::ExArg;
 use modifier::Modifier;
-use node::{Node, NodeKind, NodeParser};
+use node::{Node, NodeParser};
 use reader::Reader;
 use regex::Regex;
 use std::cell::RefCell;
@@ -54,72 +54,106 @@ impl Parser {
         self.context.remove(0)
     }
 
-    fn find_context(&self, needle: NodeKind) -> bool {
-        for node in self.context.iter() {
-            if node.borrow().kind == needle {
-                return true;
+    fn find_context_function(&self) -> bool {
+        self.context.iter().any(|node| {
+            if let Node::Function { .. } = *node.borrow() {
+                true
+            } else {
+                false
             }
-        }
-        false
+        })
+    }
+
+    fn find_context_for(&self) -> bool {
+        self.context.iter().any(|node| {
+            if let Node::For { .. } = *node.borrow() {
+                true
+            } else {
+                false
+            }
+        })
+    }
+
+    fn find_context_while(&self) -> bool {
+        self.context.iter().any(|node| {
+            if let Node::While { .. } = *node.borrow() {
+                true
+            } else {
+                false
+            }
+        })
     }
 
     fn add_node(&mut self, node: Rc<RefCell<Node>>) {
         self.ensure_context();
-        self.context[0].borrow_mut().body.push(node);
+        match *self.context[0].borrow_mut() {
+            Node::Catch { ref mut body, .. }
+            | Node::Else { ref mut body, .. }
+            | Node::ElseIf { ref mut body, .. }
+            | Node::Finally { ref mut body, .. }
+            | Node::For { ref mut body, .. }
+            | Node::Function { ref mut body, .. }
+            | Node::If { ref mut body, .. }
+            | Node::TopLevel { ref mut body, .. }
+            | Node::Try { ref mut body, .. }
+            | Node::While { ref mut body, .. } => {
+                body.push(node);
+            }
+            _ => (),
+        };
     }
 
     fn check_missing_endfunction(&self, end: &str, pos: Position) -> Result<(), ParseError> {
-        if self.current_context().borrow().kind == NodeKind::Function {
-            return Err(ParseError {
+        if let Node::Function { .. } = *self.current_context().borrow() {
+            Err(ParseError {
                 msg: format!("E126: Missing :endfunction:    {}", end),
-                pos: pos,
-            });
+                pos,
+            })
+        } else {
+            Ok(())
         }
-        Ok(())
     }
 
     fn check_missing_endif(&self, end: &str, pos: Position) -> Result<(), ParseError> {
-        if [NodeKind::If, NodeKind::ElseIf, NodeKind::Else]
-            .contains(&self.current_context().borrow().kind)
-        {
-            return Err(ParseError {
+        match *self.current_context().borrow() {
+            Node::If { .. } | Node::ElseIf { .. } | Node::Else { .. } => Err(ParseError {
                 msg: format!("E126: Missing :endif:    {}", end),
-                pos: pos,
-            });
+                pos,
+            }),
+            _ => Ok(()),
         }
-        Ok(())
     }
 
     fn check_missing_endtry(&self, end: &str, pos: Position) -> Result<(), ParseError> {
-        if [NodeKind::Try, NodeKind::Catch, NodeKind::Finally]
-            .contains(&self.current_context().borrow().kind)
-        {
-            return Err(ParseError {
+        match *self.current_context().borrow() {
+            Node::Try { .. } | Node::Catch { .. } | Node::Finally { .. } => Err(ParseError {
                 msg: format!("E126: Missing :endtry:    {}", end),
-                pos: pos,
-            });
+                pos,
+            }),
+            _ => Ok(()),
         }
-        Ok(())
     }
 
     fn check_missing_endwhile(&self, end: &str, pos: Position) -> Result<(), ParseError> {
-        if self.current_context().borrow().kind == NodeKind::While {
-            return Err(ParseError {
+        if let Node::While { .. } = *self.current_context().borrow() {
+            Err(ParseError {
                 msg: format!("E126: Missing :endwhile:    {}", end),
                 pos: pos,
-            });
+            })
+        } else {
+            Ok(())
         }
-        Ok(())
     }
 
     fn check_missing_endfor(&self, end: &str, pos: Position) -> Result<(), ParseError> {
-        if self.current_context().borrow().kind == NodeKind::For {
-            return Err(ParseError {
+        if let Node::For { .. } = *self.current_context().borrow() {
+            Err(ParseError {
                 msg: format!("E126: Missing :endfor:    {}", end),
-                pos: pos,
-            });
+                pos,
+            })
+        } else {
+            Ok(())
         }
-        Ok(())
     }
 
     fn err<T>(&self, msg: &str) -> Result<T, ParseError> {
@@ -130,8 +164,10 @@ impl Parser {
     }
 
     pub fn parse(&mut self) -> Result<Node, ParseError> {
-        let mut toplevel = Node::new(NodeKind::TopLevel);
-        toplevel.pos = self.reader.borrow().getpos();
+        let toplevel = Node::TopLevel {
+            pos: self.reader.borrow().getpos(),
+            body: vec![],
+        };
         self.push_context(Rc::new(RefCell::new(toplevel)));
         while self.reader.borrow().peek() != "<EOF>" {
             self.parse_one_cmd()?;
@@ -183,25 +219,27 @@ impl Parser {
         if sb != "#!" {
             return self.err(&format!("unexpected characters: {}", sb));
         }
-        let mut node = Node::new(NodeKind::Shebang);
-        node.pos = self.reader.borrow().getpos();
-        node.string = self.reader.borrow_mut().get_line();
+        let node = Node::Shebang {
+            pos: self.reader.borrow().getpos(),
+            value: self.reader.borrow_mut().get_line(),
+        };
         self.add_node(Rc::new(RefCell::new(node)));
         Ok(())
     }
 
     fn parse_comment(&mut self) -> Result<(), ParseError> {
-        let npos = self.reader.borrow().getpos();
+        let pos = self.reader.borrow().getpos();
         let c = self.reader.borrow_mut().get();
         if c != "\"" {
             return Err(ParseError {
                 msg: format!("unexpected character: {}", c),
-                pos: npos,
+                pos,
             });
         }
-        let mut node = Node::new(NodeKind::Comment);
-        node.pos = npos;
-        node.string = self.reader.borrow_mut().get_line();
+        let node = Node::Comment {
+            pos,
+            value: self.reader.borrow_mut().get_line(),
+        };
         self.add_node(Rc::new(RefCell::new(node)));
         Ok(())
     }
@@ -489,11 +527,11 @@ impl Parser {
             ParserKind::Common | ParserKind::UserCmd => self.parse_cmd_common(ea),
             ParserKind::Continue => self.parse_cmd_continue(ea),
             ParserKind::DelFunction => self.parse_cmd_delfunction(ea),
-            ParserKind::Echo => self.parse_cmd_with_exprlist(ea, NodeKind::Echo),
-            ParserKind::EchoErr => self.parse_cmd_with_exprlist(ea, NodeKind::EchoErr),
+            ParserKind::Echo => self.parse_cmd_echo(ea),
+            ParserKind::EchoErr => self.parse_cmd_echoerr(ea),
             ParserKind::EchoHl => self.parse_cmd_echohl(ea),
-            ParserKind::EchoMsg => self.parse_cmd_with_exprlist(ea, NodeKind::EchoMsg),
-            ParserKind::EchoN => self.parse_cmd_with_exprlist(ea, NodeKind::EchoN),
+            ParserKind::EchoMsg => self.parse_cmd_echomsg(ea),
+            ParserKind::EchoN => self.parse_cmd_echon(ea),
             ParserKind::Else => self.parse_cmd_else(ea),
             ParserKind::ElseIf => self.parse_cmd_elseif(ea),
             ParserKind::EndFor => self.parse_cmd_endfor(ea),
@@ -501,7 +539,7 @@ impl Parser {
             ParserKind::EndIf => self.parse_cmd_endif(ea),
             ParserKind::EndTry => self.parse_cmd_endtry(ea),
             ParserKind::EndWhile => self.parse_cmd_endwhile(ea),
-            ParserKind::Execute => self.parse_cmd_with_exprlist(ea, NodeKind::Execute),
+            ParserKind::Execute => self.parse_cmd_execute(ea),
             ParserKind::Finally => self.parse_cmd_finally(ea),
             ParserKind::Finish => self.parse_cmd_finish(ea),
             ParserKind::For => self.parse_cmd_for(ea),
@@ -536,74 +574,91 @@ impl Parser {
                 break;
             }
         }
-        let mut node = Node::new(NodeKind::ExCmd);
-        node.pos = ea.cmdpos;
-        node.ea = Some(ea);
-        node.string = lines.join("\n");
+        let node = Node::ExCmd {
+            pos: ea.cmdpos,
+            ea,
+            value: lines.join("\n"),
+        };
         self.add_node(Rc::new(RefCell::new(node)));
     }
 
     fn parse_cmd_break(&mut self, ea: ExArg) -> Result<(), ParseError> {
-        if !self.find_context(NodeKind::While) && !self.find_context(NodeKind::For) {
+        if !self.find_context_while() && !self.find_context_for() {
             return self.err("E587: :break without :while or :for");
         }
-        let mut node = Node::new(NodeKind::Break);
-        node.pos = ea.cmdpos;
-        node.ea = Some(ea);
+        let node = Node::Break { pos: ea.cmdpos, ea };
         self.add_node(Rc::new(RefCell::new(node)));
         Ok(())
     }
 
     fn parse_cmd_call(&mut self, ea: ExArg) -> Result<(), ParseError> {
-        let mut node = Node::new(NodeKind::ExCall);
-        node.pos = ea.cmdpos;
-        node.ea = Some(ea);
+        let pos = ea.cmdpos;
         self.reader.borrow_mut().skip_white();
         if ends_excmds(&self.reader.borrow().peek()) {
             return self.err("E471: Argument required");
         }
         let left = self.parse_expr()?;
-        if left.kind != NodeKind::Call {
-            return Err(ParseError {
+        match &left {
+            &Node::Call { .. } => {
+                let node = Node::ExCall {
+                    pos,
+                    ea,
+                    left: Box::new(left),
+                };
+                self.add_node(Rc::new(RefCell::new(node)));
+                Ok(())
+            }
+            _ => Err(ParseError {
                 msg: "Not a function call".to_string(),
-                pos: left.pos,
-            });
+                pos,
+            }),
         }
-        node.left = Some(Box::new(left));
-        self.add_node(Rc::new(RefCell::new(node)));
-        Ok(())
     }
 
     fn parse_cmd_catch(&mut self, ea: ExArg) -> Result<(), ParseError> {
-        if self.current_context().borrow().kind == NodeKind::Finally {
+        if let Node::Finally { .. } = *self.current_context().borrow() {
             return Err(ParseError {
                 msg: "E604: :catch after :finally".to_string(),
                 pos: ea.cmdpos,
             });
-        } else if self.current_context().borrow().kind != NodeKind::Try
-            && self.current_context().borrow().kind != NodeKind::Catch
-        {
-            return Err(ParseError {
-                msg: "E604: :catch without :try".to_string(),
-                pos: ea.cmdpos,
-            });
         }
-        if self.current_context().borrow().kind != NodeKind::Try {
+        match *self.current_context().borrow() {
+            Node::Try { .. } | Node::Catch { .. } => (),
+            _ => {
+                return Err(ParseError {
+                    msg: "E604: :catch without :try".to_string(),
+                    pos: ea.cmdpos,
+                })
+            }
+        };
+        let pop = if let Node::Catch { .. } = *self.current_context().borrow() {
+            true
+        } else {
+            false
+        };
+        if pop {
             self.pop_context();
         }
-        let mut node = Node::new(NodeKind::Catch);
-        node.pos = ea.cmdpos;
-        node.ea = Some(ea);
-        if !ends_excmds(&self.reader.borrow().peek()) {
+        let pattern = if !ends_excmds(&self.reader.borrow().peek()) {
             let p = self.reader.borrow_mut().get();
-            let (pattern, _) = self.parse_pattern(&p)?;
-            node.pattern = pattern;
-        }
+            let (pat, _) = self.parse_pattern(&p)?;
+            Some(pat)
+        } else {
+            None
+        };
+        let node = Node::Catch {
+            pos: ea.cmdpos,
+            ea,
+            pattern,
+            body: vec![],
+        };
         let rc_node = Rc::new(RefCell::new(node));
-        self.current_context()
-            .borrow_mut()
-            .catch
-            .push(Rc::clone(&rc_node));
+        if let Node::Try {
+            ref mut catches, ..
+        } = *self.current_context().borrow_mut()
+        {
+            catches.push(Rc::clone(&rc_node));
+        }
         self.push_context(rc_node);
         Ok(())
     }
@@ -620,115 +675,193 @@ impl Parser {
                 }
             }
         }
-        let mut node = Node::new(NodeKind::ExCmd);
-        node.pos = ea.cmdpos;
-        node.string = self.reader.borrow_mut().getstr(ea.linepos, end);
-        node.ea = Some(ea);
+        let node = Node::ExCmd {
+            pos: ea.cmdpos,
+            value: self.reader.borrow_mut().getstr(ea.linepos, end),
+            ea,
+        };
         self.add_node(Rc::new(RefCell::new(node)));
         Ok(())
     }
 
     fn parse_cmd_continue(&mut self, ea: ExArg) -> Result<(), ParseError> {
-        if !self.find_context(NodeKind::While) && !self.find_context(NodeKind::For) {
+        if !self.find_context_while() && !self.find_context_for() {
             return Err(ParseError {
                 msg: "E586: :continue without :while or :for".to_string(),
                 pos: ea.cmdpos,
             });
         }
-        let mut node = Node::new(NodeKind::Continue);
-        node.pos = ea.cmdpos;
-        node.ea = Some(ea);
+        let node = Node::Continue { pos: ea.cmdpos, ea };
         self.add_node(Rc::new(RefCell::new(node)));
         Ok(())
     }
 
     fn parse_cmd_delfunction(&mut self, ea: ExArg) -> Result<(), ParseError> {
-        let mut node = Node::new(NodeKind::DelFunction);
-        node.pos = ea.cmdpos;
-        node.ea = Some(ea);
-        node.left = Some(Box::new(self.parse_lvalue_func()?));
+        let node = Node::DelFunction {
+            pos: ea.cmdpos,
+            ea,
+            left: Box::new(self.parse_lvalue_func()?),
+        };
         self.add_node(Rc::new(RefCell::new(node)));
         Ok(())
     }
 
-    fn parse_cmd_with_exprlist(&mut self, ea: ExArg, kind: NodeKind) -> Result<(), ParseError> {
-        let mut node = Node::new(kind);
-        node.pos = ea.cmdpos;
-        node.ea = Some(ea);
-        node.list = self
-            .parse_exprlist()?
-            .into_iter()
-            .map(|n| Box::new(n))
-            .collect::<Vec<Box<Node>>>();
+    fn parse_cmd_echo(&mut self, ea: ExArg) -> Result<(), ParseError> {
+        let node = Node::Echo {
+            pos: ea.cmdpos,
+            ea,
+            list: self
+                .parse_exprlist()?
+                .into_iter()
+                .map(|n| Box::new(n))
+                .collect::<Vec<Box<Node>>>(),
+        };
+        self.add_node(Rc::new(RefCell::new(node)));
+        Ok(())
+    }
+
+    fn parse_cmd_echoerr(&mut self, ea: ExArg) -> Result<(), ParseError> {
+        let node = Node::EchoErr {
+            pos: ea.cmdpos,
+            ea,
+            list: self
+                .parse_exprlist()?
+                .into_iter()
+                .map(|n| Box::new(n))
+                .collect::<Vec<Box<Node>>>(),
+        };
+        self.add_node(Rc::new(RefCell::new(node)));
+        Ok(())
+    }
+
+    fn parse_cmd_echomsg(&mut self, ea: ExArg) -> Result<(), ParseError> {
+        let node = Node::EchoMsg {
+            pos: ea.cmdpos,
+            ea,
+            list: self
+                .parse_exprlist()?
+                .into_iter()
+                .map(|n| Box::new(n))
+                .collect::<Vec<Box<Node>>>(),
+        };
+        self.add_node(Rc::new(RefCell::new(node)));
+        Ok(())
+    }
+
+    fn parse_cmd_echon(&mut self, ea: ExArg) -> Result<(), ParseError> {
+        let node = Node::EchoN {
+            pos: ea.cmdpos,
+            ea,
+            list: self
+                .parse_exprlist()?
+                .into_iter()
+                .map(|n| Box::new(n))
+                .collect::<Vec<Box<Node>>>(),
+        };
+        self.add_node(Rc::new(RefCell::new(node)));
+        Ok(())
+    }
+
+    fn parse_cmd_execute(&mut self, ea: ExArg) -> Result<(), ParseError> {
+        let node = Node::Execute {
+            pos: ea.cmdpos,
+            ea,
+            list: self
+                .parse_exprlist()?
+                .into_iter()
+                .map(|n| Box::new(n))
+                .collect::<Vec<Box<Node>>>(),
+        };
         self.add_node(Rc::new(RefCell::new(node)));
         Ok(())
     }
 
     fn parse_cmd_echohl(&mut self, ea: ExArg) -> Result<(), ParseError> {
-        let mut node = Node::new(NodeKind::EchoHl);
-        node.pos = ea.cmdpos;
-        node.ea = Some(ea);
-        node.string = String::new();
+        let mut value = String::new();
         while !ends_excmds(&self.reader.borrow().peek()) {
-            node.string.push_str(&self.reader.borrow_mut().get());
+            value.push_str(&self.reader.borrow_mut().get());
         }
+        let node = Node::EchoHl {
+            pos: ea.cmdpos,
+            ea,
+            value,
+        };
         self.add_node(Rc::new(RefCell::new(node)));
         Ok(())
     }
 
     fn parse_cmd_else(&mut self, ea: ExArg) -> Result<(), ParseError> {
-        if ![NodeKind::If, NodeKind::ElseIf].contains(&self.current_context().borrow().kind) {
-            return Err(ParseError {
-                msg: "E581: :else without :if".to_string(),
-                pos: ea.cmdpos,
-            });
-        }
-        if self.current_context().borrow().kind != NodeKind::If {
+        let pop = match *self.current_context().borrow() {
+            Node::If { .. } => false,
+            Node::ElseIf { .. } => true,
+            _ => {
+                return Err(ParseError {
+                    msg: "E581: :else without :if".to_string(),
+                    pos: ea.cmdpos,
+                })
+            }
+        };
+        if pop {
             self.pop_context();
         }
-        let mut node = Node::new(NodeKind::Else);
-        node.pos = ea.cmdpos;
-        node.ea = Some(ea);
+        let node = Node::Else {
+            pos: ea.cmdpos,
+            ea,
+            body: vec![],
+        };
         let rc_node = Rc::new(RefCell::new(node));
-        self.current_context().borrow_mut().else_ = Some(Rc::clone(&rc_node));
+        if let Node::If { ref mut else_, .. } = *self.current_context().borrow_mut() {
+            *else_ = Some(Rc::clone(&rc_node));
+        }
         self.push_context(rc_node);
         Ok(())
     }
 
     fn parse_cmd_elseif(&mut self, ea: ExArg) -> Result<(), ParseError> {
-        if ![NodeKind::If, NodeKind::ElseIf].contains(&self.current_context().borrow().kind) {
-            return Err(ParseError {
-                msg: "E582: :elseif without :if".to_string(),
-                pos: ea.cmdpos,
-            });
-        }
-        if self.current_context().borrow().kind != NodeKind::If {
+        let pop = match *self.current_context().borrow() {
+            Node::If { .. } => false,
+            Node::ElseIf { .. } => true,
+            _ => {
+                return Err(ParseError {
+                    msg: "E582: :elseif without :if".to_string(),
+                    pos: ea.cmdpos,
+                })
+            }
+        };
+        if pop {
             self.pop_context();
         }
-        let mut node = Node::new(NodeKind::ElseIf);
-        node.pos = ea.cmdpos;
-        node.ea = Some(ea);
-        node.cond = Some(Box::new(self.parse_expr()?));
+        let node = Node::ElseIf {
+            pos: ea.cmdpos,
+            ea,
+            cond: Box::new(self.parse_expr()?),
+            body: vec![],
+        };
         let rc_node = Rc::new(RefCell::new(node));
-        self.current_context()
-            .borrow_mut()
-            .elseif
-            .push(Rc::clone(&rc_node));
+        if let Node::If {
+            ref mut elseifs, ..
+        } = *self.current_context().borrow_mut()
+        {
+            elseifs.push(Rc::clone(&rc_node));
+        }
         self.push_context(rc_node);
         Ok(())
     }
 
     fn parse_cmd_endfor(&mut self, ea: ExArg) -> Result<(), ParseError> {
-        if self.current_context().borrow().kind != NodeKind::For {
-            return Err(ParseError {
-                msg: "E588: :endfor without :for".to_string(),
-                pos: ea.cmdpos,
-            });
+        match *self.current_context().borrow() {
+            Node::For { .. } => (),
+            _ => {
+                return Err(ParseError {
+                    msg: "E588: :endfor without :for".to_string(),
+                    pos: ea.cmdpos,
+                })
+            }
+        };
+        let node = Node::End { pos: ea.cmdpos, ea };
+        if let Node::For { ref mut end, .. } = *self.current_context().borrow_mut() {
+            *end = Some(Box::new(node));
         }
-        let mut node = Node::new(NodeKind::EndFor);
-        node.pos = ea.cmdpos;
-        node.ea = Some(ea);
-        self.current_context().borrow_mut().end = Some(Box::new(node));
         self.pop_context();
         Ok(())
     }
@@ -738,121 +871,139 @@ impl Parser {
         self.check_missing_endtry("ENDFUNCTION", ea.cmdpos)?;
         self.check_missing_endwhile("ENDFUNCTION", ea.cmdpos)?;
         self.check_missing_endfor("ENDFUNCTION", ea.cmdpos)?;
-        if self.current_context().borrow().kind != NodeKind::Function {
-            return Err(ParseError {
-                msg: "E193: :endfunction not inside a function".to_string(),
-                pos: ea.cmdpos,
-            });
-        }
+        match *self.current_context().borrow() {
+            Node::Function { .. } => (),
+            _ => {
+                return Err(ParseError {
+                    msg: "E193: :endfunction not inside a function".to_string(),
+                    pos: ea.cmdpos,
+                })
+            }
+        };
         self.reader.borrow_mut().get_line();
-        let mut node = Node::new(NodeKind::EndFunction);
-        node.pos = ea.cmdpos;
-        node.ea = Some(ea);
-        self.current_context().borrow_mut().end = Some(Box::new(node));
+        let node = Node::End { pos: ea.cmdpos, ea };
+        if let Node::Function { ref mut end, .. } = *self.current_context().borrow_mut() {
+            *end = Some(Box::new(node));
+        }
         self.pop_context();
         Ok(())
     }
 
     fn parse_cmd_endif(&mut self, ea: ExArg) -> Result<(), ParseError> {
-        if ![NodeKind::If, NodeKind::ElseIf, NodeKind::Else]
-            .contains(&self.current_context().borrow().kind)
-        {
-            return Err(ParseError {
-                msg: "E580: :endif without :if".to_string(),
-                pos: ea.cmdpos,
-            });
-        }
-        if self.current_context().borrow().kind != NodeKind::If {
+        let pop = match *self.current_context().borrow() {
+            Node::If { .. } => false,
+            Node::ElseIf { .. } | Node::Else { .. } => true,
+            _ => {
+                return Err(ParseError {
+                    msg: "E580: :endif without :if".to_string(),
+                    pos: ea.cmdpos,
+                })
+            }
+        };
+        if pop {
             self.pop_context();
         }
-        let mut node = Node::new(NodeKind::EndIf);
-        node.pos = ea.cmdpos;
-        node.ea = Some(ea);
-        self.current_context().borrow_mut().end = Some(Box::new(node));
+        let node = Node::End { pos: ea.cmdpos, ea };
+        if let Node::If { ref mut end, .. } = *self.current_context().borrow_mut() {
+            *end = Some(Box::new(node));
+        }
         self.pop_context();
         Ok(())
     }
 
     fn parse_cmd_endtry(&mut self, ea: ExArg) -> Result<(), ParseError> {
-        if ![NodeKind::Try, NodeKind::Catch, NodeKind::Finally]
-            .contains(&self.current_context().borrow().kind)
-        {
-            return Err(ParseError {
-                msg: "E580: :endtry without :try".to_string(),
-                pos: ea.cmdpos,
-            });
-        }
-        if self.current_context().borrow().kind != NodeKind::Try {
+        let pop = match *self.current_context().borrow() {
+            Node::Try { .. } => false,
+            Node::Catch { .. } | Node::Finally { .. } => true,
+            _ => {
+                return Err(ParseError {
+                    msg: "E580: :endtry without :try".to_string(),
+                    pos: ea.cmdpos,
+                })
+            }
+        };
+        if pop {
             self.pop_context();
         }
-        let mut node = Node::new(NodeKind::EndTry);
-        node.pos = ea.cmdpos;
-        node.ea = Some(ea);
-        self.current_context().borrow_mut().end = Some(Box::new(node));
+        let node = Node::End { pos: ea.cmdpos, ea };
+        if let Node::Try { ref mut end, .. } = *self.current_context().borrow_mut() {
+            *end = Some(Box::new(node));
+        }
         self.pop_context();
         Ok(())
     }
 
     fn parse_cmd_endwhile(&mut self, ea: ExArg) -> Result<(), ParseError> {
-        if self.current_context().borrow().kind != NodeKind::While {
-            return Err(ParseError {
-                msg: "E588: :endwhile without :while".to_string(),
-                pos: ea.cmdpos,
-            });
+        match *self.current_context().borrow() {
+            Node::While { .. } => (),
+            _ => {
+                return Err(ParseError {
+                    msg: "E588: :endwhile without :while".to_string(),
+                    pos: ea.cmdpos,
+                })
+            }
+        };
+        let node = Node::End { pos: ea.cmdpos, ea };
+        if let Node::While { ref mut end, .. } = *self.current_context().borrow_mut() {
+            *end = Some(Box::new(node));
         }
-        let mut node = Node::new(NodeKind::EndWhile);
-        node.pos = ea.cmdpos;
-        node.ea = Some(ea);
-        self.current_context().borrow_mut().end = Some(Box::new(node));
         self.pop_context();
         Ok(())
     }
 
     fn parse_cmd_finally(&mut self, ea: ExArg) -> Result<(), ParseError> {
-        if ![NodeKind::Try, NodeKind::Catch].contains(&self.current_context().borrow().kind) {
-            return Err(ParseError {
-                msg: "E606: :finally without :try".to_string(),
-                pos: ea.cmdpos,
-            });
-        }
-        if self.current_context().borrow().kind != NodeKind::Try {
+        let pop = match *self.current_context().borrow() {
+            Node::Try { .. } => false,
+            Node::Catch { .. } => true,
+            _ => {
+                return Err(ParseError {
+                    msg: "E606: :finally without :try".to_string(),
+                    pos: ea.cmdpos,
+                })
+            }
+        };
+        if pop {
             self.pop_context();
         }
-        let mut node = Node::new(NodeKind::Finally);
-        node.pos = ea.cmdpos;
-        node.ea = Some(ea);
+        let node = Node::Finally {
+            pos: ea.cmdpos,
+            ea,
+            body: vec![],
+        };
         let rc_node = Rc::new(RefCell::new(node));
-        self.current_context().borrow_mut().finally = Some(Rc::clone(&rc_node));
+        if let Node::Try {
+            ref mut finally, ..
+        } = *self.current_context().borrow_mut()
+        {
+            *finally = Some(Rc::clone(&rc_node));
+        }
         self.push_context(rc_node);
         Ok(())
     }
 
     fn parse_cmd_finish(&mut self, ea: ExArg) -> Result<(), ParseError> {
         let rv = self.parse_cmd_common(ea);
-        if self.current_context().borrow().kind == NodeKind::TopLevel {
+        if let Node::TopLevel { .. } = *self.current_context().borrow() {
             self.reader.borrow_mut().seek_end();
         }
         rv
     }
 
     fn parse_cmd_for(&mut self, ea: ExArg) -> Result<(), ParseError> {
-        let mut node = Node::new(NodeKind::For);
-        node.pos = ea.cmdpos;
-        node.ea = Some(ea);
         let lhs = self.parse_letlhs()?;
-        if let Some(left) = lhs.0 {
-            node.left = Some(Box::new(left));
-        }
-        node.list = lhs
+        let var = match lhs.0 {
+            Some(l) => Some(Box::new(l)),
+            None => None,
+        };
+        let list = lhs
             .1
             .into_iter()
             .map(|n| Box::new(n))
             .collect::<Vec<Box<Node>>>();
-        node.rest = lhs
-            .2
-            .into_iter()
-            .map(|n| Box::new(n))
-            .collect::<Vec<Box<Node>>>();
+        let rest = match lhs.2 {
+            Some(r) => Some(Box::new(r)),
+            None => None,
+        };
         self.reader.borrow_mut().skip_white();
         let epos = self.reader.borrow().getpos();
         if self.reader.borrow_mut().read_alpha() != "in" {
@@ -861,7 +1012,17 @@ impl Parser {
                 pos: epos,
             });
         }
-        node.right = Some(Box::new(self.parse_expr()?));
+        let right = Box::new(self.parse_expr()?);
+        let node = Node::For {
+            pos: ea.cmdpos,
+            ea,
+            var,
+            list,
+            rest,
+            right,
+            body: vec![],
+            end: None,
+        };
         let rc_node = Rc::new(RefCell::new(node));
         self.add_node(Rc::clone(&rc_node));
         self.push_context(rc_node);
@@ -869,10 +1030,15 @@ impl Parser {
     }
 
     fn parse_cmd_if(&mut self, ea: ExArg) -> Result<(), ParseError> {
-        let mut node = Node::new(NodeKind::If);
-        node.pos = ea.cmdpos;
-        node.ea = Some(ea);
-        node.cond = Some(Box::new(self.parse_expr()?));
+        let node = Node::If {
+            pos: ea.cmdpos,
+            ea,
+            cond: Box::new(self.parse_expr()?),
+            elseifs: vec![],
+            else_: None,
+            body: vec![],
+            end: None,
+        };
         let rc_node = Rc::new(RefCell::new(node));
         self.add_node(Rc::clone(&rc_node));
         self.push_context(rc_node);
@@ -887,6 +1053,19 @@ impl Parser {
             return self.parse_cmd_common(ea);
         }
         let lhs = self.parse_letlhs()?;
+        let var = match lhs.0 {
+            Some(l) => Some(Box::new(l)),
+            None => None,
+        };
+        let list = lhs
+            .1
+            .into_iter()
+            .map(|n| Box::new(n))
+            .collect::<Vec<Box<Node>>>();
+        let rest = match lhs.2 {
+            Some(r) => Some(Box::new(r)),
+            None => None,
+        };
         self.reader.borrow_mut().skip_white();
         let s1 = self.reader.borrow().peek();
         let s2 = self.reader.borrow().peekn(2);
@@ -894,32 +1073,24 @@ impl Parser {
             self.reader.borrow_mut().seek_set(pos);
             return self.parse_cmd_common(ea);
         }
-        let mut node = Node::new(NodeKind::Let);
-        node.pos = ea.cmdpos;
-        node.ea = Some(ea);
-        if let Some(left) = lhs.0 {
-            node.left = Some(Box::new(left));
-        }
-        node.list = lhs
-            .1
-            .into_iter()
-            .map(|n| Box::new(n))
-            .collect::<Vec<Box<Node>>>();
-        node.rest = lhs
-            .2
-            .into_iter()
-            .map(|n| Box::new(n))
-            .collect::<Vec<Box<Node>>>();
-        if s2 == "+=" || s2 == "-=" || s2 == ".=" {
+        let op = if s2 == "+=" || s2 == "-=" || s2 == ".=" {
             self.reader.borrow_mut().getn(2);
-            node.op = s2;
+            s2
         } else if s1 == "=" {
             self.reader.borrow_mut().get();
-            node.op = s1;
+            s1
         } else {
             return self.err("NOT REACHED");
-        }
-        node.right = Some(Box::new(self.parse_expr()?));
+        };
+        let node = Node::Let {
+            pos: ea.cmdpos,
+            ea,
+            var,
+            list,
+            rest,
+            op,
+            right: Box::new(self.parse_expr()?),
+        };
         self.add_node(Rc::new(RefCell::new(node)));
         Ok(())
     }
@@ -933,33 +1104,38 @@ impl Parser {
             }
             lines.push(self.reader.borrow_mut().get_line());
         }
-        let mut node = Node::new(NodeKind::ExCmd);
-        node.pos = ea.cmdpos;
-        node.ea = Some(ea);
-        node.string = lines.join("\n");
+        let node = Node::ExCmd {
+            pos: ea.cmdpos,
+            ea,
+            value: lines.join("\n"),
+        };
         self.add_node(Rc::new(RefCell::new(node)));
         Ok(())
     }
 
     fn parse_cmd_lockvar(&mut self, ea: ExArg) -> Result<(), ParseError> {
-        let mut node = Node::new(NodeKind::LockVar);
-        node.pos = ea.cmdpos;
-        node.ea = Some(ea);
         self.reader.borrow_mut().skip_white();
-        if isdigit(&self.reader.borrow().peek()) {
-            node.depth = Some(
+        let depth = if isdigit(&self.reader.borrow().peek()) {
+            Some(
                 self.reader
                     .borrow_mut()
                     .read_digit()
                     .parse::<usize>()
                     .unwrap(),
-            );
-        }
-        node.list = self
-            .parse_lvaluelist()?
-            .into_iter()
-            .map(|n| Box::new(n))
-            .collect::<Vec<Box<Node>>>();
+            )
+        } else {
+            None
+        };
+        let node = Node::LockVar {
+            pos: ea.cmdpos,
+            ea,
+            depth,
+            list: self
+                .parse_lvaluelist()?
+                .into_iter()
+                .map(|n| Box::new(n))
+                .collect::<Vec<Box<Node>>>(),
+        };
         self.add_node(Rc::new(RefCell::new(node)));
         Ok(())
     }
@@ -991,29 +1167,34 @@ impl Parser {
             self.reader.borrow_mut().setpos(ea.linepos);
             lines.push(self.reader.borrow_mut().get_line());
         }
-        let mut node = Node::new(NodeKind::ExCmd);
-        node.pos = ea.cmdpos;
-        node.ea = Some(ea);
-        node.string = lines.join("\n");
+        let node = Node::ExCmd {
+            pos: ea.cmdpos,
+            ea,
+            value: lines.join("\n"),
+        };
         self.add_node(Rc::new(RefCell::new(node)));
         Ok(())
     }
 
     fn parse_cmd_return(&mut self, ea: ExArg) -> Result<(), ParseError> {
-        if !self.find_context(NodeKind::Function) {
+        if !self.find_context_function() {
             return Err(ParseError {
                 msg: "E133: :return not inside a function".to_string(),
                 pos: ea.cmdpos,
             });
         }
-        let mut node = Node::new(NodeKind::Return);
-        node.pos = ea.cmdpos;
-        node.ea = Some(ea);
         self.reader.borrow_mut().skip_white();
         let c = self.reader.borrow().peek();
-        if c == "\"" || !ends_excmds(&c) {
-            node.left = Some(Box::new(self.parse_expr()?));
-        }
+        let left = if c == "\"" || !ends_excmds(&c) {
+            Some(Box::new(self.parse_expr()?))
+        } else {
+            None
+        };
+        let node = Node::Return {
+            pos: ea.cmdpos,
+            ea,
+            left,
+        };
         self.add_node(Rc::new(RefCell::new(node)));
         Ok(())
     }
@@ -1037,27 +1218,34 @@ impl Parser {
                 self.reader.borrow_mut().getn(1);
             }
         }
-        let mut node = Node::new(NodeKind::ExCmd);
-        node.pos = ea.cmdpos;
-        node.string = self.reader.borrow_mut().getstr(ea.linepos, end);
-        node.ea = Some(ea);
+        let node = Node::ExCmd {
+            pos: ea.cmdpos,
+            value: self.reader.borrow_mut().getstr(ea.linepos, end),
+            ea,
+        };
         self.add_node(Rc::new(RefCell::new(node)));
         Ok(())
     }
 
     fn parse_cmd_throw(&mut self, ea: ExArg) -> Result<(), ParseError> {
-        let mut node = Node::new(NodeKind::Throw);
-        node.pos = ea.cmdpos;
-        node.ea = Some(ea);
-        node.left = Some(Box::new(self.parse_expr()?));
+        let node = Node::Throw {
+            pos: ea.cmdpos,
+            ea,
+            err: Box::new(self.parse_expr()?),
+        };
         self.add_node(Rc::new(RefCell::new(node)));
         Ok(())
     }
 
     fn parse_cmd_try(&mut self, ea: ExArg) -> Result<(), ParseError> {
-        let mut node = Node::new(NodeKind::Try);
-        node.pos = ea.cmdpos;
-        node.ea = Some(ea);
+        let node = Node::Try {
+            pos: ea.cmdpos,
+            ea,
+            body: vec![],
+            catches: vec![],
+            finally: None,
+            end: None,
+        };
         let rc_node = Rc::new(RefCell::new(node));
         self.add_node(Rc::clone(&rc_node));
         self.push_context(rc_node);
@@ -1065,46 +1253,54 @@ impl Parser {
     }
 
     fn parse_cmd_unlet(&mut self, ea: ExArg) -> Result<(), ParseError> {
-        let mut node = Node::new(NodeKind::Unlet);
-        node.pos = ea.cmdpos;
-        node.ea = Some(ea);
-        node.list = self
-            .parse_lvaluelist()?
-            .into_iter()
-            .map(|n| Box::new(n))
-            .collect::<Vec<Box<Node>>>();
+        let node = Node::Unlet {
+            pos: ea.cmdpos,
+            ea,
+            list: self
+                .parse_lvaluelist()?
+                .into_iter()
+                .map(|n| Box::new(n))
+                .collect::<Vec<Box<Node>>>(),
+        };
         self.add_node(Rc::new(RefCell::new(node)));
         Ok(())
     }
 
     fn parse_cmd_unlockvar(&mut self, ea: ExArg) -> Result<(), ParseError> {
-        let mut node = Node::new(NodeKind::UnlockVar);
-        node.pos = ea.cmdpos;
-        node.ea = Some(ea);
         self.reader.borrow_mut().skip_white();
-        if isdigit(&self.reader.borrow().peek()) {
-            node.depth = Some(
+        let depth = if isdigit(&self.reader.borrow().peek()) {
+            Some(
                 self.reader
                     .borrow_mut()
                     .read_digit()
                     .parse::<usize>()
                     .unwrap(),
-            );
-        }
-        node.list = self
-            .parse_exprlist()?
-            .into_iter()
-            .map(|n| Box::new(n))
-            .collect::<Vec<Box<Node>>>();
+            )
+        } else {
+            None
+        };
+        let node = Node::UnlockVar {
+            pos: ea.cmdpos,
+            ea,
+            depth,
+            list: self
+                .parse_exprlist()?
+                .into_iter()
+                .map(|n| Box::new(n))
+                .collect::<Vec<Box<Node>>>(),
+        };
         self.add_node(Rc::new(RefCell::new(node)));
         Ok(())
     }
 
     fn parse_cmd_while(&mut self, ea: ExArg) -> Result<(), ParseError> {
-        let mut node = Node::new(NodeKind::While);
-        node.pos = ea.cmdpos;
-        node.ea = Some(ea);
-        node.cond = Some(Box::new(self.parse_expr()?));
+        let node = Node::While {
+            pos: ea.cmdpos,
+            ea,
+            body: vec![],
+            cond: Box::new(self.parse_expr()?),
+            end: None,
+        };
         let rc_node = Rc::new(RefCell::new(node));
         self.add_node(Rc::clone(&rc_node));
         self.push_context(rc_node);
@@ -1126,10 +1322,11 @@ impl Parser {
         if !ends_excmds(&self.reader.borrow().peek()) {
             return self.err("E474: Invalid argument");
         }
-        let mut node = Node::new(NodeKind::ExCmd);
-        node.pos = ea.cmdpos;
-        node.string = self.reader.borrow_mut().getstr(ea.linepos, end);
-        node.ea = Some(ea);
+        let node = Node::ExCmd {
+            pos: ea.cmdpos,
+            value: self.reader.borrow_mut().getstr(ea.linepos, end),
+            ea,
+        };
         self.add_node(Rc::new(RefCell::new(node)));
         Ok(())
     }
@@ -1186,18 +1383,18 @@ impl Parser {
         }
         let left = self.parse_lvalue_func()?;
         self.reader.borrow_mut().skip_white();
-        if left.kind == NodeKind::Identifier {
-            if !left.value.starts_with("<")
-                && !left.value.starts_with(|c: char| c.is_uppercase())
-                && !left.value.contains(":")
-                && !left.value.contains("#")
+        if let &Node::Identifier { pos, ref value, .. } = &left {
+            if !value.starts_with("<")
+                && !value.starts_with(|c: char| c.is_uppercase())
+                && !value.contains(":")
+                && !value.contains("#")
             {
                 return Err(ParseError {
                     msg: format!(
                         "E128: Function name must start with a capital or contain a colon: {}",
-                        left.value
+                        value
                     ),
-                    pos: left.pos,
+                    pos,
                 });
             }
         }
@@ -1205,18 +1402,15 @@ impl Parser {
             self.reader.borrow_mut().seek_set(pos);
             return self.parse_cmd_common(ea);
         }
-        let mut node = Node::new(NodeKind::Function);
-        node.pos = ea.cmdpos;
-        node.ea = Some(ea);
-        node.left = Some(Box::new(left));
+        let name = Box::new(left);
         self.reader.borrow_mut().getn(1);
         let mut tokenizer = Tokenizer::new(Rc::clone(&self.reader));
+        let mut args = vec![];
         if tokenizer.peek()?.kind == TokenKind::PClose {
             tokenizer.get()?;
         } else {
             let mut named: Vec<String> = vec![];
             loop {
-                let mut varnode = Node::new(NodeKind::Identifier);
                 let mut token = tokenizer.get()?;
                 if token.kind == TokenKind::Identifier {
                     if !isargname(&token.value)
@@ -1234,9 +1428,10 @@ impl Parser {
                         });
                     }
                     named.push(token.value.clone());
-                    varnode.pos = token.pos;
-                    varnode.value = token.value;
-                    node.rlist.push(Box::new(varnode));
+                    args.push(Box::new(Node::Identifier {
+                        pos: token.pos,
+                        value: token.value,
+                    }));
                     if iswhite(&self.reader.borrow().peek())
                         && tokenizer.peek()?.kind == TokenKind::Comma
                     {
@@ -1258,9 +1453,10 @@ impl Parser {
                         });
                     }
                 } else if token.kind == TokenKind::DotDotDot {
-                    varnode.pos = token.pos;
-                    varnode.value = token.value;
-                    node.rlist.push(Box::new(varnode));
+                    args.push(Box::new(Node::Identifier {
+                        pos: token.pos,
+                        value: token.value,
+                    }));
                     token = tokenizer.get()?;
                     if token.kind == TokenKind::PClose {
                         break;
@@ -1278,6 +1474,7 @@ impl Parser {
                 }
             }
         }
+        let mut attrs = vec![];
         loop {
             self.reader.borrow_mut().skip_white();
             let epos = self.reader.borrow().getpos();
@@ -1286,10 +1483,7 @@ impl Parser {
                 "" => {
                     break;
                 }
-                "range" => node.attrs.push("range".to_string()),
-                "abort" => node.attrs.push("abort".to_string()),
-                "dict" => node.attrs.push("dict".to_string()),
-                "closure" => node.attrs.push("closure".to_string()),
+                "range" | "abort" | "dict" | "closure" => attrs.push(key),
                 _ => {
                     return Err(ParseError {
                         msg: format!("unexpected token: {}", key),
@@ -1298,6 +1492,15 @@ impl Parser {
                 }
             }
         }
+        let node = Node::Function {
+            pos: ea.cmdpos,
+            ea,
+            name,
+            args,
+            body: vec![],
+            attrs,
+            end: None,
+        };
         let rc_node = Rc::new(RefCell::new(node));
         self.add_node(Rc::clone(&rc_node));
         self.push_context(rc_node);
@@ -1321,26 +1524,27 @@ impl Parser {
     fn parse_lvalue(&mut self) -> Result<Node, ParseError> {
         let mut parser = NodeParser::new(Rc::clone(&self.reader));
         let node = parser.parse_lv()?;
-        if node.kind == NodeKind::Identifier {
-            if !isvarname(&node.value) {
-                return Err(ParseError {
-                    msg: format!("E461: Illegal variable name: {}", node.value),
-                    pos: node.pos,
-                });
+        match node {
+            Node::Identifier { pos, ref value, .. } => {
+                if !isvarname(value) {
+                    Err(ParseError {
+                        msg: format!("E461: Illegal variable name: {}", value),
+                        pos,
+                    })
+                } else {
+                    Ok(node.clone())
+                }
             }
-        }
-        match node.kind {
-            NodeKind::Identifier
-            | NodeKind::CurlyName
-            | NodeKind::Subscript
-            | NodeKind::Slice
-            | NodeKind::Dot
-            | NodeKind::Option
-            | NodeKind::Env
-            | NodeKind::Reg => Ok(node),
+            Node::CurlyName { .. }
+            | Node::Subscript { .. }
+            | Node::Slice { .. }
+            | Node::Dot { .. }
+            | Node::Option { .. }
+            | Node::Env { .. }
+            | Node::Reg { .. } => Ok(node),
             _ => Err(ParseError {
                 msg: "Invalid expression".to_string(),
-                pos: node.pos,
+                pos: self.reader.borrow().getpos(),
             }),
         }
     }
@@ -1361,17 +1565,17 @@ impl Parser {
     fn parse_lvalue_func(&mut self) -> Result<Node, ParseError> {
         let mut parser = NodeParser::new(Rc::clone(&self.reader));
         let node = parser.parse_lv()?;
-        match node.kind {
-            NodeKind::Identifier
-            | NodeKind::CurlyName
-            | NodeKind::Subscript
-            | NodeKind::Dot
-            | NodeKind::Option
-            | NodeKind::Env
-            | NodeKind::Reg => Ok(node),
+        match node {
+            Node::Identifier { .. }
+            | Node::CurlyName { .. }
+            | Node::Subscript { .. }
+            | Node::Dot { .. }
+            | Node::Option { .. }
+            | Node::Env { .. }
+            | Node::Reg { .. } => Ok(node),
             _ => Err(ParseError {
                 msg: "Invalid expression".to_string(),
-                pos: node.pos,
+                pos: self.reader.borrow().getpos(),
             }),
         }
     }
@@ -1569,11 +1773,12 @@ impl Parser {
     }
 
     fn parse_cmd_modifier_range(&mut self, ea: ExArg) {
-        let mut node = Node::new(NodeKind::ExCmd);
-        node.pos = ea.cmdpos;
         let pos = self.reader.borrow().getpos();
-        node.string = self.reader.borrow_mut().getstr(ea.linepos, pos);
-        node.ea = Some(ea);
+        let node = Node::ExCmd {
+            pos: ea.cmdpos,
+            value: self.reader.borrow_mut().getstr(ea.linepos, pos),
+            ea,
+        };
         self.add_node(Rc::new(RefCell::new(node)));
     }
 
@@ -1593,18 +1798,5 @@ impl Parser {
             }
             _ => self.err(&format!("E488: Trailing characters: {}", c)),
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_parse() {
-        let reader = Reader::from_file("auto-gutters.vim").unwrap();
-        let mut parser = Parser::new(reader, false);
-        println!("{:#?}", parser.parse());
-        assert!(false);
     }
 }
