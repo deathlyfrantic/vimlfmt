@@ -7,9 +7,10 @@ use std::rc::Rc;
 use token::{Token, TokenKind, Tokenizer};
 
 const MAX_FUNC_ARGS: usize = 20;
+const INDENT: &str = "  ";
 
 fn indent(n: usize) -> String {
-    "  ".repeat(n)
+    INDENT.repeat(n)
 }
 
 fn escape(s: &str) -> String {
