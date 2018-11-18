@@ -196,10 +196,6 @@ impl Reader {
         self.read_base(|c| c.is_digit(16))
     }
 
-    pub fn read_oct_digit(&mut self) -> String {
-        self.read_base(|c| c.is_digit(8))
-    }
-
     pub fn read_bin_digit(&mut self) -> String {
         self.read_base(|c| c.is_digit(2))
     }
