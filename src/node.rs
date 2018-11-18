@@ -42,7 +42,7 @@ where
     format!("({} {} {})", name, left, right)
 }
 
-fn display_with_list<T>(name: &str, list: &Vec<T>) -> String
+fn display_with_list<T>(name: &str, list: &[T]) -> String
 where
     T: fmt::Display,
 {
@@ -432,11 +432,11 @@ impl fmt::Display for Node {
                 }
                 Node::Divide { left, right, .. } => display_lr("/", left, right),
                 Node::Dot { left, right, .. } => display_lr("dot", left, right),
-                Node::Echo { cmd, list, .. } => display_with_list(&cmd, list),
+                Node::Echo { cmd, list, .. } => display_with_list(&cmd, &list),
                 Node::EchoHl { value, .. } => format!("(echohl \"{}\")", escape(value)),
                 Node::ExCall { left, .. } => display_left("call", left),
                 Node::ExCmd { value, .. } => format!("(excmd \"{}\")", escape(value)),
-                Node::Execute { list, .. } => display_with_list("execute", list),
+                Node::Execute { list, .. } => display_with_list("execute", &list),
                 Node::For {
                     var,
                     list,
@@ -573,14 +573,14 @@ impl fmt::Display for Node {
                     if items.len() == 0 {
                         "(list)".to_string()
                     } else {
-                        display_with_list("list", items)
+                        display_with_list("list", &items)
                     }
                 }
                 Node::LockVar { depth, list, .. } => {
                     if let Some(d) = depth {
-                        display_with_list(&format!("lockvar {}", d), list)
+                        display_with_list(&format!("lockvar {}", d), &list)
                     } else {
-                        display_with_list("lockvar", list)
+                        display_with_list("lockvar", &list)
                     }
                 }
                 Node::Minus { left, .. } => display_left("-", left),
@@ -667,12 +667,12 @@ impl fmt::Display for Node {
                     rv.push_str(")");
                     rv
                 }
-                Node::Unlet { list, .. } => display_with_list("unlet", list),
+                Node::Unlet { list, .. } => display_with_list("unlet", &list),
                 Node::UnlockVar { depth, list, .. } => {
                     if let Some(d) = depth {
-                        display_with_list(&format!("unlockvar {}", d), list)
+                        display_with_list(&format!("unlockvar {}", d), &list)
                     } else {
-                        display_with_list("unlockvar", list)
+                        display_with_list("unlockvar", &list)
                     }
                 }
                 Node::While { cond, body, .. } => {
