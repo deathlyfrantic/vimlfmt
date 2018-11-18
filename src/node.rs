@@ -135,27 +135,13 @@ pub enum Node {
     Echo {
         ea: ExArg,
         pos: Position,
-        list: Vec<Box<Node>>,
-    },
-    EchoErr {
-        ea: ExArg,
-        pos: Position,
+        cmd: String, // echo, echoerr, echomsg, echon
         list: Vec<Box<Node>>,
     },
     EchoHl {
         ea: ExArg,
         pos: Position,
         value: String,
-    },
-    EchoMsg {
-        ea: ExArg,
-        pos: Position,
-        list: Vec<Box<Node>>,
-    },
-    EchoN {
-        ea: ExArg,
-        pos: Position,
-        list: Vec<Box<Node>>,
     },
     Else {
         ea: ExArg,
@@ -445,11 +431,8 @@ impl fmt::Display for Node {
                 }
                 Node::Divide { left, right, .. } => display_lr("/", left, right),
                 Node::Dot { left, right, .. } => display_lr("dot", left, right),
-                Node::Echo { list, .. } => display_with_list("echo", list),
-                Node::EchoErr { list, .. } => display_with_list("echoerr", list),
+                Node::Echo { cmd, list, .. } => display_with_list(&cmd, list),
                 Node::EchoHl { value, .. } => format!("(echohl \"{}\")", escape(value)),
-                Node::EchoMsg { list, .. } => display_with_list("echomsg", list),
-                Node::EchoN { list, .. } => display_with_list("echon", list),
                 Node::ExCall { left, .. } => display_left("call", left),
                 Node::ExCmd { value, .. } => format!("(excmd \"{}\")", escape(value)),
                 Node::Execute { list, .. } => display_with_list("execute", list),
