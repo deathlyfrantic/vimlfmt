@@ -504,11 +504,11 @@ impl Parser {
             ParserKind::Common | ParserKind::UserCmd => self.parse_cmd_common(ea),
             ParserKind::Continue => self.parse_cmd_continue(ea),
             ParserKind::DelFunction => self.parse_cmd_delfunction(ea),
-            ParserKind::Echo => self.parse_cmd_echo(ea),
-            ParserKind::EchoErr => self.parse_cmd_echoerr(ea),
+            ParserKind::Echo => self.parse_cmd_echo(ea, "echo"),
+            ParserKind::EchoErr => self.parse_cmd_echo(ea, "echoerr"),
             ParserKind::EchoHl => self.parse_cmd_echohl(ea),
-            ParserKind::EchoMsg => self.parse_cmd_echomsg(ea),
-            ParserKind::EchoN => self.parse_cmd_echon(ea),
+            ParserKind::EchoMsg => self.parse_cmd_echo(ea, "echomsg"),
+            ParserKind::EchoN => self.parse_cmd_echo(ea, "echon"),
             ParserKind::Else => self.parse_cmd_else(ea),
             ParserKind::ElseIf => self.parse_cmd_elseif(ea),
             ParserKind::EndFor => self.parse_cmd_endfor(ea),
@@ -683,52 +683,11 @@ impl Parser {
         Ok(())
     }
 
-    fn parse_cmd_echo(&mut self, ea: ExArg) -> Result<(), ParseError> {
+    fn parse_cmd_echo(&mut self, ea: ExArg, cmd: &str) -> Result<(), ParseError> {
         let node = Node::Echo {
             pos: ea.cmdpos,
             ea,
-            list: self
-                .parse_exprlist()?
-                .into_iter()
-                .map(|n| Box::new(n))
-                .collect::<Vec<Box<Node>>>(),
-        };
-        self.add_node(Rc::new(RefCell::new(node)));
-        Ok(())
-    }
-
-    fn parse_cmd_echoerr(&mut self, ea: ExArg) -> Result<(), ParseError> {
-        let node = Node::EchoErr {
-            pos: ea.cmdpos,
-            ea,
-            list: self
-                .parse_exprlist()?
-                .into_iter()
-                .map(|n| Box::new(n))
-                .collect::<Vec<Box<Node>>>(),
-        };
-        self.add_node(Rc::new(RefCell::new(node)));
-        Ok(())
-    }
-
-    fn parse_cmd_echomsg(&mut self, ea: ExArg) -> Result<(), ParseError> {
-        let node = Node::EchoMsg {
-            pos: ea.cmdpos,
-            ea,
-            list: self
-                .parse_exprlist()?
-                .into_iter()
-                .map(|n| Box::new(n))
-                .collect::<Vec<Box<Node>>>(),
-        };
-        self.add_node(Rc::new(RefCell::new(node)));
-        Ok(())
-    }
-
-    fn parse_cmd_echon(&mut self, ea: ExArg) -> Result<(), ParseError> {
-        let node = Node::EchoN {
-            pos: ea.cmdpos,
-            ea,
+            cmd: cmd.to_string(),
             list: self
                 .parse_exprlist()?
                 .into_iter()
