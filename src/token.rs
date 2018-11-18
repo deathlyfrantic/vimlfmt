@@ -649,7 +649,7 @@ mod tests {
 
     #[test]
     fn test_get_eof() {
-        let reader = Reader::from_lines(vec![]);
+        let reader = Reader::from_lines(&[]);
         let mut tokenizer = Tokenizer::new(Rc::new(RefCell::new(reader)));
         assert_eq!(
             tokenizer.get(),
@@ -663,7 +663,7 @@ mod tests {
 
     #[test]
     fn test_get_eol() {
-        let reader = Reader::from_lines(vec!["\n"]);
+        let reader = Reader::from_lines(&["\n"]);
         let mut tokenizer = Tokenizer::new(Rc::new(RefCell::new(reader)));
         assert_eq!(
             tokenizer.get(),
@@ -677,7 +677,7 @@ mod tests {
 
     #[test]
     fn test_get_number() {
-        let reader = Reader::from_lines(vec!["0xFF 0Xff 0b01 0B10 0123 1.2e+3 1.2E-3 123"]);
+        let reader = Reader::from_lines(&["0xFF 0Xff 0b01 0B10 0123 1.2e+3 1.2E-3 123"]);
         let mut tokenizer = Tokenizer::new(Rc::new(RefCell::new(reader)));
         assert_eq!(
             tokenizer.get(),
@@ -747,7 +747,7 @@ mod tests {
 
     #[test]
     fn test_get_is() {
-        let reader = Reader::from_lines(vec!["is? is# is"]);
+        let reader = Reader::from_lines(&["is? is# is"]);
         let mut tokenizer = Tokenizer::new(Rc::new(RefCell::new(reader)));
         assert_eq!(
             tokenizer.get(),
@@ -777,7 +777,7 @@ mod tests {
 
     #[test]
     fn test_get_is_not() {
-        let reader = Reader::from_lines(vec!["isnot? isnot# isnot"]);
+        let reader = Reader::from_lines(&["isnot? isnot# isnot"]);
         let mut tokenizer = Tokenizer::new(Rc::new(RefCell::new(reader)));
         assert_eq!(
             tokenizer.get(),
@@ -807,7 +807,7 @@ mod tests {
 
     #[test]
     fn test_get_identifier() {
-        let reader = Reader::from_lines(vec!["Foobar baz_quux"]);
+        let reader = Reader::from_lines(&["Foobar baz_quux"]);
         let mut tokenizer = Tokenizer::new(Rc::new(RefCell::new(reader)));
         assert_eq!(
             tokenizer.get(),
@@ -829,7 +829,7 @@ mod tests {
 
     #[test]
     fn test_get_or_or() {
-        let reader = Reader::from_lines(vec!["||"]);
+        let reader = Reader::from_lines(&["||"]);
         let mut tokenizer = Tokenizer::new(Rc::new(RefCell::new(reader)));
         assert_eq!(
             tokenizer.get(),
@@ -843,7 +843,7 @@ mod tests {
 
     #[test]
     fn test_get_and_and() {
-        let reader = Reader::from_lines(vec!["&&"]);
+        let reader = Reader::from_lines(&["&&"]);
         let mut tokenizer = Tokenizer::new(Rc::new(RefCell::new(reader)));
         assert_eq!(
             tokenizer.get(),
@@ -857,7 +857,7 @@ mod tests {
 
     #[test]
     fn test_get_eq_eq() {
-        let reader = Reader::from_lines(vec!["==? ==# =="]);
+        let reader = Reader::from_lines(&["==? ==# =="]);
         let mut tokenizer = Tokenizer::new(Rc::new(RefCell::new(reader)));
         assert_eq!(
             tokenizer.get(),
@@ -887,7 +887,7 @@ mod tests {
 
     #[test]
     fn test_get_not_eq() {
-        let reader = Reader::from_lines(vec!["!=? !=# !="]);
+        let reader = Reader::from_lines(&["!=? !=# !="]);
         let mut tokenizer = Tokenizer::new(Rc::new(RefCell::new(reader)));
         assert_eq!(
             tokenizer.get(),
@@ -917,7 +917,7 @@ mod tests {
 
     #[test]
     fn test_get_gt_eq() {
-        let reader = Reader::from_lines(vec![">=? >=# >="]);
+        let reader = Reader::from_lines(&[">=? >=# >="]);
         let mut tokenizer = Tokenizer::new(Rc::new(RefCell::new(reader)));
         assert_eq!(
             tokenizer.get(),
@@ -947,7 +947,7 @@ mod tests {
 
     #[test]
     fn test_get_lt_eq() {
-        let reader = Reader::from_lines(vec!["<=? <=# <="]);
+        let reader = Reader::from_lines(&["<=? <=# <="]);
         let mut tokenizer = Tokenizer::new(Rc::new(RefCell::new(reader)));
         assert_eq!(
             tokenizer.get(),
@@ -977,7 +977,7 @@ mod tests {
 
     #[test]
     fn test_get_match() {
-        let reader = Reader::from_lines(vec!["=~? =~# =~"]);
+        let reader = Reader::from_lines(&["=~? =~# =~"]);
         let mut tokenizer = Tokenizer::new(Rc::new(RefCell::new(reader)));
         assert_eq!(
             tokenizer.get(),
@@ -1007,7 +1007,7 @@ mod tests {
 
     #[test]
     fn test_get_no_match() {
-        let reader = Reader::from_lines(vec!["!~? !~# !~"]);
+        let reader = Reader::from_lines(&["!~? !~# !~"]);
         let mut tokenizer = Tokenizer::new(Rc::new(RefCell::new(reader)));
         assert_eq!(
             tokenizer.get(),
@@ -1037,7 +1037,7 @@ mod tests {
 
     #[test]
     fn test_get_greater_than() {
-        let reader = Reader::from_lines(vec![">? ># >"]);
+        let reader = Reader::from_lines(&[">? ># >"]);
         let mut tokenizer = Tokenizer::new(Rc::new(RefCell::new(reader)));
         assert_eq!(
             tokenizer.get(),
@@ -1067,7 +1067,7 @@ mod tests {
 
     #[test]
     fn test_get_less_than() {
-        let reader = Reader::from_lines(vec!["<? <# <"]);
+        let reader = Reader::from_lines(&["<? <# <"]);
         let mut tokenizer = Tokenizer::new(Rc::new(RefCell::new(reader)));
         assert_eq!(
             tokenizer.get(),
@@ -1097,7 +1097,7 @@ mod tests {
 
     #[test]
     fn test_get_plus() {
-        let reader = Reader::from_lines(vec!["+"]);
+        let reader = Reader::from_lines(&["+"]);
         let mut tokenizer = Tokenizer::new(Rc::new(RefCell::new(reader)));
         assert_eq!(
             tokenizer.get(),
@@ -1111,7 +1111,7 @@ mod tests {
 
     #[test]
     fn test_get_minus_or_arrow() {
-        let reader = Reader::from_lines(vec!["-> -"]);
+        let reader = Reader::from_lines(&["-> -"]);
         let mut tokenizer = Tokenizer::new(Rc::new(RefCell::new(reader)));
         assert_eq!(
             tokenizer.get(),
@@ -1133,7 +1133,7 @@ mod tests {
 
     #[test]
     fn test_get_dot_or_ellipsis() {
-        let reader = Reader::from_lines(vec!["... ."]);
+        let reader = Reader::from_lines(&["... ."]);
         let mut tokenizer = Tokenizer::new(Rc::new(RefCell::new(reader)));
         assert_eq!(
             tokenizer.get(),
@@ -1155,7 +1155,7 @@ mod tests {
 
     #[test]
     fn test_get_single_char_tokens() {
-        let reader = Reader::from_lines(vec!["*/%!?:#()[]{},'\""]);
+        let reader = Reader::from_lines(&["*/%!?:#()[]{},'\""]);
         let mut tokenizer = Tokenizer::new(Rc::new(RefCell::new(reader)));
         assert_eq!(
             tokenizer.get(),
@@ -1289,7 +1289,7 @@ mod tests {
 
     #[test]
     fn test_get_env() {
-        let reader = Reader::from_lines(vec!["$FOO $bar"]);
+        let reader = Reader::from_lines(&["$FOO $bar"]);
         let mut tokenizer = Tokenizer::new(Rc::new(RefCell::new(reader)));
         assert_eq!(
             tokenizer.get(),
@@ -1311,7 +1311,7 @@ mod tests {
 
     #[test]
     fn test_get_reg() {
-        let reader = Reader::from_lines(vec![r#"@" @a"#]);
+        let reader = Reader::from_lines(&[r#"@" @a"#]);
         let mut tokenizer = Tokenizer::new(Rc::new(RefCell::new(reader)));
         assert_eq!(
             tokenizer.get(),
@@ -1333,7 +1333,7 @@ mod tests {
 
     #[test]
     fn test_get_option() {
-        let reader = Reader::from_lines(vec!["&g:foo &l:bar &baz"]);
+        let reader = Reader::from_lines(&["&g:foo &l:bar &baz"]);
         let mut tokenizer = Tokenizer::new(Rc::new(RefCell::new(reader)));
         assert_eq!(
             tokenizer.get(),
@@ -1363,7 +1363,7 @@ mod tests {
 
     #[test]
     fn test_get_more_single_char_tokens() {
-        let reader = Reader::from_lines(vec!["=|;`"]);
+        let reader = Reader::from_lines(&["=|;`"]);
         let mut tokenizer = Tokenizer::new(Rc::new(RefCell::new(reader)));
         assert_eq!(
             tokenizer.get(),
@@ -1401,7 +1401,7 @@ mod tests {
 
     #[test]
     fn test_bad_tokens() {
-        let reader = Reader::from_lines(vec!["^"]);
+        let reader = Reader::from_lines(&["^"]);
         let mut tokenizer = Tokenizer::new(Rc::new(RefCell::new(reader)));
         assert_eq!(
             tokenizer.get(),
@@ -1414,14 +1414,14 @@ mod tests {
 
     #[test]
     fn test_get_sstring() {
-        let reader = Reader::from_lines(vec![r#"'foo''"bar'"#]);
+        let reader = Reader::from_lines(&[r#"'foo''"bar'"#]);
         let mut tokenizer = Tokenizer::new(Rc::new(RefCell::new(reader)));
         assert_eq!(tokenizer.get_sstring(), Ok("foo\'\'\"bar".to_string()));
     }
 
     #[test]
     fn test_get_dstring() {
-        let reader = Reader::from_lines(vec![r#""foo\"bar""#]);
+        let reader = Reader::from_lines(&[r#""foo\"bar""#]);
         let mut tokenizer = Tokenizer::new(Rc::new(RefCell::new(reader)));
         assert_eq!(tokenizer.get_dstring(), Ok("foo\\\"bar".to_string()));
     }

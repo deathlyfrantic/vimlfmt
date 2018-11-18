@@ -23,7 +23,7 @@ impl Reader {
         self.cursor
     }
 
-    pub fn from_lines(lines: Vec<&str>) -> Reader {
+    pub fn from_lines(lines: &[&str]) -> Reader {
         let mut reader = Reader::new();
         reader.set_lines(lines);
         reader
@@ -35,7 +35,7 @@ impl Reader {
         Ok(reader)
     }
 
-    fn set_lines(&mut self, lines: Vec<&str>) {
+    fn set_lines(&mut self, lines: &[&str]) {
         let mut col;
         let mut lnum = 0;
         while lnum < lines.len() {
@@ -67,7 +67,7 @@ impl Reader {
         let mut file = File::open(path)?;
         let mut content = String::new();
         file.read_to_string(&mut content)?;
-        self.set_lines(content.lines().collect::<Vec<&str>>());
+        self.set_lines(&content.lines().collect::<Vec<&str>>());
         Ok(())
     }
 
@@ -245,7 +245,7 @@ mod tests {
 
     #[test]
     fn test_peek_ahead() {
-        let reader = Reader::from_lines(vec!["foo", "bar"]);
+        let reader = Reader::from_lines(&["foo", "bar"]);
         assert_eq!(reader.cursor, 0);
         assert_eq!(&reader.peek_ahead(0), "f");
         assert_eq!(&reader.peek_ahead(1), "o");
@@ -254,7 +254,7 @@ mod tests {
 
     #[test]
     fn test_peek() {
-        let mut reader = Reader::from_lines(vec!["foo", "bar"]);
+        let mut reader = Reader::from_lines(&["foo", "bar"]);
         assert_eq!(reader.cursor, 0);
         assert_eq!(&reader.peek(), "f");
         assert_eq!(reader.cursor, 0);
@@ -264,7 +264,7 @@ mod tests {
 
     #[test]
     fn test_peekn() {
-        let mut reader = Reader::from_lines(vec!["foo", "bar"]);
+        let mut reader = Reader::from_lines(&["foo", "bar"]);
         assert_eq!(reader.cursor, 0);
         assert_eq!(&reader.peekn(1), "f");
         assert_eq!(&reader.peekn(2), "fo");
@@ -278,7 +278,7 @@ mod tests {
 
     #[test]
     fn test_peek_line() {
-        let reader = Reader::from_lines(vec!["foo", "bar"]);
+        let reader = Reader::from_lines(&["foo", "bar"]);
         assert_eq!(reader.cursor, 0);
         assert_eq!(&reader.peek_line(), "foo");
         assert_eq!(reader.cursor, 0);
@@ -286,7 +286,7 @@ mod tests {
 
     #[test]
     fn test_get() {
-        let mut reader = Reader::from_lines(vec!["foo", "bar"]);
+        let mut reader = Reader::from_lines(&["foo", "bar"]);
         assert_eq!(reader.cursor, 0);
         assert_eq!(&reader.get(), "f");
         assert_eq!(reader.cursor, 1);
@@ -296,7 +296,7 @@ mod tests {
 
     #[test]
     fn test_getn() {
-        let mut reader = Reader::from_lines(vec!["foo", "bar"]);
+        let mut reader = Reader::from_lines(&["foo", "bar"]);
         assert_eq!(reader.cursor, 0);
         assert_eq!(&reader.getn(2), "fo");
         assert_eq!(reader.cursor, 2);
@@ -308,7 +308,7 @@ mod tests {
 
     #[test]
     fn test_get_line() {
-        let mut reader = Reader::from_lines(vec!["foo", "bar"]);
+        let mut reader = Reader::from_lines(&["foo", "bar"]);
         assert_eq!(reader.cursor, 0);
         assert_eq!(&reader.get_line(), "foo");
         assert_eq!(reader.cursor, 3);
@@ -317,7 +317,7 @@ mod tests {
 
     #[test]
     fn test_getstr() {
-        let mut reader = Reader::from_lines(vec!["foobarbazquux"]);
+        let mut reader = Reader::from_lines(&["foobarbazquux"]);
         assert_eq!(
             reader.getstr(Position::new(1, 0, 0), Position::new(6, 0, 0)),
             "oobar"
@@ -326,7 +326,7 @@ mod tests {
 
     #[test]
     fn test_read_alpha() {
-        let mut reader = Reader::from_lines(vec!["Foobar123"]);
+        let mut reader = Reader::from_lines(&["Foobar123"]);
         assert_eq!(reader.cursor, 0);
         assert_eq!(&reader.read_alpha(), "Foobar");
         assert_eq!(reader.cursor, 6);
@@ -334,7 +334,7 @@ mod tests {
 
     #[test]
     fn test_read_alnum() {
-        let mut reader = Reader::from_lines(vec!["Foobar123"]);
+        let mut reader = Reader::from_lines(&["Foobar123"]);
         assert_eq!(reader.cursor, 0);
         assert_eq!(&reader.read_alnum(), "Foobar123");
         assert_eq!(reader.cursor, 9);
@@ -342,7 +342,7 @@ mod tests {
 
     #[test]
     fn test_read_digit() {
-        let mut reader = Reader::from_lines(vec!["123 a1f 078 011"]);
+        let mut reader = Reader::from_lines(&["123 a1f 078 011"]);
         assert_eq!(reader.cursor, 0);
         assert_eq!(&reader.read_digit(), "123");
         assert_eq!(reader.cursor, 3);
@@ -359,7 +359,7 @@ mod tests {
 
     #[test]
     fn test_read_integer() {
-        let mut reader = Reader::from_lines(vec!["+123 -456"]);
+        let mut reader = Reader::from_lines(&["+123 -456"]);
         assert_eq!(reader.cursor, 0);
         assert_eq!(&reader.read_integer(), "+123");
         assert_eq!(reader.cursor, 4);
@@ -370,7 +370,7 @@ mod tests {
 
     #[test]
     fn test_read_word() {
-        let mut reader = Reader::from_lines(vec!["Abc_Def123|"]);
+        let mut reader = Reader::from_lines(&["Abc_Def123|"]);
         assert_eq!(reader.cursor, 0);
         assert_eq!(&reader.read_word(), "Abc_Def123");
         assert_eq!(reader.cursor, 10);
@@ -378,7 +378,7 @@ mod tests {
 
     #[test]
     fn test_read_white() {
-        let mut reader = Reader::from_lines(vec![" 	  x"]);
+        let mut reader = Reader::from_lines(&[" 	  x"]);
         assert_eq!(reader.cursor, 0);
         assert_eq!(&reader.read_white(), " 	  ");
         assert_eq!(reader.cursor, 4);
@@ -386,7 +386,7 @@ mod tests {
 
     #[test]
     fn test_read_nonwhite() {
-        let mut reader = Reader::from_lines(vec!["abc "]);
+        let mut reader = Reader::from_lines(&["abc "]);
         assert_eq!(reader.cursor, 0);
         assert_eq!(&reader.read_nonwhite(), "abc");
         assert_eq!(reader.cursor, 3);
@@ -394,7 +394,7 @@ mod tests {
 
     #[test]
     fn test_read_name() {
-        let mut reader = Reader::from_lines(vec!["b:abc#foo_bar()"]);
+        let mut reader = Reader::from_lines(&["b:abc#foo_bar()"]);
         assert_eq!(reader.cursor, 0);
         assert_eq!(&reader.read_name(), "b:abc#foo_bar");
         assert_eq!(reader.cursor, 13);
@@ -402,7 +402,7 @@ mod tests {
 
     #[test]
     fn test_skip_white() {
-        let mut reader = Reader::from_lines(vec!["g ", ": foo"]);
+        let mut reader = Reader::from_lines(&["g ", ": foo"]);
         assert_eq!(reader.cursor, 0);
         assert_eq!(&reader.get(), "g");
         reader.skip_white();
@@ -412,13 +412,13 @@ mod tests {
 
     #[test]
     fn test_skip_white_and_colon() {
-        let mut reader = Reader::from_lines(vec!["g  :	foo"]);
+        let mut reader = Reader::from_lines(&["g  :	foo"]);
         assert_eq!(reader.cursor, 0);
         assert_eq!(&reader.get(), "g");
         reader.skip_white_and_colon();
         assert_eq!(reader.cursor, 5);
         assert_eq!(&reader.get(), "f");
-        let mut reader = Reader::from_lines(vec!["1", "d"]);
+        let mut reader = Reader::from_lines(&["1", "d"]);
         assert_eq!(reader.cursor, 0);
         assert_eq!(&reader.get(), "1");
         assert_eq!(reader.cursor, 1);
@@ -436,7 +436,7 @@ mod tests {
       \ }
 endfunction"#;
         let lines = vim.lines().collect::<Vec<&str>>();
-        let reader = Reader::from_lines(lines);
+        let reader = Reader::from_lines(&lines);
         println!("{:?}", reader);
         println!("reader buf length -> {}", reader.buf.len());
         println!("reader pos length -> {}", reader.pos.len());
