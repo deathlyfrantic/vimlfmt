@@ -364,6 +364,29 @@ pub enum Node {
     },
 }
 
+impl Node {
+    pub fn is_for(node: &Node) -> bool {
+        match node {
+            Node::For { .. } => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_function(node: &Node) -> bool {
+        match node {
+            Node::Function { .. } => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_while(node: &Node) -> bool {
+        match node {
+            Node::While { .. } => true,
+            _ => false,
+        }
+    }
+}
+
 impl fmt::Display for Node {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
