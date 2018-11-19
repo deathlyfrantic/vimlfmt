@@ -446,11 +446,9 @@ impl Parser {
             && !["substitute", "smagic", "snomagic"].contains(&ea.cmd.name.as_str())
         {
             self.reader.borrow_mut().get();
-            ea.force_it = true;
+            ea.bang = true;
         }
-        if !ea.cmd.flags.contains(&Flag::Bang)
-            && ea.force_it
-            && !ea.cmd.flags.contains(&Flag::UserCmd)
+        if !ea.cmd.flags.contains(&Flag::Bang) && ea.bang && !ea.cmd.flags.contains(&Flag::UserCmd)
         {
             return Err(ParseError {
                 msg: "E477: No ! allowed".to_string(),
@@ -477,9 +475,9 @@ impl Parser {
             }
         }
         if ea.cmd.name == "read" {
-            if ea.force_it {
+            if ea.bang {
                 ea.use_filter = true;
-                ea.force_it = false;
+                ea.bang = false;
             } else if self.reader.borrow().peek() == "!" {
                 self.reader.borrow_mut().get();
                 ea.use_filter = true;

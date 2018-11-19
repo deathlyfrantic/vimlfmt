@@ -5,7 +5,7 @@ use std::rc::Rc;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct ExArg {
-    pub force_it: bool,
+    pub bang: bool,
     pub use_filter: bool,
     pub linepos: Position,
     pub cmdpos: Position,
@@ -18,7 +18,7 @@ pub struct ExArg {
 impl ExArg {
     pub fn new() -> ExArg {
         ExArg {
-            force_it: false,
+            bang: false,
             use_filter: false,
             linepos: Position::empty(),
             cmdpos: Position::empty(),
