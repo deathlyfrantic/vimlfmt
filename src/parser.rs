@@ -1012,11 +1012,7 @@ impl<'a> Parser<'a> {
             pos: ea.cmdpos,
             ea,
             depth,
-            list: self
-                .parse_lvaluelist()?
-                .into_iter()
-                .map(|n| Box::new(n))
-                .collect::<Vec<Box<Node>>>(),
+            list: self.parse_lvaluelist()?,
         };
         self.add_node(node);
         Ok(())
@@ -1132,11 +1128,7 @@ impl<'a> Parser<'a> {
         let node = Node::Unlet {
             pos: ea.cmdpos,
             ea,
-            list: self
-                .parse_lvaluelist()?
-                .into_iter()
-                .map(|n| Box::new(n))
-                .collect::<Vec<Box<Node>>>(),
+            list: self.parse_lvaluelist()?,
         };
         self.add_node(node);
         Ok(())
@@ -1410,15 +1402,15 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse_lvaluelist(&mut self) -> Result<Vec<Node>, ParseError> {
+    fn parse_lvaluelist(&mut self) -> Result<Vec<Box<Node>>, ParseError> {
         let mut nodes = vec![];
-        nodes.push(self.parse_expr()?);
+        nodes.push(Box::new(self.parse_expr()?));
         loop {
             self.reader.skip_white();
             if ends_excmds(&self.reader.peek()) {
                 break;
             }
-            nodes.push(self.parse_lvalue()?);
+            nodes.push(Box::new(self.parse_lvalue()?));
         }
         Ok(nodes)
     }
