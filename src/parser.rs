@@ -198,10 +198,9 @@ impl Parser {
         if sb != "#!" {
             return self.err(&format!("unexpected characters: {}", sb));
         }
-        let node = Node::Shebang {
-            pos: self.reader.borrow().getpos(),
-            value: self.reader.borrow_mut().get_line(),
-        };
+        let pos = self.reader.borrow().getpos();
+        let value = self.reader.borrow_mut().get_line();
+        let node = Node::Shebang { pos, value };
         self.add_node(Rc::new(RefCell::new(node)));
         Ok(())
     }
