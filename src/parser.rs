@@ -2532,3 +2532,188 @@ impl ExprParser {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::super::parse_lines;
+
+    #[test]
+    fn test_parser() {
+        let code = r#"#! /pointless/shebang
+function! z#preview(text) abort
+    if &previewwindow
+        return
+    endif
+    let l:win = win_getid()
+    let l:winview = winsaveview()
+    pclose!
+    execute 'topleft' &previewheight 'new'
+    set previewwindow noswapfile nobuflisted buftype=nofile
+    nnoremap <silent> <buffer> q :pclose!<CR>
+    nnoremap <silent> <buffer> <C-c> :pclose!<CR>
+    let l:text = type(a:text) == v:t_list ? a:text : split(a:text, '\n')
+    call append(0, l:text)
+    call cursor(1, 1)
+    call win_gotoid(l:win)
+    call winrestview(l:winview)
+endfunction
+
+delfunction z#preview
+
+" this is a comment
+function! z#enumerate(l, ...) abort
+    let start = a:0 ? a:1 : 0
+    let collection = type(a:l) == v:t_string ? split(a:l, '\zs') : a:l
+    unlet start
+    return map(collection, {i, v -> [(i + start), v]})
+endfunction
+
+function! z#zip(a, b) abort
+    let collection = len(a:a) > len(a:b) ? a:a[:len(a:b)-1] : a:a
+    return map(collection, {i, v -> [v, a:b[i]]})
+endfunction
+
+function! z#flatten(list) abort
+    let rv = []
+    let d = {'foo': 'bar'}
+    let d.baz = d.foo / 7
+    let s = 'quux' . 'garply' * 12
+    for item in a:list
+        let rv += type(item) == v:t_list ? z#flatten(item) : [item]
+    endfor
+    return rv
+endfunction
+
+function! s:while_loop() dict
+    " dummy function to add some more node types
+    let i = 0
+    while i < 10
+        lockvar 3 some_{i}_variable
+        if i % 3 == 0
+            continue
+        elseif i && 9
+            unlockvar some_other_thing
+            break
+        endif
+    endwhile
+endfunction
+
+function! z#echohl(hl, msg) abort
+    let l:msg = type(a:msg) == v:t_list ? a:msg : [a:msg]
+    let l:echo = 'WarningMsg\|ErrorMsg' =~? a:hl ? 'echomsg' : 'echo'
+    execute 'echohl' a:hl
+    try
+        for m in l:msg
+            execute l:echo 'm'
+        endfor
+    catch
+        echoerr 'error'
+    finally
+        echohl None
+    endtry
+endfunction
+
+function! z#multisub(expr, pat, sub, ...)
+    let flags = a:0 ? a:1 : ''
+    let pat = type(a:pat) == v:t_list ? a:pat : [a:pat]
+    if type(a:sub) == v:t_list || +1
+        let sub = a:sub
+        let minus_reg = -@x
+        let not_env = !$ENV
+        throw 'foobar'
+    else
+        let sub = []
+        for _ in pat
+            let sub += [a:sub]
+        endfor
+    endif
+    let rv = a:expr
+    for [search, replace] in z#zip(pat, sub)
+        let rv = substitute(rv, search, replace, flags)
+    endfor
+    return rv
+endfunction"#;
+
+        // this output came from running vimlparser.py on the above code (plus manually adding the
+        // shebang), so it is a reasonable test to assure the parser behaves like the original.
+        let expected = r#"(#! " /pointless/shebang")
+(function (z#preview text)
+  (if &previewwindow
+    (return))
+  (let = l:win (win_getid))
+  (let = l:winview (winsaveview))
+  (excmd "pclose!")
+  (execute 'topleft' &previewheight 'new')
+  (excmd "set previewwindow noswapfile nobuflisted buftype=nofile")
+  (excmd "nnoremap <silent> <buffer> q :pclose!<CR>")
+  (excmd "nnoremap <silent> <buffer> <C-c> :pclose!<CR>")
+  (let = l:text (?: (== (type a:text) v:t_list) a:text (split a:text '\n')))
+  (call (append 0 l:text))
+  (call (cursor 1 1))
+  (call (win_gotoid l:win))
+  (call (winrestview l:winview)))
+(delfunction z#preview)
+; this is a comment
+(function (z#enumerate l . ...)
+  (let = start (?: a:0 a:1 0))
+  (let = collection (?: (== (type a:l) v:t_string) (split a:l '\zs') a:l))
+  (unlet start)
+  (return (map collection (lambda (i v) (list (+ i start) v)))))
+(function (z#zip a b)
+  (let = collection (?: (> (len a:a) (len a:b)) (slice a:a nil (- (len a:b) 1)) a:a))
+  (return (map collection (lambda (i v) (list v (subscript a:b i))))))
+(function (z#flatten list)
+  (let = rv (list))
+  (let = d (dict ('foo' 'bar')))
+  (let = (dot d baz) (/ (dot d foo) 7))
+  (let = s (concat 'quux' (* 'garply' 12)))
+  (for item a:list
+    (let += rv (?: (== (type item) v:t_list) (z#flatten item) (list item))))
+  (return rv))
+(function (s:while_loop)
+  ; dummy function to add some more node types
+  (let = i 0)
+  (while (< i 10)
+    (lockvar 3 some_{i}_variable)
+    (if (== (% i 3) 0)
+      (continue)
+     elseif (&& i 9)
+      (unlockvar some_other_thing)
+      (break))))
+(function (z#echohl hl msg)
+  (let = l:msg (?: (== (type a:msg) v:t_list) a:msg (list a:msg)))
+  (let = l:echo (?: (=~? 'WarningMsg\|ErrorMsg' a:hl) 'echomsg' 'echo'))
+  (execute 'echohl' a:hl)
+  (try
+    (for m l:msg
+      (execute l:echo 'm'))
+   catch
+    (echoerr 'error')
+   finally
+    (echohl "None")))
+(function (z#multisub expr pat sub . ...)
+  (let = flags (?: a:0 a:1 ''))
+  (let = pat (?: (== (type a:pat) v:t_list) a:pat (list a:pat)))
+  (if (|| (== (type a:sub) v:t_list) (+ 1))
+    (let = sub a:sub)
+    (let = minus_reg (- @x))
+    (let = not_env (! $ENV))
+    (throw 'foobar')
+   else
+    (let = sub (list))
+    (for _ pat
+      (let += sub (list a:sub))))
+  (let = rv a:expr)
+  (for (search replace) (z#zip pat sub)
+    (let = rv (substitute rv search replace flags)))
+  (return rv))"#;
+
+        assert_eq!(
+            format!(
+                "{}",
+                parse_lines(&code.split("\n").collect::<Vec<&str>>(), true).unwrap()
+            ),
+            expected
+        );
+    }
+}
