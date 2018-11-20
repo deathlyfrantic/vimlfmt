@@ -160,7 +160,7 @@ impl Reader {
     pub fn getpos(&self) -> Position {
         let cursor = *self.cursor.borrow();
         Position {
-            cursor: cursor,
+            cursor,
             line: self.pos[cursor].0,
             col: self.pos[cursor].1,
         }
