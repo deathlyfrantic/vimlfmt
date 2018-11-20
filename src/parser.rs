@@ -25,7 +25,7 @@ pub struct Parser<'a> {
 impl<'a> Parser<'a> {
     pub fn new(reader: &'a Reader, neovim: bool) -> Parser {
         Parser {
-            reader: reader,
+            reader,
             context: vec![],
             commands: if neovim {
                 neovim_commands()
@@ -166,7 +166,7 @@ impl<'a> Parser<'a> {
         if let Node::While { .. } = self.current_context() {
             Err(ParseError {
                 msg: format!("E126: Missing :endwhile:    {}", end),
-                pos: pos,
+                pos,
             })
         } else {
             Ok(())

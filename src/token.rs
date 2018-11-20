@@ -80,11 +80,7 @@ pub struct Token {
 
 impl Token {
     pub fn new(kind: TokenKind, value: String, pos: Position) -> Token {
-        Token {
-            kind: kind,
-            value: value,
-            pos: pos,
-        }
+        Token { kind, value, pos }
     }
 }
 
@@ -97,7 +93,7 @@ pub struct Tokenizer<'a> {
 impl<'a> Tokenizer<'a> {
     pub fn new(reader: &'a Reader) -> Tokenizer {
         Tokenizer {
-            reader: reader,
+            reader,
             cache: HashMap::new(),
         }
     }
@@ -324,7 +320,7 @@ impl<'a> Tokenizer<'a> {
             "`" => Ok(Token::new(TokenKind::Backtick, self.reader.get(), pos)),
             _ => Err(ParseError {
                 msg: format!("unexpected character: {}", c),
-                pos: pos,
+                pos,
             }),
         }
     }

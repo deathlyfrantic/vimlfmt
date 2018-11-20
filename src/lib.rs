@@ -34,11 +34,7 @@ pub struct Position {
 
 impl Position {
     pub fn new(cursor: usize, line: usize, col: usize) -> Position {
-        Position {
-            cursor: cursor,
-            line: line,
-            col: col,
-        }
+        Position { cursor, line, col }
     }
 
     pub fn empty() -> Position {
