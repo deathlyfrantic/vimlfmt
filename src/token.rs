@@ -107,11 +107,9 @@ impl<'a> Tokenizer<'a> {
 
     pub fn get(&mut self) -> Result<Token, ParseError> {
         let pos = self.reader.getpos();
-        if self.cache.contains_key(&pos) {
-            let (token, new_pos) = self.cache.get(&pos).unwrap();
+        if let Some((token, new_pos)) = self.cache.get(&pos) {
             self.reader.setpos(*new_pos);
-            let token = token.clone();
-            return Ok(token);
+            return Ok(token.clone());
         }
         self.reader.skip_white();
         let token = self._get();
