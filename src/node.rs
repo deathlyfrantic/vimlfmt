@@ -1,8 +1,6 @@
 use super::Position;
 use exarg::ExArg;
-use std::cell::RefCell;
 use std::fmt;
-use std::rc::Rc;
 
 const INDENT: &str = "  ";
 
@@ -84,7 +82,7 @@ pub enum Node {
         ea: ExArg,
         pos: Position,
         pattern: Option<String>,
-        body: Vec<Rc<RefCell<Node>>>,
+        body: Vec<Box<Node>>,
     },
     Comment {
         pos: Position,
@@ -144,13 +142,13 @@ pub enum Node {
     Else {
         ea: ExArg,
         pos: Position,
-        body: Vec<Rc<RefCell<Node>>>,
+        body: Vec<Box<Node>>,
     },
     ElseIf {
         ea: ExArg,
         pos: Position,
         cond: Box<Node>,
-        body: Vec<Rc<RefCell<Node>>>,
+        body: Vec<Box<Node>>,
     },
     End {
         ea: ExArg,
@@ -178,7 +176,7 @@ pub enum Node {
     Finally {
         ea: ExArg,
         pos: Position,
-        body: Vec<Rc<RefCell<Node>>>,
+        body: Vec<Box<Node>>,
     },
     For {
         ea: ExArg,
@@ -187,7 +185,7 @@ pub enum Node {
         list: Vec<Box<Node>>,    // this is the a, b in "for [a, b] in something"
         rest: Option<Box<Node>>, // this is the z in "for [a, b; z] in something" <- REAL SYNTAX :(
         right: Box<Node>,        // this is the something in "for x in something"
-        body: Vec<Rc<RefCell<Node>>>,
+        body: Vec<Box<Node>>,
         end: Option<Box<Node>>,
     },
     Function {
@@ -195,7 +193,7 @@ pub enum Node {
         pos: Position,
         name: Box<Node>,
         args: Vec<Box<Node>>,
-        body: Vec<Rc<RefCell<Node>>>,
+        body: Vec<Box<Node>>,
         attrs: Vec<String>,
         end: Option<Box<Node>>,
     },
@@ -207,9 +205,9 @@ pub enum Node {
         ea: ExArg,
         pos: Position,
         cond: Box<Node>,
-        elseifs: Vec<Rc<RefCell<Node>>>,
-        else_: Option<Rc<RefCell<Node>>>,
-        body: Vec<Rc<RefCell<Node>>>,
+        elseifs: Vec<Box<Node>>,
+        else_: Option<Box<Node>>,
+        body: Vec<Box<Node>>,
         end: Option<Box<Node>>,
     },
     Lambda {
@@ -317,14 +315,14 @@ pub enum Node {
     },
     TopLevel {
         pos: Position,
-        body: Vec<Rc<RefCell<Node>>>,
+        body: Vec<Box<Node>>,
     },
     Try {
         ea: ExArg,
         pos: Position,
-        body: Vec<Rc<RefCell<Node>>>,
-        catches: Vec<Rc<RefCell<Node>>>,
-        finally: Option<Rc<RefCell<Node>>>,
+        body: Vec<Box<Node>>,
+        catches: Vec<Box<Node>>,
+        finally: Option<Box<Node>>,
         end: Option<Box<Node>>,
     },
     Unlet {
@@ -341,7 +339,7 @@ pub enum Node {
     While {
         ea: ExArg,
         pos: Position,
-        body: Vec<Rc<RefCell<Node>>>,
+        body: Vec<Box<Node>>,
         cond: Box<Node>,
         end: Option<Box<Node>>,
     },
@@ -460,7 +458,7 @@ impl fmt::Display for Node {
                     };
                     let mut rv = format!("(for {} {}", left, right);
                     for node in body {
-                        for line in format!("{}", node.borrow()).split("\n") {
+                        for line in format!("{}", node).split("\n") {
                             rv.push_str(&format!("\n{}{}", indent(1), line));
                         }
                     }
@@ -484,7 +482,7 @@ impl fmt::Display for Node {
                     }
                     rv.push_str(")");
                     for node in body {
-                        for line in format!("{}", node.borrow()).split("\n") {
+                        for line in format!("{}", node).split("\n") {
                             rv.push_str(&format!("\n{}{}", indent(1), line));
                         }
                     }
@@ -500,30 +498,32 @@ impl fmt::Display for Node {
                 } => {
                     let mut rv = format!("(if {}", cond);
                     for node in body {
-                        for line in format!("{}", node.borrow()).split("\n") {
+                        for line in format!("{}", node).split("\n") {
                             rv.push_str(&format!("\n{}{}", indent(1), line));
                         }
                     }
                     for elseif in elseifs {
+                        let mut elseif = *elseif.clone();
                         if let Node::ElseIf {
                             ref mut cond,
                             ref mut body,
                             ..
-                        } = *elseif.borrow_mut()
+                        } = elseif
                         {
                             rv.push_str(&format!("\n elseif {}", cond));
                             for node in body {
-                                for line in format!("{}", node.borrow()).split("\n") {
+                                for line in format!("{}", node).split("\n") {
                                     rv.push_str(&format!("\n{}{}", indent(1), line));
                                 }
                             }
                         }
                     }
                     if let Some(e) = else_ {
-                        if let Node::Else { ref mut body, .. } = *e.borrow_mut() {
+                        let mut e = *e.clone();
+                        if let Node::Else { ref mut body, .. } = e {
                             rv.push_str("\n else");
                             for node in body {
-                                for line in format!("{}", node.borrow()).split("\n") {
+                                for line in format!("{}", node).split("\n") {
                                     rv.push_str(&format!("\n{}{}", indent(1), line));
                                 }
                             }
@@ -616,7 +616,7 @@ impl fmt::Display for Node {
                 Node::TopLevel { body, .. } => format!(
                     "{}",
                     body.iter()
-                        .map(|n| format!("{}", n.borrow()))
+                        .map(|n| format!("{}", n))
                         .collect::<Vec<String>>()
                         .join("\n")
                 ),
@@ -628,16 +628,17 @@ impl fmt::Display for Node {
                 } => {
                     let mut rv = String::from("(try");
                     for node in body {
-                        for line in format!("{}", node.borrow()).split("\n") {
+                        for line in format!("{}", node).split("\n") {
                             rv.push_str(&format!("\n{}{}", indent(1), line));
                         }
                     }
                     for catch in catches {
+                        let mut catch = *catch.clone();
                         if let Node::Catch {
                             ref mut pattern,
                             ref mut body,
                             ..
-                        } = *catch.borrow_mut()
+                        } = catch
                         {
                             if let Some(p) = pattern {
                                 rv.push_str(&format!("\n catch /{}/", p));
@@ -645,17 +646,18 @@ impl fmt::Display for Node {
                                 rv.push_str("\n catch");
                             }
                             for node in body {
-                                for line in format!("{}", node.borrow()).split("\n") {
+                                for line in format!("{}", node).split("\n") {
                                     rv.push_str(&format!("\n{}{}", indent(1), line));
                                 }
                             }
                         }
                     }
                     if let Some(f) = finally {
-                        if let Node::Finally { ref mut body, .. } = *f.borrow_mut() {
+                        let mut f = *f.clone();
+                        if let Node::Finally { ref mut body, .. } = f {
                             rv.push_str("\n finally");
                             for node in body {
-                                for line in format!("{}", node.borrow()).split("\n") {
+                                for line in format!("{}", node).split("\n") {
                                     rv.push_str(&format!("\n{}{}", indent(1), line));
                                 }
                             }
@@ -675,7 +677,7 @@ impl fmt::Display for Node {
                 Node::While { cond, body, .. } => {
                     let mut rv = format!("(while {}", cond);
                     for node in body {
-                        for line in format!("{}", node.borrow()).split("\n") {
+                        for line in format!("{}", node).split("\n") {
                             rv.push_str(&format!("\n{}{}", indent(1), line));
                         }
                     }
