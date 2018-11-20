@@ -1,4 +1,5 @@
 use super::Position;
+use std::cell::RefCell;
 use std::cmp::min;
 use std::fs::File;
 use std::io::prelude::*;
@@ -7,7 +8,7 @@ use std::io::prelude::*;
 pub struct Reader {
     buf: Vec<char>,
     pos: Vec<(usize, usize)>,
-    cursor: usize,
+    cursor: RefCell<usize>,
 }
 
 impl Reader {
@@ -15,12 +16,12 @@ impl Reader {
         Reader {
             buf: vec![],
             pos: vec![],
-            cursor: 0,
+            cursor: RefCell::new(0),
         }
     }
 
     pub fn tell(&self) -> usize {
-        self.cursor
+        *self.cursor.borrow()
     }
 
     pub fn from_lines(lines: &[&str]) -> Reader {
@@ -71,21 +72,22 @@ impl Reader {
         Ok(())
     }
 
-    pub fn seek_set(&mut self, i: usize) {
-        self.cursor = i;
+    pub fn seek_set(&self, i: usize) {
+        *self.cursor.borrow_mut() = i;
     }
 
-    pub fn seek_cur(&mut self, i: usize) {
-        self.cursor += i;
+    pub fn seek_cur(&self, i: usize) {
+        *self.cursor.borrow_mut() += i;
     }
 
-    pub fn seek_end(&mut self) {
-        self.cursor = self.buf.len();
+    pub fn seek_end(&self) {
+        *self.cursor.borrow_mut() = self.buf.len();
     }
 
     pub fn peek_ahead(&self, i: usize) -> String {
-        if self.cursor + i < self.buf.len() {
-            self.buf[self.cursor + i].to_string()
+        let cursor = *self.cursor.borrow();
+        if cursor + i < self.buf.len() {
+            self.buf[cursor + i].to_string()
         } else {
             "<EOF>".to_string()
         }
@@ -96,111 +98,115 @@ impl Reader {
     }
 
     pub fn peekn(&self, n: usize) -> String {
+        let cursor = *self.cursor.borrow();
         let mut i = 0;
-        while self.cursor + i < self.buf.len() && self.buf[self.cursor + i] != '\n' {
+        while cursor + i < self.buf.len() && self.buf[cursor + i] != '\n' {
             i += 1;
             if i >= n {
                 break;
             }
         }
-        self.buf[self.cursor..self.cursor + i]
-            .iter()
-            .collect::<String>()
+        self.buf[cursor..cursor + i].iter().collect::<String>()
     }
 
     pub fn peek_line(&self) -> String {
+        let cursor = *self.cursor.borrow();
         let mut i = 0;
-        while self.cursor + i < self.buf.len() && self.buf[self.cursor + i] != '\n' {
+        while cursor + i < self.buf.len() && self.buf[cursor + i] != '\n' {
             i += 1;
         }
-        self.buf[self.cursor..self.cursor + i]
-            .iter()
-            .collect::<String>()
+        self.buf[cursor..cursor + i].iter().collect::<String>()
     }
 
-    pub fn get(&mut self) -> String {
-        if self.cursor >= self.buf.len() {
+    pub fn get(&self) -> String {
+        if *self.cursor.borrow() >= self.buf.len() {
             return "<EOF>".to_string();
         }
-        self.cursor += 1;
-        self.buf[self.cursor - 1].to_string()
+        *self.cursor.borrow_mut() += 1;
+        self.buf[*self.cursor.borrow() - 1].to_string()
     }
 
-    pub fn getn(&mut self, n: usize) -> String {
-        let start = self.cursor;
+    pub fn getn(&self, n: usize) -> String {
+        let cursor = *self.cursor.borrow();
+        let start = cursor;
         let mut i = 0;
-        while self.cursor + i < self.buf.len() && self.buf[self.cursor + i] != '\n' {
+        while cursor + i < self.buf.len() && self.buf[cursor + i] != '\n' {
             i += 1;
             if i >= n {
                 break;
             }
         }
-        self.cursor += i;
-        self.buf[start..self.cursor].iter().collect::<String>()
+        *self.cursor.borrow_mut() += i;
+        self.buf[start..cursor + i].iter().collect::<String>()
     }
 
-    pub fn get_line(&mut self) -> String {
-        let start = self.cursor;
-        while self.cursor < self.buf.len() && self.buf[self.cursor] != '\n' {
-            self.cursor += 1;
+    pub fn get_line(&self) -> String {
+        let mut cursor = *self.cursor.borrow();
+        let start = cursor;
+        while cursor < self.buf.len() && self.buf[cursor] != '\n' {
+            cursor += 1;
         }
-        let rv = self.buf[start..self.cursor].iter().collect::<String>();
+        *self.cursor.borrow_mut() = cursor;
+        let rv = self.buf[start..cursor].iter().collect::<String>();
         rv
     }
 
-    pub fn getstr(&mut self, begin: Position, end: Position) -> String {
+    pub fn getstr(&self, begin: Position, end: Position) -> String {
         self.buf[begin.cursor..min(end.cursor, self.buf.len())]
             .iter()
             .collect::<String>()
     }
 
     pub fn getpos(&self) -> Position {
+        let cursor = *self.cursor.borrow();
         Position {
-            cursor: self.cursor,
-            line: self.pos[self.cursor].0,
-            col: self.pos[self.cursor].1,
+            cursor: cursor,
+            line: self.pos[cursor].0,
+            col: self.pos[cursor].1,
         }
     }
 
-    pub fn setpos(&mut self, pos: Position) {
-        self.cursor = pos.cursor;
+    pub fn setpos(&self, pos: Position) {
+        *self.cursor.borrow_mut() = pos.cursor;
     }
 
-    fn read_base<F>(&mut self, func: F) -> String
+    fn read_base<F>(&self, func: F) -> String
     where
         F: Fn(char) -> bool,
     {
-        let start = self.cursor;
-        while self.cursor < self.buf.len() {
-            if !func(self.buf[self.cursor]) {
+        let mut cursor = *self.cursor.borrow();
+        let start = cursor;
+        while cursor < self.buf.len() {
+            if !func(self.buf[cursor]) {
                 break;
             }
-            self.cursor += 1;
+            cursor += 1;
         }
-        self.buf[start..self.cursor].iter().collect::<String>()
+        *self.cursor.borrow_mut() = cursor;
+        self.buf[start..cursor].iter().collect::<String>()
     }
 
-    pub fn read_alpha(&mut self) -> String {
+    pub fn read_alpha(&self) -> String {
         self.read_base(|c| c.is_alphabetic())
     }
 
-    pub fn read_alnum(&mut self) -> String {
+    pub fn read_alnum(&self) -> String {
         self.read_base(|c| c.is_ascii_alphanumeric())
     }
 
-    pub fn read_digit(&mut self) -> String {
+    pub fn read_digit(&self) -> String {
         self.read_base(|c| c.is_digit(10))
     }
 
-    pub fn read_hex_digit(&mut self) -> String {
+    pub fn read_hex_digit(&self) -> String {
         self.read_base(|c| c.is_digit(16))
     }
 
-    pub fn read_bin_digit(&mut self) -> String {
+    pub fn read_bin_digit(&self) -> String {
         self.read_base(|c| c.is_digit(2))
     }
 
-    pub fn read_integer(&mut self) -> String {
+    pub fn read_integer(&self) -> String {
         let mut rv = String::new();
         let c = self.peek();
         if c == "-" || c == "+" {
@@ -210,27 +216,27 @@ impl Reader {
         rv
     }
 
-    pub fn read_word(&mut self) -> String {
+    pub fn read_word(&self) -> String {
         self.read_base(|c| c.is_ascii_alphanumeric() || c == '_')
     }
 
-    pub fn read_white(&mut self) -> String {
+    pub fn read_white(&self) -> String {
         self.read_base(|c| c != '\n' && c.is_whitespace())
     }
 
-    pub fn read_nonwhite(&mut self) -> String {
+    pub fn read_nonwhite(&self) -> String {
         self.read_base(|c| c == '\n' || !c.is_whitespace())
     }
 
-    pub fn read_name(&mut self) -> String {
+    pub fn read_name(&self) -> String {
         self.read_base(|c| c.is_ascii_alphanumeric() || c == '_' || c == ':' || c == '#')
     }
 
-    pub fn skip_white(&mut self) {
+    pub fn skip_white(&self) {
         self.read_white();
     }
 
-    pub fn skip_white_and_colon(&mut self) {
+    pub fn skip_white_and_colon(&self) {
         self.read_base(|c| (c != '\n' && c.is_whitespace()) || c == ':');
     }
 }
@@ -242,32 +248,32 @@ mod tests {
     #[test]
     fn test_peek_ahead() {
         let reader = Reader::from_lines(&["foo", "bar"]);
-        assert_eq!(reader.cursor, 0);
+        assert_eq!(reader.tell(), 0);
         assert_eq!(&reader.peek_ahead(0), "f");
         assert_eq!(&reader.peek_ahead(1), "o");
-        assert_eq!(reader.cursor, 0);
+        assert_eq!(reader.tell(), 0);
     }
 
     #[test]
     fn test_peek() {
-        let mut reader = Reader::from_lines(&["foo", "bar"]);
-        assert_eq!(reader.cursor, 0);
+        let reader = Reader::from_lines(&["foo", "bar"]);
+        assert_eq!(reader.tell(), 0);
         assert_eq!(&reader.peek(), "f");
-        assert_eq!(reader.cursor, 0);
-        reader.cursor = reader.buf.len();
+        assert_eq!(reader.tell(), 0);
+        *reader.cursor.borrow_mut() = reader.buf.len();
         assert_eq!(&reader.peek(), "<EOF>");
     }
 
     #[test]
     fn test_peekn() {
-        let mut reader = Reader::from_lines(&["foo", "bar"]);
-        assert_eq!(reader.cursor, 0);
+        let reader = Reader::from_lines(&["foo", "bar"]);
+        assert_eq!(reader.tell(), 0);
         assert_eq!(&reader.peekn(1), "f");
         assert_eq!(&reader.peekn(2), "fo");
-        assert_eq!(reader.cursor, 0);
-        reader.cursor = 1;
+        assert_eq!(reader.tell(), 0);
+        *reader.cursor.borrow_mut() = 1;
         assert_eq!(&reader.peekn(5), "oo");
-        assert_eq!(reader.cursor, 1);
+        assert_eq!(reader.tell(), 1);
         reader.getn(2);
         assert_eq!(&reader.peekn(1), "");
     }
@@ -275,45 +281,45 @@ mod tests {
     #[test]
     fn test_peek_line() {
         let reader = Reader::from_lines(&["foo", "bar"]);
-        assert_eq!(reader.cursor, 0);
+        assert_eq!(reader.tell(), 0);
         assert_eq!(&reader.peek_line(), "foo");
-        assert_eq!(reader.cursor, 0);
+        assert_eq!(reader.tell(), 0);
     }
 
     #[test]
     fn test_get() {
-        let mut reader = Reader::from_lines(&["foo", "bar"]);
-        assert_eq!(reader.cursor, 0);
+        let reader = Reader::from_lines(&["foo", "bar"]);
+        assert_eq!(reader.tell(), 0);
         assert_eq!(&reader.get(), "f");
-        assert_eq!(reader.cursor, 1);
-        reader.cursor = reader.buf.len();
+        assert_eq!(reader.tell(), 1);
+        *reader.cursor.borrow_mut() = reader.buf.len();
         assert_eq!(&reader.get(), "<EOF>");
     }
 
     #[test]
     fn test_getn() {
-        let mut reader = Reader::from_lines(&["foo", "bar"]);
-        assert_eq!(reader.cursor, 0);
+        let reader = Reader::from_lines(&["foo", "bar"]);
+        assert_eq!(reader.tell(), 0);
         assert_eq!(&reader.getn(2), "fo");
-        assert_eq!(reader.cursor, 2);
+        assert_eq!(reader.tell(), 2);
         assert_eq!(&reader.getn(5), "o");
-        assert_eq!(reader.cursor, 3);
+        assert_eq!(reader.tell(), 3);
         assert_eq!(&reader.getn(1), "");
-        assert_eq!(reader.cursor, 3);
+        assert_eq!(reader.tell(), 3);
     }
 
     #[test]
     fn test_get_line() {
-        let mut reader = Reader::from_lines(&["foo", "bar"]);
-        assert_eq!(reader.cursor, 0);
+        let reader = Reader::from_lines(&["foo", "bar"]);
+        assert_eq!(reader.tell(), 0);
         assert_eq!(&reader.get_line(), "foo");
-        assert_eq!(reader.cursor, 3);
+        assert_eq!(reader.tell(), 3);
         assert_eq!(&reader.peek(), "\n");
     }
 
     #[test]
     fn test_getstr() {
-        let mut reader = Reader::from_lines(&["foobarbazquux"]);
+        let reader = Reader::from_lines(&["foobarbazquux"]);
         assert_eq!(
             reader.getstr(Position::new(1, 0, 0), Position::new(6, 0, 0)),
             "oobar"
@@ -322,104 +328,104 @@ mod tests {
 
     #[test]
     fn test_read_alpha() {
-        let mut reader = Reader::from_lines(&["Foobar123"]);
-        assert_eq!(reader.cursor, 0);
+        let reader = Reader::from_lines(&["Foobar123"]);
+        assert_eq!(reader.tell(), 0);
         assert_eq!(&reader.read_alpha(), "Foobar");
-        assert_eq!(reader.cursor, 6);
+        assert_eq!(reader.tell(), 6);
     }
 
     #[test]
     fn test_read_alnum() {
-        let mut reader = Reader::from_lines(&["Foobar123"]);
-        assert_eq!(reader.cursor, 0);
+        let reader = Reader::from_lines(&["Foobar123"]);
+        assert_eq!(reader.tell(), 0);
         assert_eq!(&reader.read_alnum(), "Foobar123");
-        assert_eq!(reader.cursor, 9);
+        assert_eq!(reader.tell(), 9);
     }
 
     #[test]
     fn test_read_digit() {
-        let mut reader = Reader::from_lines(&["123 a1f 078 011"]);
-        assert_eq!(reader.cursor, 0);
+        let reader = Reader::from_lines(&["123 a1f 078 011"]);
+        assert_eq!(reader.tell(), 0);
         assert_eq!(&reader.read_digit(), "123");
-        assert_eq!(reader.cursor, 3);
+        assert_eq!(reader.tell(), 3);
         reader.get();
         assert_eq!(&reader.read_hex_digit(), "a1f");
-        assert_eq!(reader.cursor, 7);
+        assert_eq!(reader.tell(), 7);
         reader.get();
         assert_eq!(&reader.read_digit(), "078");
-        assert_eq!(reader.cursor, 11);
+        assert_eq!(reader.tell(), 11);
         reader.get();
         assert_eq!(&reader.read_bin_digit(), "011");
-        assert_eq!(reader.cursor, 15);
+        assert_eq!(reader.tell(), 15);
     }
 
     #[test]
     fn test_read_integer() {
-        let mut reader = Reader::from_lines(&["+123 -456"]);
-        assert_eq!(reader.cursor, 0);
+        let reader = Reader::from_lines(&["+123 -456"]);
+        assert_eq!(reader.tell(), 0);
         assert_eq!(&reader.read_integer(), "+123");
-        assert_eq!(reader.cursor, 4);
+        assert_eq!(reader.tell(), 4);
         reader.get();
         assert_eq!(&reader.read_integer(), "-456");
-        assert_eq!(reader.cursor, 9);
+        assert_eq!(reader.tell(), 9);
     }
 
     #[test]
     fn test_read_word() {
-        let mut reader = Reader::from_lines(&["Abc_Def123|"]);
-        assert_eq!(reader.cursor, 0);
+        let reader = Reader::from_lines(&["Abc_Def123|"]);
+        assert_eq!(reader.tell(), 0);
         assert_eq!(&reader.read_word(), "Abc_Def123");
-        assert_eq!(reader.cursor, 10);
+        assert_eq!(reader.tell(), 10);
     }
 
     #[test]
     fn test_read_white() {
-        let mut reader = Reader::from_lines(&[" 	  x"]);
-        assert_eq!(reader.cursor, 0);
+        let reader = Reader::from_lines(&[" 	  x"]);
+        assert_eq!(reader.tell(), 0);
         assert_eq!(&reader.read_white(), " 	  ");
-        assert_eq!(reader.cursor, 4);
+        assert_eq!(reader.tell(), 4);
     }
 
     #[test]
     fn test_read_nonwhite() {
-        let mut reader = Reader::from_lines(&["abc "]);
-        assert_eq!(reader.cursor, 0);
+        let reader = Reader::from_lines(&["abc "]);
+        assert_eq!(reader.tell(), 0);
         assert_eq!(&reader.read_nonwhite(), "abc");
-        assert_eq!(reader.cursor, 3);
+        assert_eq!(reader.tell(), 3);
     }
 
     #[test]
     fn test_read_name() {
-        let mut reader = Reader::from_lines(&["b:abc#foo_bar()"]);
-        assert_eq!(reader.cursor, 0);
+        let reader = Reader::from_lines(&["b:abc#foo_bar()"]);
+        assert_eq!(reader.tell(), 0);
         assert_eq!(&reader.read_name(), "b:abc#foo_bar");
-        assert_eq!(reader.cursor, 13);
+        assert_eq!(reader.tell(), 13);
     }
 
     #[test]
     fn test_skip_white() {
-        let mut reader = Reader::from_lines(&["g ", ": foo"]);
-        assert_eq!(reader.cursor, 0);
+        let reader = Reader::from_lines(&["g ", ": foo"]);
+        assert_eq!(reader.tell(), 0);
         assert_eq!(&reader.get(), "g");
         reader.skip_white();
-        assert_eq!(reader.cursor, 2);
+        assert_eq!(reader.tell(), 2);
         assert_eq!(&reader.peek(), "\n");
     }
 
     #[test]
     fn test_skip_white_and_colon() {
-        let mut reader = Reader::from_lines(&["g  :	foo"]);
-        assert_eq!(reader.cursor, 0);
+        let reader = Reader::from_lines(&["g  :	foo"]);
+        assert_eq!(reader.tell(), 0);
         assert_eq!(&reader.get(), "g");
         reader.skip_white_and_colon();
-        assert_eq!(reader.cursor, 5);
+        assert_eq!(reader.tell(), 5);
         assert_eq!(&reader.get(), "f");
-        let mut reader = Reader::from_lines(&["1", "d"]);
-        assert_eq!(reader.cursor, 0);
+        let reader = Reader::from_lines(&["1", "d"]);
+        assert_eq!(reader.tell(), 0);
         assert_eq!(&reader.get(), "1");
-        assert_eq!(reader.cursor, 1);
+        assert_eq!(reader.tell(), 1);
         reader.skip_white_and_colon();
-        assert_eq!(reader.cursor, 1);
+        assert_eq!(reader.tell(), 1);
     }
 
     #[test]

@@ -5,7 +5,6 @@ use modifier::Modifier;
 use node::Node;
 use reader::Reader;
 use regex::Regex;
-use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 use token::{Token, TokenKind, Tokenizer};
@@ -17,16 +16,16 @@ fn ends_excmds(s: &str) -> bool {
 }
 
 #[derive(Debug)]
-pub struct Parser {
-    reader: Rc<RefCell<Reader>>,
+pub struct Parser<'a> {
+    reader: &'a Reader,
     context: Vec<Node>,
     commands: HashMap<String, Rc<Command>>,
 }
 
-impl Parser {
-    pub fn new(reader: Reader, neovim: bool) -> Parser {
+impl<'a> Parser<'a> {
+    pub fn new(reader: &'a Reader, neovim: bool) -> Parser {
         Parser {
-            reader: Rc::new(RefCell::new(reader)),
+            reader: reader,
             context: vec![],
             commands: if neovim {
                 neovim_commands()
@@ -188,45 +187,45 @@ impl Parser {
     fn err<T>(&self, msg: &str) -> Result<T, ParseError> {
         Err(ParseError {
             msg: msg.to_string(),
-            pos: self.reader.borrow().getpos(),
+            pos: self.reader.getpos(),
         })
     }
 
     pub fn parse(&mut self) -> Result<Node, ParseError> {
-        let pos = self.reader.borrow().getpos();
+        let pos = self.reader.getpos();
         self.push_context(Node::TopLevel { pos, body: vec![] });
-        while self.reader.borrow().peek() != "<EOF>" {
+        while self.reader.peek() != "<EOF>" {
             self.parse_one_cmd()?;
         }
-        self.check_missing_endfunction("TOPLEVEL", self.reader.borrow().getpos())?;
-        self.check_missing_endif("TOPLEVEL", self.reader.borrow().getpos())?;
-        self.check_missing_endtry("TOPLEVEL", self.reader.borrow().getpos())?;
-        self.check_missing_endwhile("TOPLEVEL", self.reader.borrow().getpos())?;
-        self.check_missing_endfor("TOPLEVEL", self.reader.borrow().getpos())?;
+        self.check_missing_endfunction("TOPLEVEL", self.reader.getpos())?;
+        self.check_missing_endif("TOPLEVEL", self.reader.getpos())?;
+        self.check_missing_endtry("TOPLEVEL", self.reader.getpos())?;
+        self.check_missing_endwhile("TOPLEVEL", self.reader.getpos())?;
+        self.check_missing_endfor("TOPLEVEL", self.reader.getpos())?;
         Ok(self.pop_context())
     }
 
     fn parse_expr(&mut self) -> Result<Node, ParseError> {
-        ExprParser::new(Rc::clone(&self.reader)).parse()
+        ExprParser::new(self.reader).parse()
     }
 
     fn parse_one_cmd(&mut self) -> Result<(), ParseError> {
         let mut ea = ExArg::new();
-        if self.reader.borrow().peekn(2) == "#!" {
+        if self.reader.peekn(2) == "#!" {
             self.parse_shebang()?;
             return Ok(());
         }
-        self.reader.borrow_mut().skip_white_and_colon();
-        if self.reader.borrow().peek() == "\n" {
-            self.reader.borrow_mut().get();
+        self.reader.skip_white_and_colon();
+        if self.reader.peek() == "\n" {
+            self.reader.get();
             return Ok(());
         }
-        if self.reader.borrow().peek() == "\"" {
+        if self.reader.peek() == "\"" {
             self.parse_comment()?;
-            self.reader.borrow_mut().get();
+            self.reader.get();
             return Ok(());
         }
-        ea.linepos = self.reader.borrow().getpos();
+        ea.linepos = self.reader.getpos();
         ea.modifiers = self.parse_command_modifiers()?;
         ea.range = self.parse_range()?;
         self.parse_command(ea)?;
@@ -235,20 +234,20 @@ impl Parser {
     }
 
     fn parse_shebang(&mut self) -> Result<(), ParseError> {
-        let sb = self.reader.borrow_mut().getn(2);
+        let sb = self.reader.getn(2);
         if sb != "#!" {
             return self.err(&format!("unexpected characters: {}", sb));
         }
-        let pos = self.reader.borrow().getpos();
-        let value = self.reader.borrow_mut().get_line();
+        let pos = self.reader.getpos();
+        let value = self.reader.get_line();
         let node = Node::Shebang { pos, value };
         self.add_node(node);
         Ok(())
     }
 
     fn parse_comment(&mut self) -> Result<(), ParseError> {
-        let pos = self.reader.borrow().getpos();
-        let c = self.reader.borrow_mut().get();
+        let pos = self.reader.getpos();
+        let c = self.reader.get();
         if c != "\"" {
             return Err(ParseError {
                 msg: format!("unexpected character: {}", c),
@@ -257,7 +256,7 @@ impl Parser {
         }
         let node = Node::Comment {
             pos,
-            value: self.reader.borrow_mut().get_line(),
+            value: self.reader.get_line(),
         };
         self.add_node(node);
         Ok(())
@@ -266,16 +265,16 @@ impl Parser {
     fn parse_command_modifiers(&mut self) -> Result<Vec<Modifier>, ParseError> {
         let mut modifiers: Vec<Modifier> = vec![];
         loop {
-            let pos = self.reader.borrow().tell();
+            let pos = self.reader.tell();
             let mut d = "".to_string();
-            let peeked = self.reader.borrow().peek();
+            let peeked = self.reader.peek();
             if isdigit(&peeked) {
-                d = self.reader.borrow_mut().read_digit();
-                self.reader.borrow_mut().skip_white();
+                d = self.reader.read_digit();
+                self.reader.skip_white();
             }
-            let k = self.reader.borrow_mut().read_alpha();
-            let c = self.reader.borrow().peek();
-            self.reader.borrow_mut().skip_white();
+            let k = self.reader.read_alpha();
+            let c = self.reader.peek();
+            self.reader.skip_white();
             match k {
                 _ if "aboveleft".starts_with(&k) && k.len() >= 3 => {
                     modifiers.push(Modifier::new("aboveleft"))
@@ -332,7 +331,7 @@ impl Parser {
                     let mut mods = Modifier::new("silent");
                     if c == "!" {
                         mods.bang = true;
-                        self.reader.borrow_mut().get();
+                        self.reader.get();
                     }
                     modifiers.push(mods)
                 }
@@ -361,7 +360,7 @@ impl Parser {
                     modifiers.push(mods)
                 }
                 _ => {
-                    self.reader.borrow_mut().seek_set(pos);
+                    self.reader.seek_set(pos);
                     break;
                 }
             }
@@ -373,57 +372,57 @@ impl Parser {
         let mut tokens: Vec<String> = vec![];
         loop {
             loop {
-                self.reader.borrow_mut().skip_white();
-                let c = self.reader.borrow().peek();
+                self.reader.skip_white();
+                let c = self.reader.peek();
                 match c.as_str() {
                     "" => break,
-                    "." | "$" => tokens.push(self.reader.borrow_mut().get()),
+                    "." | "$" => tokens.push(self.reader.get()),
                     "'" => {
-                        if self.reader.borrow().peek_ahead(1) == "\n" {
+                        if self.reader.peek_ahead(1) == "\n" {
                             break;
                         }
-                        tokens.push(self.reader.borrow_mut().getn(2));
+                        tokens.push(self.reader.getn(2));
                     }
                     "/" | "?" => {
-                        self.reader.borrow_mut().get();
+                        self.reader.get();
                         let (pattern, _) = self.parse_pattern(&c)?;
                         tokens.push(pattern);
                     }
                     "\\" => {
-                        let m = self.reader.borrow().peek_ahead(1);
+                        let m = self.reader.peek_ahead(1);
                         if m == "&" || m == "?" || m == "/" {
-                            tokens.push(self.reader.borrow_mut().getn(2));
+                            tokens.push(self.reader.getn(2));
                         } else {
                             return self.err("E10: \\\\ should be followed by /, ? or &");
                         }
                     }
                     _ if isdigit(&c) => {
-                        tokens.push(self.reader.borrow_mut().read_digit());
+                        tokens.push(self.reader.read_digit());
                     }
                     _ => (),
                 }
                 loop {
-                    self.reader.borrow_mut().skip_white();
-                    if self.reader.borrow().peek() == "\n" {
+                    self.reader.skip_white();
+                    if self.reader.peek() == "\n" {
                         break;
                     }
-                    let n = self.reader.borrow_mut().read_integer();
+                    let n = self.reader.read_integer();
                     if n == "" {
                         break;
                     }
                     tokens.push(n);
                 }
-                if self.reader.borrow().peek() != "/" && self.reader.borrow().peek() != "?" {
+                if self.reader.peek() != "/" && self.reader.peek() != "?" {
                     break;
                 }
             }
-            let p = self.reader.borrow().peek();
+            let p = self.reader.peek();
             if p == "%" || p == "*" {
-                tokens.push(self.reader.borrow_mut().get());
+                tokens.push(self.reader.get());
             }
-            let p = self.reader.borrow().peek();
+            let p = self.reader.peek();
             if p == ";" || p == "," {
-                tokens.push(self.reader.borrow_mut().get());
+                tokens.push(self.reader.get());
                 continue;
             }
             break;
@@ -436,7 +435,7 @@ impl Parser {
         let mut endc = String::new();
         let mut in_bracket = 0;
         loop {
-            let c = self.reader.borrow_mut().getn(1);
+            let c = self.reader.getn(1);
             if c == "" {
                 break;
             }
@@ -446,11 +445,11 @@ impl Parser {
             }
             pattern.push_str(&c);
             if c == "\\" {
-                let c = self.reader.borrow().peek();
+                let c = self.reader.peek();
                 if c == "\n" {
                     return self.err("E682: Invalid search pattern or delimiter");
                 }
-                self.reader.borrow_mut().getn(1);
+                self.reader.getn(1);
                 pattern.push_str(&c);
             } else if c == "[" {
                 in_bracket += 1;
@@ -462,9 +461,9 @@ impl Parser {
     }
 
     fn parse_command(&mut self, mut ea: ExArg) -> Result<(), ParseError> {
-        self.reader.borrow_mut().skip_white_and_colon();
-        ea.cmdpos = self.reader.borrow().getpos();
-        let peeked = self.reader.borrow().peek();
+        self.reader.skip_white_and_colon();
+        ea.cmdpos = self.reader.getpos();
+        let peeked = self.reader.peek();
         if ["\n", "\"", "<EOF>", ""].contains(&peeked.as_str()) {
             if ea.modifiers.len() > 0 || ea.range.len() > 0 {
                 self.parse_cmd_modifier_range(ea);
@@ -478,14 +477,14 @@ impl Parser {
             None => {
                 return self.err(&format!(
                     "E492: Not an editor command: {}",
-                    self.reader.borrow().peek_line()
+                    self.reader.peek_line()
                 ));
             }
         }
-        if self.reader.borrow().peek() == "!"
+        if self.reader.peek() == "!"
             && !["substitute", "smagic", "snomagic"].contains(&ea.cmd.name.as_str())
         {
-            self.reader.borrow_mut().get();
+            self.reader.get();
             ea.bang = true;
         }
         if !ea.cmd.flags.contains(&Flag::Bang) && ea.bang && !ea.cmd.flags.contains(&Flag::UserCmd)
@@ -496,21 +495,21 @@ impl Parser {
             });
         }
         if ea.cmd.name != "!" {
-            self.reader.borrow_mut().skip_white();
+            self.reader.skip_white();
         }
-        ea.argpos = self.reader.borrow().getpos();
+        ea.argpos = self.reader.getpos();
         if ea.cmd.flags.contains(&Flag::ArgOpt) {
             self.parse_argopt()?;
         }
         if ea.cmd.name == "write" || ea.cmd.name == "update" {
-            if self.reader.borrow().peek() == ">" {
-                if self.reader.borrow().peek_ahead(1) == ">" {
+            if self.reader.peek() == ">" {
+                if self.reader.peek_ahead(1) == ">" {
                     return self.err("E494: Use w or w>>");
                 }
-                self.reader.borrow_mut().seek_cur(2);
-                self.reader.borrow_mut().skip_white();
-            } else if self.reader.borrow().peek() == "!" && ea.cmd.name == "write" {
-                self.reader.borrow_mut().get();
+                self.reader.seek_cur(2);
+                self.reader.skip_white();
+            } else if self.reader.peek() == "!" && ea.cmd.name == "write" {
+                self.reader.get();
                 ea.use_filter = true;
             }
         }
@@ -518,16 +517,16 @@ impl Parser {
             if ea.bang {
                 ea.use_filter = true;
                 ea.bang = false;
-            } else if self.reader.borrow().peek() == "!" {
-                self.reader.borrow_mut().get();
+            } else if self.reader.peek() == "!" {
+                self.reader.get();
                 ea.use_filter = true;
             }
         }
         if ea.cmd.name == "<" || ea.cmd.name == ">" {
-            while self.reader.borrow().peek() == ea.cmd.name {
-                self.reader.borrow_mut().get();
+            while self.reader.peek() == ea.cmd.name {
+                self.reader.get();
             }
-            self.reader.borrow_mut().skip_white();
+            self.reader.skip_white();
         }
         if ea.cmd.flags.contains(&Flag::EditCmd) && !ea.use_filter {
             self.parse_argcmd();
@@ -578,20 +577,20 @@ impl Parser {
     }
 
     fn parse_cmd_append(&mut self, ea: ExArg) {
-        self.reader.borrow_mut().setpos(ea.linepos);
-        let cmdline = self.reader.borrow_mut().get_line();
-        self.reader.borrow_mut().get();
+        self.reader.setpos(ea.linepos);
+        let cmdline = self.reader.get_line();
+        self.reader.get();
         let mut lines = vec![cmdline];
         loop {
-            if self.reader.borrow().peek() == "<EOF>" {
+            if self.reader.peek() == "<EOF>" {
                 break;
             }
-            let line = self.reader.borrow_mut().get_line();
+            let line = self.reader.get_line();
             lines.push(line);
             if lines.last().unwrap() == "." {
                 break;
             }
-            self.reader.borrow_mut().get();
+            self.reader.get();
         }
         let node = Node::ExCmd {
             pos: ea.cmdpos,
@@ -612,8 +611,8 @@ impl Parser {
 
     fn parse_cmd_call(&mut self, ea: ExArg) -> Result<(), ParseError> {
         let pos = ea.cmdpos;
-        self.reader.borrow_mut().skip_white();
-        if ends_excmds(&self.reader.borrow().peek()) {
+        self.reader.skip_white();
+        if ends_excmds(&self.reader.peek()) {
             return self.err("E471: Argument required");
         }
         let left = self.parse_expr()?;
@@ -653,8 +652,8 @@ impl Parser {
                 });
             }
         };
-        let pattern = if !ends_excmds(&self.reader.borrow().peek()) {
-            let p = self.reader.borrow_mut().get();
+        let pattern = if !ends_excmds(&self.reader.peek()) {
+            let p = self.reader.get();
             let (pat, _) = self.parse_pattern(&p)?;
             Some(pat)
         } else {
@@ -676,15 +675,15 @@ impl Parser {
             end = self.separate_nextcmd(&ea)?;
         } else {
             loop {
-                end = self.reader.borrow().getpos();
-                if self.reader.borrow_mut().getn(1) == "" {
+                end = self.reader.getpos();
+                if self.reader.getn(1) == "" {
                     break;
                 }
             }
         }
         let node = Node::ExCmd {
             pos: ea.cmdpos,
-            value: self.reader.borrow_mut().getstr(ea.linepos, end),
+            value: self.reader.getstr(ea.linepos, end),
             ea,
         };
         self.add_node(node);
@@ -744,8 +743,8 @@ impl Parser {
 
     fn parse_cmd_echohl(&mut self, ea: ExArg) -> Result<(), ParseError> {
         let mut value = String::new();
-        while !ends_excmds(&self.reader.borrow().peek()) {
-            value.push_str(&self.reader.borrow_mut().get());
+        while !ends_excmds(&self.reader.peek()) {
+            value.push_str(&self.reader.get());
         }
         let node = Node::EchoHl {
             pos: ea.cmdpos,
@@ -835,7 +834,7 @@ impl Parser {
                 });
             }
         };
-        self.reader.borrow_mut().get_line();
+        self.reader.get_line();
         self.collapse_context();
         Ok(())
     }
@@ -924,7 +923,7 @@ impl Parser {
     fn parse_cmd_finish(&mut self, ea: ExArg) -> Result<(), ParseError> {
         let rv = self.parse_cmd_common(ea);
         if let Node::TopLevel { .. } = self.current_context() {
-            self.reader.borrow_mut().seek_end();
+            self.reader.seek_end();
         }
         rv
     }
@@ -944,9 +943,9 @@ impl Parser {
             Some(r) => Some(Box::new(r)),
             None => None,
         };
-        self.reader.borrow_mut().skip_white();
-        let epos = self.reader.borrow().getpos();
-        if self.reader.borrow_mut().read_alpha() != "in" {
+        self.reader.skip_white();
+        let epos = self.reader.getpos();
+        if self.reader.read_alpha() != "in" {
             return Err(ParseError {
                 msg: "Missing \"in\" after :for".to_string(),
                 pos: epos,
@@ -982,10 +981,10 @@ impl Parser {
     }
 
     fn parse_cmd_let(&mut self, ea: ExArg) -> Result<(), ParseError> {
-        let pos = self.reader.borrow().tell();
-        self.reader.borrow_mut().skip_white();
-        if ends_excmds(&self.reader.borrow().peek()) {
-            self.reader.borrow_mut().seek_set(pos);
+        let pos = self.reader.tell();
+        self.reader.skip_white();
+        if ends_excmds(&self.reader.peek()) {
+            self.reader.seek_set(pos);
             return self.parse_cmd_common(ea);
         }
         let lhs = self.parse_letlhs()?;
@@ -1002,18 +1001,18 @@ impl Parser {
             Some(r) => Some(Box::new(r)),
             None => None,
         };
-        self.reader.borrow_mut().skip_white();
-        let s1 = self.reader.borrow().peek();
-        let s2 = self.reader.borrow().peekn(2);
+        self.reader.skip_white();
+        let s1 = self.reader.peek();
+        let s2 = self.reader.peekn(2);
         if ends_excmds(&s1) || s2 != "+=" && s2 != "-=" && s2 != ".=" && s1 != "=" {
-            self.reader.borrow_mut().seek_set(pos);
+            self.reader.seek_set(pos);
             return self.parse_cmd_common(ea);
         }
         let op = if s2 == "+=" || s2 == "-=" || s2 == ".=" {
-            self.reader.borrow_mut().getn(2);
+            self.reader.getn(2);
             s2
         } else if s1 == "=" {
-            self.reader.borrow_mut().get();
+            self.reader.get();
             s1
         } else {
             return self.err("NOT REACHED");
@@ -1032,13 +1031,13 @@ impl Parser {
     }
 
     fn parse_cmd_loadkeymap(&mut self, ea: ExArg) -> Result<(), ParseError> {
-        self.reader.borrow_mut().setpos(ea.linepos);
-        let mut lines = vec![self.reader.borrow_mut().get_line()];
+        self.reader.setpos(ea.linepos);
+        let mut lines = vec![self.reader.get_line()];
         loop {
-            if self.reader.borrow().peek() == "<EOF>" {
+            if self.reader.peek() == "<EOF>" {
                 break;
             }
-            lines.push(self.reader.borrow_mut().get_line());
+            lines.push(self.reader.get_line());
         }
         let node = Node::ExCmd {
             pos: ea.cmdpos,
@@ -1050,15 +1049,9 @@ impl Parser {
     }
 
     fn parse_cmd_lockvar(&mut self, ea: ExArg) -> Result<(), ParseError> {
-        self.reader.borrow_mut().skip_white();
-        let depth = if isdigit(&self.reader.borrow().peek()) {
-            Some(
-                self.reader
-                    .borrow_mut()
-                    .read_digit()
-                    .parse::<usize>()
-                    .unwrap(),
-            )
+        self.reader.skip_white();
+        let depth = if isdigit(&self.reader.peek()) {
+            Some(self.reader.read_digit().parse::<usize>().unwrap())
         } else {
             None
         };
@@ -1078,30 +1071,30 @@ impl Parser {
 
     fn parse_cmd_lang(&mut self, ea: ExArg) -> Result<(), ParseError> {
         let mut lines = vec![];
-        self.reader.borrow_mut().skip_white();
-        if self.reader.borrow().peekn(2) == "<<" {
-            self.reader.borrow_mut().getn(2);
-            self.reader.borrow_mut().skip_white();
-            let mut m = self.reader.borrow_mut().get_line();
+        self.reader.skip_white();
+        if self.reader.peekn(2) == "<<" {
+            self.reader.getn(2);
+            self.reader.skip_white();
+            let mut m = self.reader.get_line();
             if m == "" {
                 m = ".".to_string();
             }
-            self.reader.borrow_mut().setpos(ea.linepos);
-            lines.push(self.reader.borrow_mut().get_line());
-            self.reader.borrow_mut().get();
+            self.reader.setpos(ea.linepos);
+            lines.push(self.reader.get_line());
+            self.reader.get();
             loop {
-                if self.reader.borrow().peek() == "<EOF>" {
+                if self.reader.peek() == "<EOF>" {
                     break;
                 }
-                lines.push(self.reader.borrow_mut().get_line());
+                lines.push(self.reader.get_line());
                 if lines.last().unwrap() == &m {
                     break;
                 }
-                self.reader.borrow_mut().get();
+                self.reader.get();
             }
         } else {
-            self.reader.borrow_mut().setpos(ea.linepos);
-            lines.push(self.reader.borrow_mut().get_line());
+            self.reader.setpos(ea.linepos);
+            lines.push(self.reader.get_line());
         }
         let node = Node::ExCmd {
             pos: ea.cmdpos,
@@ -1119,8 +1112,8 @@ impl Parser {
                 pos: ea.cmdpos,
             });
         }
-        self.reader.borrow_mut().skip_white();
-        let c = self.reader.borrow().peek();
+        self.reader.skip_white();
+        let c = self.reader.peek();
         let left = if c == "\"" || !ends_excmds(&c) {
             Some(Box::new(self.parse_expr()?))
         } else {
@@ -1138,25 +1131,25 @@ impl Parser {
     fn parse_cmd_syntax(&mut self, ea: ExArg) -> Result<(), ParseError> {
         let mut end;
         loop {
-            end = self.reader.borrow().getpos();
-            let c = self.reader.borrow().peek();
+            end = self.reader.getpos();
+            let c = self.reader.peek();
             if c == "/" || c == "'" || c == "\"" {
-                self.reader.borrow_mut().get();
+                self.reader.get();
                 self.parse_pattern(&c)?;
             } else if c == "=" {
-                self.reader.borrow_mut().get();
+                self.reader.get();
                 self.parse_pattern(" ")?;
             } else if ends_excmds(&c) {
                 break;
             }
-            let peeked = self.reader.borrow().peek();
+            let peeked = self.reader.peek();
             if !["/", "'", "\"", "="].contains(&peeked.as_str()) {
-                self.reader.borrow_mut().getn(1);
+                self.reader.getn(1);
             }
         }
         let node = Node::ExCmd {
             pos: ea.cmdpos,
-            value: self.reader.borrow_mut().getstr(ea.linepos, end),
+            value: self.reader.getstr(ea.linepos, end),
             ea,
         };
         self.add_node(node);
@@ -1201,15 +1194,9 @@ impl Parser {
     }
 
     fn parse_cmd_unlockvar(&mut self, ea: ExArg) -> Result<(), ParseError> {
-        self.reader.borrow_mut().skip_white();
-        let depth = if isdigit(&self.reader.borrow().peek()) {
-            Some(
-                self.reader
-                    .borrow_mut()
-                    .read_digit()
-                    .parse::<usize>()
-                    .unwrap(),
-            )
+        self.reader.skip_white();
+        let depth = if isdigit(&self.reader.peek()) {
+            Some(self.reader.read_digit().parse::<usize>().unwrap())
         } else {
             None
         };
@@ -1240,23 +1227,23 @@ impl Parser {
     }
 
     fn parse_cmd_wincmd(&mut self, ea: ExArg) -> Result<(), ParseError> {
-        let c = self.reader.borrow_mut().getn(1);
+        let c = self.reader.getn(1);
         if c == "" {
             return self.err("E471: Argument required");
         } else if c == "g" || c == "\x07" {
-            let c2 = self.reader.borrow_mut().getn(1);
+            let c2 = self.reader.getn(1);
             if c2 == "" || iswhite(&c2) {
                 return self.err("E474: Invalid argument");
             }
         }
-        let end = self.reader.borrow().getpos();
-        self.reader.borrow_mut().skip_white();
-        if !ends_excmds(&self.reader.borrow().peek()) {
+        let end = self.reader.getpos();
+        self.reader.skip_white();
+        if !ends_excmds(&self.reader.peek()) {
             return self.err("E474: Invalid argument");
         }
         let node = Node::ExCmd {
             pos: ea.cmdpos,
-            value: self.reader.borrow_mut().getstr(ea.linepos, end),
+            value: self.reader.getstr(ea.linepos, end),
             ea,
         };
         self.add_node(node);
@@ -1264,7 +1251,7 @@ impl Parser {
     }
 
     fn parse_letlhs(&mut self) -> Result<(Option<Node>, Vec<Node>, Option<Node>), ParseError> {
-        let mut tokenizer = Tokenizer::new(Rc::clone(&self.reader));
+        let mut tokenizer = Tokenizer::new(self.reader);
         let mut nodes = vec![];
         let mut left = None;
         let mut rest = None;
@@ -1307,14 +1294,14 @@ impl Parser {
     }
 
     fn parse_cmd_function(&mut self, ea: ExArg) -> Result<(), ParseError> {
-        let pos = self.reader.borrow().tell();
-        self.reader.borrow_mut().skip_white();
-        if ends_excmds(&self.reader.borrow().peek()) || self.reader.borrow().peek() == "/" {
-            self.reader.borrow_mut().seek_set(pos);
+        let pos = self.reader.tell();
+        self.reader.skip_white();
+        if ends_excmds(&self.reader.peek()) || self.reader.peek() == "/" {
+            self.reader.seek_set(pos);
             return self.parse_cmd_common(ea);
         }
         let left = self.parse_lvalue_func()?;
-        self.reader.borrow_mut().skip_white();
+        self.reader.skip_white();
         if let &Node::Identifier { pos, ref value, .. } = &left {
             if !value.starts_with("<")
                 && !value.starts_with(|c: char| c.is_uppercase())
@@ -1330,13 +1317,13 @@ impl Parser {
                 });
             }
         }
-        if self.reader.borrow().peek() != "(" {
-            self.reader.borrow_mut().seek_set(pos);
+        if self.reader.peek() != "(" {
+            self.reader.seek_set(pos);
             return self.parse_cmd_common(ea);
         }
         let name = Box::new(left);
-        self.reader.borrow_mut().getn(1);
-        let mut tokenizer = Tokenizer::new(Rc::clone(&self.reader));
+        self.reader.getn(1);
+        let mut tokenizer = Tokenizer::new(self.reader);
         let mut args = vec![];
         if tokenizer.peek()?.kind == TokenKind::PClose {
             tokenizer.get()?;
@@ -1364,9 +1351,7 @@ impl Parser {
                         pos: token.pos,
                         value: token.value,
                     }));
-                    if iswhite(&self.reader.borrow().peek())
-                        && tokenizer.peek()?.kind == TokenKind::Comma
-                    {
+                    if iswhite(&self.reader.peek()) && tokenizer.peek()?.kind == TokenKind::Comma {
                         return self
                             .err("E475: Invalid argument: White space is not allowed before comma");
                     }
@@ -1408,9 +1393,9 @@ impl Parser {
         }
         let mut attrs = vec![];
         loop {
-            self.reader.borrow_mut().skip_white();
-            let epos = self.reader.borrow().getpos();
-            let key = self.reader.borrow_mut().read_alpha();
+            self.reader.skip_white();
+            let epos = self.reader.getpos();
+            let key = self.reader.read_alpha();
             match key.as_str() {
                 "" => {
                     break;
@@ -1440,8 +1425,8 @@ impl Parser {
     fn parse_exprlist(&mut self) -> Result<Vec<Node>, ParseError> {
         let mut nodes = vec![];
         loop {
-            self.reader.borrow_mut().skip_white();
-            let c = self.reader.borrow().peek();
+            self.reader.skip_white();
+            let c = self.reader.peek();
             if c != "\"" && ends_excmds(&c) {
                 break;
             }
@@ -1452,7 +1437,7 @@ impl Parser {
     }
 
     fn parse_lvalue(&mut self) -> Result<Node, ParseError> {
-        let mut parser = ExprParser::new(Rc::clone(&self.reader));
+        let mut parser = ExprParser::new(self.reader);
         let node = parser.parse_lv()?;
         match node {
             Node::Identifier { pos, ref value, .. } => {
@@ -1474,7 +1459,7 @@ impl Parser {
             | Node::Reg { .. } => Ok(node),
             _ => Err(ParseError {
                 msg: "Invalid expression".to_string(),
-                pos: self.reader.borrow().getpos(),
+                pos: self.reader.getpos(),
             }),
         }
     }
@@ -1483,8 +1468,8 @@ impl Parser {
         let mut nodes = vec![];
         nodes.push(self.parse_expr()?);
         loop {
-            self.reader.borrow_mut().skip_white();
-            if ends_excmds(&self.reader.borrow().peek()) {
+            self.reader.skip_white();
+            if ends_excmds(&self.reader.peek()) {
                 break;
             }
             nodes.push(self.parse_lvalue()?);
@@ -1493,7 +1478,7 @@ impl Parser {
     }
 
     fn parse_lvalue_func(&mut self) -> Result<Node, ParseError> {
-        let mut parser = ExprParser::new(Rc::clone(&self.reader));
+        let mut parser = ExprParser::new(self.reader);
         let node = parser.parse_lv()?;
         match node {
             Node::Identifier { .. }
@@ -1505,7 +1490,7 @@ impl Parser {
             | Node::Reg { .. } => Ok(node),
             _ => Err(ParseError {
                 msg: "Invalid expression".to_string(),
-                pos: self.reader.borrow().getpos(),
+                pos: self.reader.getpos(),
             }),
         }
     }
@@ -1515,52 +1500,51 @@ impl Parser {
             self.skip_vimgrep_pat()?;
         }
         let mut pc = String::new();
-        let mut end = self.reader.borrow().getpos();
+        let mut end = self.reader.getpos();
         let mut nospend = end;
         loop {
-            end = self.reader.borrow().getpos();
+            end = self.reader.getpos();
             if !iswhite(&pc) {
                 nospend = end;
             }
-            let mut c = self.reader.borrow().peek();
+            let mut c = self.reader.peek();
             if c == "\n" || c == "<EOF>" {
                 break;
             } else if c == "\x16" {
-                self.reader.borrow_mut().get();
-                end = self.reader.borrow().getpos();
+                self.reader.get();
+                end = self.reader.getpos();
                 nospend = end;
-                c = self.reader.borrow().peek();
+                c = self.reader.peek();
                 if c == "\n" || c == "<EOF>" {
                     break;
                 }
-                self.reader.borrow_mut().get();
-            } else if self.reader.borrow().peekn(2) == "`="
+                self.reader.get();
+            } else if self.reader.peekn(2) == "`="
                 && (ea.cmd.flags.contains(&Flag::Xfile)
                     || ea.cmd.flags.contains(&Flag::Files)
                     || ea.cmd.flags.contains(&Flag::File1))
             {
-                self.reader.borrow_mut().getn(2);
+                self.reader.getn(2);
                 self.parse_expr()?;
-                c = self.reader.borrow().peekn(1);
+                c = self.reader.peekn(1);
                 if c != "`" {
                     return self.err(&format!("unexpected character: {}", c));
                 }
-                self.reader.borrow_mut().getn(1);
+                self.reader.getn(1);
             } else if ["|", "\n", "\""].contains(&c.as_str())
                 && !ea.cmd.flags.contains(&Flag::NoTrlCom)
-                && (ea.cmd.name != "@" && ea.cmd.name != "*"
-                    || self.reader.borrow().getpos() != ea.argpos)
+                && (ea.cmd.name != "@" && ea.cmd.name != "*" || self.reader.getpos() != ea.argpos)
                 && (ea.cmd.name != "redir"
-                    || self.reader.borrow().getpos().cursor != ea.argpos.cursor + 1
+                    || self.reader.getpos().cursor != ea.argpos.cursor + 1
                     || pc != "@")
             {
                 if !ea.cmd.flags.contains(&Flag::UseCtrlV) && pc == "\\" {
-                    self.reader.borrow_mut().get();
+                    self.reader.get();
                 } else {
                     break;
                 }
             } else {
-                self.reader.borrow_mut().get();
+                self.reader.get();
             }
             pc = c
         }
@@ -1571,27 +1555,27 @@ impl Parser {
     }
 
     fn skip_vimgrep_pat(&mut self) -> Result<(), ParseError> {
-        let c = self.reader.borrow().peek();
+        let c = self.reader.peek();
         if c == "\n" {
         } else if iswordc(&c) {
-            self.reader.borrow_mut().read_nonwhite();
+            self.reader.read_nonwhite();
         } else {
-            let c = self.reader.borrow_mut().get();
+            let c = self.reader.get();
             let (_, endc) = self.parse_pattern(&c)?;
             if c != endc {
                 return Ok(());
             }
-            while self.reader.borrow().peek() == "g" || self.reader.borrow().peek() == "j" {
-                self.reader.borrow_mut().get();
+            while self.reader.peek() == "g" || self.reader.peek() == "j" {
+                self.reader.get();
             }
         }
         Ok(())
     }
 
     fn parse_argcmd(&mut self) {
-        if self.reader.borrow().peek() == "+" {
-            self.reader.borrow_mut().get();
-            if self.reader.borrow().peek() != " " {
+        if self.reader.peek() == "+" {
+            self.reader.get();
+            if self.reader.peek() != " " {
                 self.read_cmdarg();
             }
         }
@@ -1599,13 +1583,13 @@ impl Parser {
 
     fn read_cmdarg(&mut self) {
         loop {
-            let c = self.reader.borrow().peekn(1);
+            let c = self.reader.peekn(1);
             if c == "" || c.chars().collect::<Vec<char>>()[0].is_whitespace() {
                 break;
             }
-            self.reader.borrow_mut().get();
+            self.reader.get();
             if c == "\\" {
-                self.reader.borrow_mut().get();
+                self.reader.get();
             }
         }
     }
@@ -1623,63 +1607,63 @@ impl Parser {
             static ref BAD_OUTER_RE: Regex = Regex::new("^\\+\\+bad=(keep|drop|.)\\b").unwrap();
             static ref BAD_INNER_RE: Regex = Regex::new("^\\+\\+bad=(keep|drop)").unwrap();
         }
-        while self.reader.borrow().peekn(2) == "++" {
-            let s = self.reader.borrow().peekn(20);
+        while self.reader.peekn(2) == "++" {
+            let s = self.reader.peekn(20);
             if BIN_RE.is_match(&s) {
-                self.reader.borrow_mut().getn(5);
+                self.reader.getn(5);
             } else if NOBIN_RE.is_match(&s) {
-                self.reader.borrow_mut().getn(7);
+                self.reader.getn(7);
             } else if EDIT_RE.is_match(&s) {
-                self.reader.borrow_mut().getn(6);
+                self.reader.getn(6);
             } else if FF_RE.is_match(&s) {
-                self.reader.borrow_mut().getn(5);
+                self.reader.getn(5);
             } else if FILEFORMAT_RE.is_match(&s) {
-                self.reader.borrow_mut().getn(13);
+                self.reader.getn(13);
             } else if ENC_RE.is_match(&s) {
-                self.reader.borrow_mut().getn(6);
-                self.reader.borrow_mut().read_nonwhite();
+                self.reader.getn(6);
+                self.reader.read_nonwhite();
             } else if ENCODING_RE.is_match(&s) {
-                self.reader.borrow_mut().getn(11);
-                self.reader.borrow_mut().read_nonwhite();
+                self.reader.getn(11);
+                self.reader.read_nonwhite();
             } else if BAD_OUTER_RE.is_match(&s) {
-                self.reader.borrow_mut().getn(6);
+                self.reader.getn(6);
                 if BAD_INNER_RE.is_match(&s) {
-                    self.reader.borrow_mut().getn(4);
+                    self.reader.getn(4);
                 } else {
-                    self.reader.borrow_mut().get();
+                    self.reader.get();
                 }
             } else if s.starts_with("++") {
                 return self.err("E474: Invalid Argument");
             } else {
                 break;
             }
-            self.reader.borrow_mut().skip_white();
+            self.reader.skip_white();
         }
         Ok(())
     }
 
     fn find_command(&mut self) -> Option<Rc<Command>> {
-        let c = self.reader.borrow().peek();
+        let c = self.reader.peek();
         let mut name = "".to_string();
         lazy_static! {
             static ref SUB_RE: Regex = Regex::new("^s(c[^sr][^i][^p]|g|i[^mlg]|I|r[^e])").unwrap();
             static ref DEL_RE: Regex = Regex::new("^d(elete|elet|ele|el|e)[lp]$").unwrap();
         }
         if c == "k" {
-            name.push_str(&self.reader.borrow_mut().get());
-        } else if c == "s" && SUB_RE.is_match(&self.reader.borrow().peekn(5)) {
-            self.reader.borrow_mut().get();
+            name.push_str(&self.reader.get());
+        } else if c == "s" && SUB_RE.is_match(&self.reader.peekn(5)) {
+            self.reader.get();
             name.push_str("substitute");
         } else if ["@", "*", "!", "=", ">", "<", "&", "~", "#"].contains(&c.as_str()) {
-            name.push_str(&self.reader.borrow_mut().get());
-        } else if self.reader.borrow().peekn(2) == "py" {
-            name.push_str(&self.reader.borrow_mut().read_alnum());
+            name.push_str(&self.reader.get());
+        } else if self.reader.peekn(2) == "py" {
+            name.push_str(&self.reader.read_alnum());
         } else {
-            let pos = self.reader.borrow().tell();
-            name.push_str(&self.reader.borrow_mut().read_alpha());
+            let pos = self.reader.tell();
+            name.push_str(&self.reader.read_alpha());
             if name != "del" && DEL_RE.is_match(&name) {
-                self.reader.borrow_mut().seek_set(pos);
-                name = self.reader.borrow_mut().getn(name.len() - 1);
+                self.reader.seek_set(pos);
+                name = self.reader.getn(name.len() - 1);
             }
         }
         if name == "" {
@@ -1688,7 +1672,7 @@ impl Parser {
         if self.commands.contains_key(&name) {
             Some(Rc::clone(self.commands.get(&name).unwrap()))
         } else if name.starts_with(|c: char| c.is_uppercase()) {
-            name.push_str(&self.reader.borrow_mut().read_alnum());
+            name.push_str(&self.reader.read_alnum());
             let cmd = Rc::new(Command {
                 name: name.clone(),
                 minlen: 0,
@@ -1703,27 +1687,27 @@ impl Parser {
     }
 
     fn parse_cmd_modifier_range(&mut self, ea: ExArg) {
-        let pos = self.reader.borrow().getpos();
+        let pos = self.reader.getpos();
         let node = Node::ExCmd {
             pos: ea.cmdpos,
-            value: self.reader.borrow_mut().getstr(ea.linepos, pos),
+            value: self.reader.getstr(ea.linepos, pos),
             ea,
         };
         self.add_node(node);
     }
 
     fn parse_trail(&mut self) -> Result<(), ParseError> {
-        self.reader.borrow_mut().skip_white();
-        let c = self.reader.borrow().peek();
+        self.reader.skip_white();
+        let c = self.reader.peek();
         match c.as_str() {
             "<EOF>" => Ok(()),
             "\n" | "|" => {
-                self.reader.borrow_mut().get();
+                self.reader.get();
                 Ok(())
             }
             "\"" => {
                 self.parse_comment()?;
-                self.reader.borrow_mut().get();
+                self.reader.get();
                 Ok(())
             }
             _ => self.err(&format!("E488: Trailing characters: {}", c)),
@@ -1732,17 +1716,16 @@ impl Parser {
 }
 
 #[derive(Debug)]
-pub struct ExprParser {
-    reader: Rc<RefCell<Reader>>,
-    tokenizer: Tokenizer,
+pub struct ExprParser<'a> {
+    reader: &'a Reader,
+    tokenizer: Tokenizer<'a>,
 }
 
-impl ExprParser {
-    pub fn new(reader: Rc<RefCell<Reader>>) -> ExprParser {
-        let tokenizer = Tokenizer::new(Rc::clone(&reader));
+impl<'a> ExprParser<'a> {
+    pub fn new(reader: &'a Reader) -> ExprParser {
         ExprParser {
-            reader: reader,
-            tokenizer: tokenizer,
+            reader,
+            tokenizer: Tokenizer::new(reader),
         }
     }
 
@@ -1759,7 +1742,7 @@ impl ExprParser {
 
     fn parse_expr1(&mut self) -> Result<Node, ParseError> {
         let mut left = self.parse_expr2()?;
-        let pos = self.reader.borrow().tell();
+        let pos = self.reader.tell();
         let mut token = self.tokenizer.get()?;
         if token.kind == TokenKind::Question {
             let pos = token.pos;
@@ -1778,7 +1761,7 @@ impl ExprParser {
             };
             left = node;
         } else {
-            self.reader.borrow_mut().seek_set(pos);
+            self.reader.seek_set(pos);
         }
         Ok(left)
     }
@@ -1786,7 +1769,7 @@ impl ExprParser {
     fn parse_expr2(&mut self) -> Result<Node, ParseError> {
         let mut left = self.parse_expr3()?;
         loop {
-            let pos = self.reader.borrow().tell();
+            let pos = self.reader.tell();
             let token = self.tokenizer.get()?;
             if token.kind == TokenKind::OrOr {
                 let node = Node::Or {
@@ -1796,7 +1779,7 @@ impl ExprParser {
                 };
                 left = node;
             } else {
-                self.reader.borrow_mut().seek_set(pos);
+                self.reader.seek_set(pos);
                 break;
             }
         }
@@ -1806,7 +1789,7 @@ impl ExprParser {
     fn parse_expr3(&mut self) -> Result<Node, ParseError> {
         let mut left = self.parse_expr4()?;
         loop {
-            let pos = self.reader.borrow().tell();
+            let pos = self.reader.tell();
             let token = self.tokenizer.get()?;
             if token.kind == TokenKind::AndAnd {
                 let node = Node::And {
@@ -1816,7 +1799,7 @@ impl ExprParser {
                 };
                 left = node;
             } else {
-                self.reader.borrow_mut().seek_set(pos);
+                self.reader.seek_set(pos);
                 break;
             }
         }
@@ -1825,7 +1808,7 @@ impl ExprParser {
 
     fn parse_expr4(&mut self) -> Result<Node, ParseError> {
         let mut left = self.parse_expr5()?;
-        let cursor = self.reader.borrow().tell();
+        let cursor = self.reader.tell();
         let token = self.tokenizer.get()?;
         let pos = token.pos;
         let left_side = Box::new(left.clone());
@@ -1861,7 +1844,7 @@ impl ExprParser {
             TokenKind::IsNotCI => "isnot?",
             TokenKind::IsNotCS => "isnot#",
             _ => {
-                self.reader.borrow_mut().seek_set(cursor);
+                self.reader.seek_set(cursor);
                 return Ok(left);
             }
         }.to_string();
@@ -1878,7 +1861,7 @@ impl ExprParser {
     fn parse_expr5(&mut self) -> Result<Node, ParseError> {
         let mut left = self.parse_expr6()?;
         loop {
-            let cursor = self.reader.borrow().tell();
+            let cursor = self.reader.tell();
             let token = self.tokenizer.get()?;
             let pos = token.pos;
             let left_side = Box::new(left.clone());
@@ -1899,7 +1882,7 @@ impl ExprParser {
                     right: Box::new(self.parse_expr6()?),
                 },
                 _ => {
-                    self.reader.borrow_mut().seek_set(cursor);
+                    self.reader.seek_set(cursor);
                     break;
                 }
             };
@@ -1911,7 +1894,7 @@ impl ExprParser {
     fn parse_expr6(&mut self) -> Result<Node, ParseError> {
         let mut left = self.parse_expr7()?;
         loop {
-            let cursor = self.reader.borrow().tell();
+            let cursor = self.reader.tell();
             let token = self.tokenizer.get()?;
             let pos = token.pos;
             let left_side = Box::new(left.clone());
@@ -1932,7 +1915,7 @@ impl ExprParser {
                     right: Box::new(self.parse_expr7()?),
                 },
                 _ => {
-                    self.reader.borrow_mut().seek_set(cursor);
+                    self.reader.seek_set(cursor);
                     break;
                 }
             };
@@ -1942,7 +1925,7 @@ impl ExprParser {
     }
 
     fn parse_expr7(&mut self) -> Result<Node, ParseError> {
-        let cursor = self.reader.borrow().tell();
+        let cursor = self.reader.tell();
         let token = self.tokenizer.get()?;
         let pos = token.pos;
         let node = match token.kind {
@@ -1959,7 +1942,7 @@ impl ExprParser {
                 left: Box::new(self.parse_expr7()?),
             },
             _ => {
-                self.reader.borrow_mut().seek_set(cursor);
+                self.reader.seek_set(cursor);
                 return self.parse_expr8();
             }
         };
@@ -1969,8 +1952,8 @@ impl ExprParser {
     fn parse_expr8(&mut self) -> Result<Node, ParseError> {
         let mut left = self.parse_expr9()?;
         loop {
-            let cursor = self.reader.borrow().tell();
-            let c = self.reader.borrow().peek();
+            let cursor = self.reader.tell();
+            let c = self.reader.peek();
             let mut token = self.tokenizer.get()?;
             if !iswhite(&c) && token.kind == TokenKind::SqOpen {
                 let npos = token.pos;
@@ -2069,12 +2052,12 @@ impl ExprParser {
                         left = node;
                     }
                     None => {
-                        self.reader.borrow_mut().seek_set(cursor);
+                        self.reader.seek_set(cursor);
                         break;
                     }
                 }
             } else {
-                self.reader.borrow_mut().seek_set(cursor);
+                self.reader.seek_set(cursor);
                 break;
             }
         }
@@ -2082,7 +2065,7 @@ impl ExprParser {
     }
 
     fn parse_expr9(&mut self) -> Result<Node, ParseError> {
-        let cursor = self.reader.borrow().tell();
+        let cursor = self.reader.tell();
         let token = self.tokenizer.get()?;
         let pos = token.pos;
         Ok(match token.kind {
@@ -2091,14 +2074,14 @@ impl ExprParser {
                 value: token.value,
             },
             TokenKind::DQuote => {
-                self.reader.borrow_mut().seek_set(cursor);
+                self.reader.seek_set(cursor);
                 Node::String {
                     pos,
                     value: format!("\"{}\"", self.tokenizer.get_dstring()?),
                 }
             }
             TokenKind::SQuote => {
-                self.reader.borrow_mut().seek_set(cursor);
+                self.reader.seek_set(cursor);
                 Node::String {
                     pos,
                     value: format!("\'{}\'", self.tokenizer.get_sstring()?),
@@ -2134,7 +2117,7 @@ impl ExprParser {
                 Node::List { pos, items }
             }
             TokenKind::COpen => {
-                let savepos = self.reader.borrow().tell();
+                let savepos = self.reader.tell();
                 let mut token = self.tokenizer.get()?;
                 let mut is_lambda = token.kind == TokenKind::Arrow;
                 if !is_lambda && token.kind != TokenKind::SQuote && token.kind != TokenKind::DQuote
@@ -2172,14 +2155,12 @@ impl ExprParser {
                                     value: token.value,
                                 };
                                 let maybe_comma = self.tokenizer.peek()?.kind;
-                                if iswhite(&self.reader.borrow().peek())
-                                    && maybe_comma == TokenKind::Comma
-                                {
+                                if iswhite(&self.reader.peek()) && maybe_comma == TokenKind::Comma {
                                     return Err(ParseError {
                                         msg: String::from(
                                             "E475: invalid argument: White space is not allowed before comma"
                                         ),
-                                        pos: self.reader.borrow().getpos()
+                                        pos: self.reader.getpos()
                                     });
                                 }
                                 token = self.tokenizer.get()?;
@@ -2234,7 +2215,7 @@ impl ExprParser {
                     }
                 }
                 let mut items = vec![];
-                self.reader.borrow_mut().seek_set(savepos);
+                self.reader.seek_set(savepos);
                 token = self.tokenizer.peek()?;
                 if token.kind == TokenKind::CClose {
                     self.tokenizer.get()?;
@@ -2248,7 +2229,7 @@ impl ExprParser {
                         if items.len() > 0 {
                             return self.token_err(token);
                         }
-                        self.reader.borrow_mut().seek_set(cursor);
+                        self.reader.seek_set(cursor);
                         return self.parse_identifier();
                     }
                     if token.kind != TokenKind::Colon {
@@ -2283,9 +2264,9 @@ impl ExprParser {
                 value: token.value,
             },
             _ if token.kind == TokenKind::LT
-                && self.reader.borrow().peekn(4).eq_ignore_ascii_case("SID>") =>
+                && self.reader.peekn(4).eq_ignore_ascii_case("SID>") =>
             {
-                self.reader.borrow_mut().seek_set(cursor);
+                self.reader.seek_set(cursor);
                 self.parse_identifier()?
             }
             TokenKind::Identifier
@@ -2293,7 +2274,7 @@ impl ExprParser {
             | TokenKind::IsCS
             | TokenKind::IsNot
             | TokenKind::IsNotCS => {
-                self.reader.borrow_mut().seek_set(cursor);
+                self.reader.seek_set(cursor);
                 self.parse_identifier()?
             }
             TokenKind::Env => Node::Env {
@@ -2311,8 +2292,8 @@ impl ExprParser {
     }
 
     fn parse_identifier(&mut self) -> Result<Node, ParseError> {
-        self.reader.borrow_mut().skip_white();
-        let pos = self.reader.borrow().getpos();
+        self.reader.skip_white();
+        let pos = self.reader.getpos();
         let mut curly_parts = self.parse_curly_parts()?;
         let mut node = None;
         if curly_parts.len() == 1 {
@@ -2337,34 +2318,34 @@ impl ExprParser {
 
     fn parse_curly_parts(&mut self) -> Result<Vec<Node>, ParseError> {
         let mut curly_parts = vec![];
-        let c = self.reader.borrow().peek();
-        let pos = self.reader.borrow().getpos();
-        if c == "<" && self.reader.borrow().peekn(5).eq_ignore_ascii_case("<SID>") {
-            let name = self.reader.borrow_mut().getn(5);
+        let c = self.reader.peek();
+        let pos = self.reader.getpos();
+        if c == "<" && self.reader.peekn(5).eq_ignore_ascii_case("<SID>") {
+            let name = self.reader.getn(5);
             curly_parts.push(Node::CurlyNamePart { pos, value: name });
         }
         loop {
-            let c = self.reader.borrow().peek();
+            let c = self.reader.peek();
             if isnamec(&c) {
-                let pos = self.reader.borrow().getpos();
-                let name = self.reader.borrow_mut().read_name();
+                let pos = self.reader.getpos();
+                let name = self.reader.read_name();
                 curly_parts.push(Node::CurlyNamePart { pos, value: name });
             } else if c == "{" {
-                self.reader.borrow_mut().get();
-                let pos = self.reader.borrow().getpos();
+                self.reader.get();
+                let pos = self.reader.getpos();
                 curly_parts.push(Node::CurlyNameExpr {
                     pos,
                     expr: Box::new(self.parse_expr1()?),
                 });
-                self.reader.borrow_mut().skip_white();
-                let c = self.reader.borrow().peek();
+                self.reader.skip_white();
+                let c = self.reader.peek();
                 if c != "}" {
                     return Err(ParseError {
                         msg: format!("unexpected token: {}", c),
-                        pos: self.reader.borrow().getpos(),
+                        pos: self.reader.getpos(),
                     });
                 }
-                self.reader.borrow_mut().seek_cur(1);
+                self.reader.seek_cur(1);
             } else {
                 break;
             }
@@ -2382,12 +2363,12 @@ impl ExprParser {
             | Node::Dot { .. } => (),
             _ => return None,
         }
-        if !iswordc(&self.reader.borrow().peek()) {
+        if !iswordc(&self.reader.peek()) {
             return None;
         }
-        let pos = self.reader.borrow().getpos();
-        let name = self.reader.borrow_mut().read_word();
-        if isnamec(&self.reader.borrow().peek()) {
+        let pos = self.reader.getpos();
+        let name = self.reader.read_word();
+        if isnamec(&self.reader.peek()) {
             return None;
         }
         let right = Box::new(Node::Identifier { pos, value: name });
@@ -2405,8 +2386,8 @@ impl ExprParser {
     fn parse_lv8(&mut self) -> Result<Node, ParseError> {
         let mut left = self.parse_lv9()?;
         loop {
-            let cursor = self.reader.borrow().tell();
-            let c = self.reader.borrow().peek();
+            let cursor = self.reader.tell();
+            let c = self.reader.peek();
             let mut token = self.tokenizer.get()?;
             let node;
             if !iswhite(&c) && token.kind == TokenKind::SqOpen {
@@ -2472,12 +2453,12 @@ impl ExprParser {
                         left = n;
                     }
                     None => {
-                        self.reader.borrow_mut().seek_set(cursor);
+                        self.reader.seek_set(cursor);
                         break;
                     }
                 }
             } else {
-                self.reader.borrow_mut().seek_set(cursor);
+                self.reader.seek_set(cursor);
                 break;
             }
         }
@@ -2485,12 +2466,12 @@ impl ExprParser {
     }
 
     fn parse_lv9(&mut self) -> Result<Node, ParseError> {
-        let cursor = self.reader.borrow().tell();
+        let cursor = self.reader.tell();
         let token = self.tokenizer.get()?;
         let pos = token.pos;
         Ok(match token.kind {
             TokenKind::COpen | TokenKind::Identifier => {
-                self.reader.borrow_mut().seek_set(cursor);
+                self.reader.seek_set(cursor);
                 let mut node = self.parse_identifier()?;
                 if let Node::Identifier { ref mut value, .. } = node {
                     *value = token.value;
@@ -2498,9 +2479,9 @@ impl ExprParser {
                 node
             }
             _ if token.kind == TokenKind::LT
-                && self.reader.borrow().peekn(4).eq_ignore_ascii_case("SID>") =>
+                && self.reader.peekn(4).eq_ignore_ascii_case("SID>") =>
             {
-                self.reader.borrow_mut().seek_set(cursor);
+                self.reader.seek_set(cursor);
                 let mut node = self.parse_identifier()?;
                 if let Node::Identifier { ref mut value, .. } = node {
                     *value = token.value;
