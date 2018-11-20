@@ -929,20 +929,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_cmd_for(&mut self, ea: ExArg) -> Result<(), ParseError> {
-        let lhs = self.parse_letlhs()?;
-        let var = match lhs.0 {
-            Some(l) => Some(Box::new(l)),
-            None => None,
-        };
-        let list = lhs
-            .1
-            .into_iter()
-            .map(|n| Box::new(n))
-            .collect::<Vec<Box<Node>>>();
-        let rest = match lhs.2 {
-            Some(r) => Some(Box::new(r)),
-            None => None,
-        };
+        let (var, list, rest) = self.parse_letlhs()?;
         self.reader.skip_white();
         let epos = self.reader.getpos();
         if self.reader.read_alpha() != "in" {
@@ -987,20 +974,7 @@ impl<'a> Parser<'a> {
             self.reader.seek_set(pos);
             return self.parse_cmd_common(ea);
         }
-        let lhs = self.parse_letlhs()?;
-        let var = match lhs.0 {
-            Some(l) => Some(Box::new(l)),
-            None => None,
-        };
-        let list = lhs
-            .1
-            .into_iter()
-            .map(|n| Box::new(n))
-            .collect::<Vec<Box<Node>>>();
-        let rest = match lhs.2 {
-            Some(r) => Some(Box::new(r)),
-            None => None,
-        };
+        let (var, list, rest) = self.parse_letlhs()?;
         self.reader.skip_white();
         let s1 = self.reader.peek();
         let s2 = self.reader.peekn(2);
@@ -1250,7 +1224,9 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    fn parse_letlhs(&mut self) -> Result<(Option<Node>, Vec<Node>, Option<Node>), ParseError> {
+    fn parse_letlhs(
+        &mut self,
+    ) -> Result<(Option<Box<Node>>, Vec<Box<Node>>, Option<Box<Node>>), ParseError> {
         let mut tokenizer = Tokenizer::new(self.reader);
         let mut nodes = vec![];
         let mut left = None;
@@ -1258,7 +1234,7 @@ impl<'a> Parser<'a> {
         if tokenizer.peek()?.kind == TokenKind::SqOpen {
             tokenizer.get()?;
             loop {
-                nodes.push(self.parse_lvalue()?);
+                nodes.push(Box::new(self.parse_lvalue()?));
                 let mut token = tokenizer.get()?;
                 match token.kind {
                     TokenKind::SqClose => {
@@ -1268,7 +1244,7 @@ impl<'a> Parser<'a> {
                         continue;
                     }
                     TokenKind::Semicolon => {
-                        rest = Some(self.parse_lvalue()?);
+                        rest = Some(Box::new(self.parse_lvalue()?));
                         token = tokenizer.get()?;
                         if token.kind == TokenKind::SqClose {
                             break;
@@ -1288,7 +1264,7 @@ impl<'a> Parser<'a> {
                 }
             }
         } else {
-            left = Some(self.parse_lvalue()?);
+            left = Some(Box::new(self.parse_lvalue()?));
         }
         Ok((left, nodes, rest))
     }
