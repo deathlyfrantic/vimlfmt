@@ -165,23 +165,19 @@ impl<'a> Tokenizer<'a> {
             }
             return Ok(Token::new(TokenKind::Number, value, pos));
         }
-        if c == "i" && self.reader.peek_ahead(1) == "s" && !iswordc(&self.reader.peek_ahead(2)) {
-            if self.reader.peek_ahead(2) == "?" {
-                return Ok(Token::new(TokenKind::IsCI, self.reader.getn(3), pos));
-            }
-            if self.reader.peek_ahead(2) == "#" {
-                return Ok(Token::new(TokenKind::IsCS, self.reader.getn(3), pos));
-            }
-            return Ok(Token::new(TokenKind::Is, self.reader.getn(2), pos));
+        if self.reader.peekn(2) == "is" && !iswordc(&self.reader.peek_ahead(2)) {
+            return Ok(match self.reader.peek_ahead(2).as_str() {
+                "?" => Token::new(TokenKind::IsCI, self.reader.getn(3), pos),
+                "#" => Token::new(TokenKind::IsCS, self.reader.getn(3), pos),
+                _ => Token::new(TokenKind::Is, self.reader.getn(2), pos),
+            });
         }
         if self.reader.peekn(5) == "isnot" && !iswordc(&self.reader.peek_ahead(5)) {
-            if self.reader.peek_ahead(5) == "?" {
-                return Ok(Token::new(TokenKind::IsNotCI, self.reader.getn(6), pos));
-            }
-            if self.reader.peek_ahead(5) == "#" {
-                return Ok(Token::new(TokenKind::IsNotCS, self.reader.getn(6), pos));
-            }
-            return Ok(Token::new(TokenKind::IsNot, self.reader.getn(5), pos));
+            return Ok(match self.reader.peek_ahead(5).as_str() {
+                "?" => Token::new(TokenKind::IsNotCI, self.reader.getn(6), pos),
+                "#" => Token::new(TokenKind::IsNotCS, self.reader.getn(6), pos),
+                _ => Token::new(TokenKind::IsNot, self.reader.getn(5), pos),
+            });
         }
         if iswordc1(&c) {
             return Ok(Token::new(
@@ -190,86 +186,65 @@ impl<'a> Tokenizer<'a> {
                 pos,
             ));
         }
-        if self.reader.peekn(2) == "||" {
-            return Ok(Token::new(TokenKind::OrOr, self.reader.getn(2), pos));
-        }
-        if self.reader.peekn(2) == "&&" {
-            return Ok(Token::new(TokenKind::AndAnd, self.reader.getn(2), pos));
-        }
-        if self.reader.peekn(2) == "==" {
-            if self.reader.peek_ahead(2) == "?" {
-                return Ok(Token::new(TokenKind::EqEqCI, self.reader.getn(3), pos));
+        match self.reader.peekn(2).as_str() {
+            "||" => return Ok(Token::new(TokenKind::OrOr, self.reader.getn(2), pos)),
+            "&&" => return Ok(Token::new(TokenKind::AndAnd, self.reader.getn(2), pos)),
+            "==" => {
+                return Ok(match self.reader.peek_ahead(2).as_str() {
+                    "?" => Token::new(TokenKind::EqEqCI, self.reader.getn(3), pos),
+                    "#" => Token::new(TokenKind::EqEqCS, self.reader.getn(3), pos),
+                    _ => Token::new(TokenKind::EqEq, self.reader.getn(2), pos),
+                });
             }
-            if self.reader.peek_ahead(2) == "#" {
-                return Ok(Token::new(TokenKind::EqEqCS, self.reader.getn(3), pos));
+            "!=" => {
+                return Ok(match self.reader.peek_ahead(2).as_str() {
+                    "?" => Token::new(TokenKind::NotEqCI, self.reader.getn(3), pos),
+                    "#" => Token::new(TokenKind::NotEqCS, self.reader.getn(3), pos),
+                    _ => Token::new(TokenKind::NotEq, self.reader.getn(2), pos),
+                });
             }
-            return Ok(Token::new(TokenKind::EqEq, self.reader.getn(2), pos));
-        }
-        if self.reader.peekn(2) == "!=" {
-            if self.reader.peek_ahead(2) == "?" {
-                return Ok(Token::new(TokenKind::NotEqCI, self.reader.getn(3), pos));
+            ">=" => {
+                return Ok(match self.reader.peek_ahead(2).as_str() {
+                    "?" => Token::new(TokenKind::GTEqCI, self.reader.getn(3), pos),
+                    "#" => Token::new(TokenKind::GTEqCS, self.reader.getn(3), pos),
+                    _ => Token::new(TokenKind::GTEq, self.reader.getn(2), pos),
+                });
             }
-            if self.reader.peek_ahead(2) == "#" {
-                return Ok(Token::new(TokenKind::NotEqCS, self.reader.getn(3), pos));
+            "<=" => {
+                return Ok(match self.reader.peek_ahead(2).as_str() {
+                    "?" => Token::new(TokenKind::LTEqCI, self.reader.getn(3), pos),
+                    "#" => Token::new(TokenKind::LTEqCS, self.reader.getn(3), pos),
+                    _ => Token::new(TokenKind::LTEq, self.reader.getn(2), pos),
+                });
             }
-            return Ok(Token::new(TokenKind::NotEq, self.reader.getn(2), pos));
-        }
-        if self.reader.peekn(2) == ">=" {
-            if self.reader.peek_ahead(2) == "?" {
-                return Ok(Token::new(TokenKind::GTEqCI, self.reader.getn(3), pos));
+            "=~" => {
+                return Ok(match self.reader.peek_ahead(2).as_str() {
+                    "?" => Token::new(TokenKind::MatchCI, self.reader.getn(3), pos),
+                    "#" => Token::new(TokenKind::MatchCS, self.reader.getn(3), pos),
+                    _ => Token::new(TokenKind::Match, self.reader.getn(2), pos),
+                });
             }
-            if self.reader.peek_ahead(2) == "#" {
-                return Ok(Token::new(TokenKind::GTEqCS, self.reader.getn(3), pos));
+            "!~" => {
+                return Ok(match self.reader.peek_ahead(2).as_str() {
+                    "?" => Token::new(TokenKind::NoMatchCI, self.reader.getn(3), pos),
+                    "#" => Token::new(TokenKind::NoMatchCS, self.reader.getn(3), pos),
+                    _ => Token::new(TokenKind::NoMatch, self.reader.getn(2), pos),
+                });
             }
-            return Ok(Token::new(TokenKind::GTEq, self.reader.getn(2), pos));
-        }
-        if self.reader.peekn(2) == "<=" {
-            if self.reader.peek_ahead(2) == "?" {
-                return Ok(Token::new(TokenKind::LTEqCI, self.reader.getn(3), pos));
-            }
-            if self.reader.peek_ahead(2) == "#" {
-                return Ok(Token::new(TokenKind::LTEqCS, self.reader.getn(3), pos));
-            }
-            return Ok(Token::new(TokenKind::LTEq, self.reader.getn(2), pos));
-        }
-        if self.reader.peekn(2) == "=~" {
-            if self.reader.peek_ahead(2) == "?" {
-                return Ok(Token::new(TokenKind::MatchCI, self.reader.getn(3), pos));
-            }
-            if self.reader.peek_ahead(2) == "#" {
-                return Ok(Token::new(TokenKind::MatchCS, self.reader.getn(3), pos));
-            }
-            return Ok(Token::new(TokenKind::Match, self.reader.getn(2), pos));
-        }
-        if self.reader.peekn(2) == "!~" {
-            if self.reader.peek_ahead(2) == "?" {
-                return Ok(Token::new(TokenKind::NoMatchCI, self.reader.getn(3), pos));
-            }
-            if self.reader.peek_ahead(2) == "#" {
-                return Ok(Token::new(TokenKind::NoMatchCS, self.reader.getn(3), pos));
-            }
-            return Ok(Token::new(TokenKind::NoMatch, self.reader.getn(2), pos));
-        }
+            _ => (),
+        };
         match c.as_str() {
-            ">" => {
-                let c = self.reader.peek_ahead(1);
-                match c.as_str() {
-                    "?" => Ok(Token::new(TokenKind::GTCI, self.reader.getn(2), pos)),
-                    "#" => Ok(Token::new(TokenKind::GTCS, self.reader.getn(2), pos)),
-                    _ => Ok(Token::new(TokenKind::GT, self.reader.get(), pos)),
-                }
-            }
-            "<" => {
-                let c = self.reader.peek_ahead(1);
-                match c.as_str() {
-                    "?" => Ok(Token::new(TokenKind::LTCI, self.reader.getn(2), pos)),
-                    "#" => Ok(Token::new(TokenKind::LTCS, self.reader.getn(2), pos)),
-                    _ => Ok(Token::new(TokenKind::LT, self.reader.get(), pos)),
-                }
-            }
-            "+" => {
-                return Ok(Token::new(TokenKind::Plus, self.reader.get(), pos));
-            }
+            ">" => Ok(match self.reader.peek_ahead(1).as_str() {
+                "?" => Token::new(TokenKind::GTCI, self.reader.getn(2), pos),
+                "#" => Token::new(TokenKind::GTCS, self.reader.getn(2), pos),
+                _ => Token::new(TokenKind::GT, self.reader.get(), pos),
+            }),
+            "<" => Ok(match self.reader.peek_ahead(1).as_str() {
+                "?" => Token::new(TokenKind::LTCI, self.reader.getn(2), pos),
+                "#" => Token::new(TokenKind::LTCS, self.reader.getn(2), pos),
+                _ => Token::new(TokenKind::LT, self.reader.get(), pos),
+            }),
+            "+" => Ok(Token::new(TokenKind::Plus, self.reader.get(), pos)),
             "-" => {
                 if self.reader.peek_ahead(1) == ">" {
                     return Ok(Token::new(TokenKind::Arrow, self.reader.getn(2), pos));
