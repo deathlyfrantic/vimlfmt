@@ -2354,10 +2354,6 @@ impl<'a> ExprParser<'a> {
     }
 
     pub fn parse_lv(&mut self) -> Result<Node, ParseError> {
-        self.parse_lv8()
-    }
-
-    fn parse_lv8(&mut self) -> Result<Node, ParseError> {
         // this differs from parse_expr8() insofar as it will not parse function calls. this method
         // is used for parsing the lhs of a `for` or `let` command, e.g. `let foo = bar`. in this
         // case a function call is not valid, e.g. `let foo() = bar` is not valid syntax, so we
