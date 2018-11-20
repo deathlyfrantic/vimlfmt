@@ -1932,11 +1932,10 @@ impl<'a> ExprParser<'a> {
             let c = self.reader.peek();
             let mut token = self.tokenizer.get()?;
             if !iswhite(&c) && token.kind == TokenKind::SqOpen {
-                let npos = token.pos;
+                let pos = token.pos;
                 if self.tokenizer.peek()?.kind == TokenKind::Colon {
                     self.tokenizer.get()?;
-                    let pos = npos;
-                    let name = Box::new(left.clone());
+                    let name = Box::new(left);
                     let left_side = None;
                     token = self.tokenizer.peek()?;
                     let right = if token.kind != TokenKind::SqClose {
@@ -1959,8 +1958,7 @@ impl<'a> ExprParser<'a> {
                     let expr = self.parse_expr1()?;
                     if self.tokenizer.peek()?.kind == TokenKind::Colon {
                         self.tokenizer.get()?;
-                        let pos = npos;
-                        let name = Box::new(left.clone());
+                        let name = Box::new(left);
                         let left_side = Some(Box::new(expr));
                         token = self.tokenizer.peek()?;
                         let right = if token.kind != TokenKind::SqClose {
@@ -1981,8 +1979,8 @@ impl<'a> ExprParser<'a> {
                         left = node;
                     } else {
                         let node = Node::Subscript {
-                            pos: npos,
-                            name: Box::new(left.clone()),
+                            pos,
+                            name: Box::new(left),
                             index: Box::new(expr),
                         };
                         token = self.tokenizer.get()?;
@@ -1994,7 +1992,7 @@ impl<'a> ExprParser<'a> {
                 }
             } else if token.kind == TokenKind::POpen {
                 let pos = token.pos;
-                let name = Box::new(left.clone());
+                let name = Box::new(left);
                 let mut args = vec![];
                 if self.tokenizer.peek()?.kind == TokenKind::PClose {
                     self.tokenizer.get()?;
@@ -2360,12 +2358,15 @@ impl<'a> ExprParser<'a> {
     }
 
     fn parse_lv8(&mut self) -> Result<Node, ParseError> {
+        // this differs from parse_expr8() insofar as it will not parse function calls. this method
+        // is used for parsing the lhs of a `for` or `let` command, e.g. `let foo = bar`. in this
+        // case a function call is not valid, e.g. `let foo() = bar` is not valid syntax, so we
+        // should not parse it.
         let mut left = self.parse_lv9()?;
         loop {
             let cursor = self.reader.tell();
             let c = self.reader.peek();
             let mut token = self.tokenizer.get()?;
-            let node;
             if !iswhite(&c) && token.kind == TokenKind::SqOpen {
                 let pos = token.pos;
                 if self.tokenizer.peek()?.kind == TokenKind::Colon {
@@ -2378,7 +2379,7 @@ impl<'a> ExprParser<'a> {
                     } else {
                         None
                     };
-                    node = Node::Slice {
+                    let node = Node::Slice {
                         pos,
                         name,
                         left: left_side,
@@ -2388,41 +2389,43 @@ impl<'a> ExprParser<'a> {
                     if token.kind != TokenKind::SqClose {
                         return self.token_err(token);
                     }
+                    left = node;
                 } else {
-                    let right = self.parse_expr1()?;
+                    let expr = self.parse_expr1()?;
                     if self.tokenizer.peek()?.kind == TokenKind::Colon {
                         self.tokenizer.get()?;
                         let name = Box::new(left);
+                        let left_side = Some(Box::new(expr));
                         token = self.tokenizer.peek()?;
-                        let left_side = Some(Box::new(right));
-                        let right_side = if token.kind != TokenKind::SqClose {
+                        let right = if token.kind != TokenKind::SqClose {
                             Some(Box::new(self.parse_expr1()?))
                         } else {
                             None
                         };
-                        node = Node::Slice {
+                        let node = Node::Slice {
                             pos,
                             name,
                             left: left_side,
-                            right: right_side,
+                            right,
                         };
                         token = self.tokenizer.get()?;
                         if token.kind != TokenKind::SqClose {
                             return self.token_err(token);
                         }
+                        left = node;
                     } else {
-                        node = Node::Subscript {
+                        let node = Node::Subscript {
                             pos,
                             name: Box::new(left),
-                            index: Box::new(right),
+                            index: Box::new(expr),
                         };
                         token = self.tokenizer.get()?;
                         if token.kind != TokenKind::SqClose {
                             return self.token_err(token);
                         }
+                        left = node;
                     }
                 }
-                left = node;
             } else if !iswhite(&c) && token.kind == TokenKind::Dot {
                 match self.parse_dot(token, left.clone()) {
                     Some(n) => {
