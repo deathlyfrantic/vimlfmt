@@ -709,11 +709,7 @@ impl<'a> Parser<'a> {
             pos: ea.cmdpos,
             ea,
             cmd: cmd.to_string(),
-            list: self
-                .parse_exprlist()?
-                .into_iter()
-                .map(|n| Box::new(n))
-                .collect::<Vec<Box<Node>>>(),
+            list: self.parse_exprlist()?,
         };
         self.add_node(node);
         Ok(())
@@ -723,11 +719,7 @@ impl<'a> Parser<'a> {
         let node = Node::Execute {
             pos: ea.cmdpos,
             ea,
-            list: self
-                .parse_exprlist()?
-                .into_iter()
-                .map(|n| Box::new(n))
-                .collect::<Vec<Box<Node>>>(),
+            list: self.parse_exprlist()?,
         };
         self.add_node(node);
         Ok(())
@@ -1161,11 +1153,7 @@ impl<'a> Parser<'a> {
             pos: ea.cmdpos,
             ea,
             depth,
-            list: self
-                .parse_exprlist()?
-                .into_iter()
-                .map(|n| Box::new(n))
-                .collect::<Vec<Box<Node>>>(),
+            list: self.parse_exprlist()?,
         };
         self.add_node(node);
         Ok(())
@@ -1380,7 +1368,7 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    fn parse_exprlist(&mut self) -> Result<Vec<Node>, ParseError> {
+    fn parse_exprlist(&mut self) -> Result<Vec<Box<Node>>, ParseError> {
         let mut nodes = vec![];
         loop {
             self.reader.skip_white();
@@ -1389,7 +1377,7 @@ impl<'a> Parser<'a> {
                 break;
             }
             let node = self.parse_expr()?;
-            nodes.push(node);
+            nodes.push(Box::new(node));
         }
         Ok(nodes)
     }
