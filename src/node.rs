@@ -4,10 +4,6 @@ use std::fmt;
 
 const INDENT: &str = "  ";
 
-fn indent(n: usize) -> String {
-    INDENT.repeat(n)
-}
-
 fn escape(s: &str) -> String {
     let mut rv = String::new();
     for c in s.chars() {
@@ -459,7 +455,7 @@ impl fmt::Display for Node {
                     let mut rv = format!("(for {} {}", left, right);
                     for node in body {
                         for line in format!("{}", node).split("\n") {
-                            rv.push_str(&format!("\n{}{}", indent(1), line));
+                            rv.push_str(&format!("\n{}{}", INDENT, line));
                         }
                     }
                     rv.push_str(")");
@@ -483,7 +479,7 @@ impl fmt::Display for Node {
                     rv.push_str(")");
                     for node in body {
                         for line in format!("{}", node).split("\n") {
-                            rv.push_str(&format!("\n{}{}", indent(1), line));
+                            rv.push_str(&format!("\n{}{}", INDENT, line));
                         }
                     }
                     rv.push_str(")");
@@ -499,7 +495,7 @@ impl fmt::Display for Node {
                     let mut rv = format!("(if {}", cond);
                     for node in body {
                         for line in format!("{}", node).split("\n") {
-                            rv.push_str(&format!("\n{}{}", indent(1), line));
+                            rv.push_str(&format!("\n{}{}", INDENT, line));
                         }
                     }
                     for elseif in elseifs {
@@ -513,7 +509,7 @@ impl fmt::Display for Node {
                             rv.push_str(&format!("\n elseif {}", cond));
                             for node in body {
                                 for line in format!("{}", node).split("\n") {
-                                    rv.push_str(&format!("\n{}{}", indent(1), line));
+                                    rv.push_str(&format!("\n{}{}", INDENT, line));
                                 }
                             }
                         }
@@ -524,7 +520,7 @@ impl fmt::Display for Node {
                             rv.push_str("\n else");
                             for node in body {
                                 for line in format!("{}", node).split("\n") {
-                                    rv.push_str(&format!("\n{}{}", indent(1), line));
+                                    rv.push_str(&format!("\n{}{}", INDENT, line));
                                 }
                             }
                         }
@@ -629,7 +625,7 @@ impl fmt::Display for Node {
                     let mut rv = String::from("(try");
                     for node in body {
                         for line in format!("{}", node).split("\n") {
-                            rv.push_str(&format!("\n{}{}", indent(1), line));
+                            rv.push_str(&format!("\n{}{}", INDENT, line));
                         }
                     }
                     for catch in catches {
@@ -647,7 +643,7 @@ impl fmt::Display for Node {
                             }
                             for node in body {
                                 for line in format!("{}", node).split("\n") {
-                                    rv.push_str(&format!("\n{}{}", indent(1), line));
+                                    rv.push_str(&format!("\n{}{}", INDENT, line));
                                 }
                             }
                         }
@@ -658,7 +654,7 @@ impl fmt::Display for Node {
                             rv.push_str("\n finally");
                             for node in body {
                                 for line in format!("{}", node).split("\n") {
-                                    rv.push_str(&format!("\n{}{}", indent(1), line));
+                                    rv.push_str(&format!("\n{}{}", INDENT, line));
                                 }
                             }
                         }
@@ -678,7 +674,7 @@ impl fmt::Display for Node {
                     let mut rv = format!("(while {}", cond);
                     for node in body {
                         for line in format!("{}", node).split("\n") {
-                            rv.push_str(&format!("\n{}{}", indent(1), line));
+                            rv.push_str(&format!("\n{}{}", INDENT, line));
                         }
                     }
                     rv.push_str(")");
@@ -693,12 +689,6 @@ impl fmt::Display for Node {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_indent() {
-        assert_eq!(indent(1), INDENT.to_string());
-        assert_eq!(indent(3), INDENT.repeat(3));
-    }
 
     #[test]
     fn test_escape() {
