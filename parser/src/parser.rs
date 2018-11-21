@@ -265,8 +265,7 @@ impl<'a> Parser<'a> {
         loop {
             let pos = self.reader.tell();
             let mut d = "".to_string();
-            let peeked = self.reader.peek();
-            if isdigit(&peeked) {
+            if isdigit(&self.reader.peek()) {
                 d = self.reader.read_digit();
                 self.reader.skip_white();
             }
@@ -461,8 +460,7 @@ impl<'a> Parser<'a> {
     fn parse_command(&mut self, mut ea: ExArg) -> Result<(), ParseError> {
         self.reader.skip_white_and_colon();
         ea.cmdpos = self.reader.getpos();
-        let peeked = self.reader.peek();
-        if ["\n", "\"", "<EOF>", ""].contains(&peeked.as_str()) {
+        if ["\n", "\"", "<EOF>", ""].contains(&self.reader.peek().as_str()) {
             if ea.modifiers.len() > 0 || ea.range.len() > 0 {
                 self.parse_cmd_modifier_range(ea);
             }
@@ -583,8 +581,7 @@ impl<'a> Parser<'a> {
             if self.reader.peek() == "<EOF>" {
                 break;
             }
-            let line = self.reader.get_line();
-            lines.push(line);
+            lines.push(self.reader.get_line());
             if lines.last().unwrap() == "." {
                 break;
             }
@@ -612,8 +609,8 @@ impl<'a> Parser<'a> {
             return self.err("E471: Argument required");
         }
         let left = self.parse_expr()?;
-        match &left {
-            &Node::Call { .. } => {
+        match left {
+            Node::Call { .. } => {
                 self.add_node(Node::ExCall {
                     pos,
                     ea,
@@ -648,8 +645,7 @@ impl<'a> Parser<'a> {
             }
         };
         let pattern = if !ends_excmds(&self.reader.peek()) {
-            let p = self.reader.get();
-            let (pat, _) = self.parse_pattern(&p)?;
+            let (pat, _) = self.parse_pattern(&self.reader.get())?;
             Some(pat)
         } else {
             None

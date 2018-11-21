@@ -1,4 +1,5 @@
 /target
 **/*.rs.bk
-Cargo.lock
+parser/Cargo.lock
 vimlparser.py
+vim-vimlparser/
