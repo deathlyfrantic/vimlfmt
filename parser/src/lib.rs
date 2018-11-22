@@ -2,6 +2,7 @@
 extern crate lazy_static;
 extern crate regex;
 
+pub use node::Node;
 use regex::Regex;
 use std::fmt;
 
