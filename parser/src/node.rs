@@ -362,6 +362,22 @@ impl Node {
             _ => false,
         }
     }
+
+    pub fn has_body(node: &Node) -> bool {
+        match node {
+            Node::Catch { .. }
+            | Node::Else { .. }
+            | Node::ElseIf { .. }
+            | Node::Finally { .. }
+            | Node::For { .. }
+            | Node::Function { .. }
+            | Node::If { .. }
+            | Node::TopLevel { .. }
+            | Node::Try { .. }
+            | Node::While { .. } => true,
+            _ => false,
+        }
+    }
 }
 
 impl fmt::Display for Node {
@@ -779,5 +795,25 @@ mod tests {
         };
         assert!(Node::is_while(&while_node));
         assert!(!Node::is_while(&not_while_node));
+    }
+
+    #[test]
+    fn test_has_body() {
+        let while_node = Node::While {
+            ea: ExArg::new(),
+            pos: Position::empty(),
+            body: vec![],
+            cond: Box::new(Node::Break {
+                pos: Position::empty(),
+                ea: ExArg::new(),
+            }),
+            end: None,
+        };
+        let break_node = Node::Break {
+            pos: Position::empty(),
+            ea: ExArg::new(),
+        };
+        assert!(Node::has_body(&while_node));
+        assert!(!Node::has_body(&break_node));
     }
 }

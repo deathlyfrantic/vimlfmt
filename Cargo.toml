@@ -5,3 +5,4 @@ authors = ["Zandr Martin <zandrmartin@gmail.com>"]
 
 [dependencies]
 viml-parser = { path = "parser" }
+clap = "2.32.0"
