@@ -19,24 +19,15 @@ fn escape(s: &str) -> String {
     rv
 }
 
-fn display_left<T>(name: &str, left: T) -> String
-where
-    T: fmt::Display,
-{
+fn display_left<T: fmt::Display>(name: &str, left: T) -> String {
     format!("({} {})", name, left)
 }
 
-fn display_lr<T>(name: &str, left: T, right: T) -> String
-where
-    T: fmt::Display,
-{
+fn display_lr<T: fmt::Display>(name: &str, left: T, right: T) -> String {
     format!("({} {} {})", name, left, right)
 }
 
-fn display_with_list<T>(name: &str, list: &[T]) -> String
-where
-    T: fmt::Display,
-{
+fn display_with_list<T: fmt::Display>(name: &str, list: &[T]) -> String {
     format!(
         "({} {})",
         name,
