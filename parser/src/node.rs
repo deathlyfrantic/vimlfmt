@@ -56,6 +56,9 @@ pub enum Node {
         left: Box<Node>,
         right: Box<Node>,
     },
+    BlankLine {
+        pos: Position,
+    },
     Break {
         ea: ExArg,
         pos: Position,
@@ -371,6 +374,19 @@ impl Node {
     }
 }
 
+fn format_body(body: &[Box<Node>]) -> String {
+    let mut rv = String::new();
+    for node in body {
+        if let Node::BlankLine { .. } = node.as_ref() {
+            continue;
+        }
+        for line in format!("{}", node).split("\n") {
+            rv.push_str(&format!("\n{}{}", INDENT, line));
+        }
+    }
+    rv
+}
+
 impl fmt::Display for Node {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
@@ -460,11 +476,7 @@ impl fmt::Display for Node {
                         l
                     };
                     let mut rv = format!("(for {} {}", left, right);
-                    for node in body {
-                        for line in format!("{}", node).split("\n") {
-                            rv.push_str(&format!("\n{}{}", INDENT, line));
-                        }
-                    }
+                    rv.push_str(&format_body(body.as_slice()));
                     rv.push_str(")");
                     rv
                 }
@@ -484,11 +496,7 @@ impl fmt::Display for Node {
                         rv.push_str(&format!(" {}", args.join(" ")));
                     }
                     rv.push_str(")");
-                    for node in body {
-                        for line in format!("{}", node).split("\n") {
-                            rv.push_str(&format!("\n{}{}", INDENT, line));
-                        }
-                    }
+                    rv.push_str(&format_body(body.as_slice()));
                     rv.push_str(")");
                     rv
                 }
@@ -500,11 +508,7 @@ impl fmt::Display for Node {
                     ..
                 } => {
                     let mut rv = format!("(if {}", cond);
-                    for node in body {
-                        for line in format!("{}", node).split("\n") {
-                            rv.push_str(&format!("\n{}{}", INDENT, line));
-                        }
-                    }
+                    rv.push_str(&format_body(body.as_slice()));
                     for elseif in elseifs {
                         let mut elseif = *elseif.clone();
                         if let Node::ElseIf {
@@ -514,22 +518,14 @@ impl fmt::Display for Node {
                         } = elseif
                         {
                             rv.push_str(&format!("\n elseif {}", cond));
-                            for node in body {
-                                for line in format!("{}", node).split("\n") {
-                                    rv.push_str(&format!("\n{}{}", INDENT, line));
-                                }
-                            }
+                            rv.push_str(&format_body(body.as_slice()));
                         }
                     }
                     if let Some(e) = else_ {
                         let mut e = *e.clone();
                         if let Node::Else { ref mut body, .. } = e {
                             rv.push_str("\n else");
-                            for node in body {
-                                for line in format!("{}", node).split("\n") {
-                                    rv.push_str(&format!("\n{}{}", INDENT, line));
-                                }
-                            }
+                            rv.push_str(&format_body(body.as_slice()));
                         }
                     }
                     rv.push_str(")");
@@ -619,8 +615,11 @@ impl fmt::Display for Node {
                 Node::TopLevel { body, .. } => format!(
                     "{}",
                     body.iter()
-                        .map(|n| format!("{}", n))
-                        .collect::<Vec<String>>()
+                        .filter_map(|n| if let Node::BlankLine { .. } = n.as_ref() {
+                            None
+                        } else {
+                            Some(format!("{}", n))
+                        }).collect::<Vec<String>>()
                         .join("\n")
                 ),
                 Node::Try {
@@ -630,11 +629,7 @@ impl fmt::Display for Node {
                     ..
                 } => {
                     let mut rv = String::from("(try");
-                    for node in body {
-                        for line in format!("{}", node).split("\n") {
-                            rv.push_str(&format!("\n{}{}", INDENT, line));
-                        }
-                    }
+                    rv.push_str(&format_body(body.as_slice()));
                     for catch in catches {
                         let mut catch = *catch.clone();
                         if let Node::Catch {
@@ -648,22 +643,14 @@ impl fmt::Display for Node {
                             } else {
                                 rv.push_str("\n catch");
                             }
-                            for node in body {
-                                for line in format!("{}", node).split("\n") {
-                                    rv.push_str(&format!("\n{}{}", INDENT, line));
-                                }
-                            }
+                            rv.push_str(&format_body(body.as_slice()));
                         }
                     }
                     if let Some(f) = finally {
                         let mut f = *f.clone();
                         if let Node::Finally { ref mut body, .. } = f {
                             rv.push_str("\n finally");
-                            for node in body {
-                                for line in format!("{}", node).split("\n") {
-                                    rv.push_str(&format!("\n{}{}", INDENT, line));
-                                }
-                            }
+                            rv.push_str(&format_body(body.as_slice()));
                         }
                     }
                     rv.push_str(")");
@@ -679,11 +666,7 @@ impl fmt::Display for Node {
                 }
                 Node::While { cond, body, .. } => {
                     let mut rv = format!("(while {}", cond);
-                    for node in body {
-                        for line in format!("{}", node).split("\n") {
-                            rv.push_str(&format!("\n{}{}", INDENT, line));
-                        }
-                    }
+                    rv.push_str(&format_body(body.as_slice()));
                     rv.push_str(")");
                     rv
                 }

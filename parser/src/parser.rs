@@ -215,9 +215,11 @@ impl<'a> Parser<'a> {
             self.parse_shebang()?;
             return Ok(());
         }
+        let pos = self.reader.getpos();
         self.reader.skip_white_and_colon();
         if self.reader.peek() == "\n" {
             self.reader.get();
+            self.add_node(Node::BlankLine { pos });
             return Ok(());
         }
         if self.reader.peek() == "\"" {
