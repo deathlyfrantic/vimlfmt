@@ -72,13 +72,13 @@ pub struct Formatter<'a> {
 }
 
 impl<'a> Formatter<'a> {
-    pub fn new() -> Formatter<'a> {
+    pub fn new(indent_style: &'a str, continuation: usize, max_len: usize) -> Formatter<'a> {
         Formatter {
             output: vec![],
-            indent_style: "  ",
+            indent_style,
             current_indent: 0,
-            max_len: 80,
-            continuation: 3,
+            max_len,
+            continuation,
             line: String::new(),
             last_line_was_blank: false,
         }
@@ -131,6 +131,10 @@ impl<'a> Formatter<'a> {
     }
 
     pub fn format(&mut self, ast: &Node) -> String {
+        self.current_indent = 0;
+        self.output.clear();
+        self.line.clear();
+        self.last_line_was_blank = false;
         if let Node::TopLevel { body, .. } = ast {
             for node in body {
                 self.f(node);
