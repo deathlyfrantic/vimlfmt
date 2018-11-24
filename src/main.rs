@@ -19,10 +19,16 @@ fn main() {
                 .required(true)
                 .min_values(1)
                 .help("File(s) to parse"),
+        ).arg(
+            Arg::with_name("neovim")
+                .short("n")
+                .long("neovim")
+                .help("Parse as Neovim"),
         ).get_matches();
+    let use_neovim = matches.is_present("neovim");
     if let Some(files) = matches.values_of("files") {
         for file in files {
-            match parse_file(&file, false) {
+            match parse_file(&file, use_neovim) {
                 Ok(output) => {
                     if matches.is_present("ast") {
                         println!("{}", output);
