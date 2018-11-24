@@ -69,6 +69,7 @@ pub struct Formatter<'a> {
     continuation: usize,
     line: String,
     last_line_was_blank: bool,
+    current_continuation_indent: usize, // indent beyond the next line backslash
 }
 
 impl<'a> Formatter<'a> {
@@ -81,6 +82,7 @@ impl<'a> Formatter<'a> {
             continuation,
             line: String::new(),
             last_line_was_blank: false,
+            current_continuation_indent: 0,
         }
     }
 
@@ -110,13 +112,18 @@ impl<'a> Formatter<'a> {
     fn continue_line(&mut self) {
         self.output
             .push(self.line.split_off(0).trim_end().to_string());
+        let indent = self.indent();
+        self.line.push_str(&indent);
         self.line
             .push_str(&self.indent_style.repeat(self.continuation));
-        let mut indent = self.indent();
-        if indent.len() == 0 {
-            indent = " ".to_string();
+        self.line.push_str("\\ ");
+        if self.current_continuation_indent > 1 {
+            self.line.push_str(
+                &self
+                    .indent_style
+                    .repeat(self.current_continuation_indent - 1),
+            )
         }
-        self.line.push_str(&format!("\\{}", indent));
     }
 
     fn add(&mut self, s: &str) {
@@ -202,13 +209,13 @@ impl<'a> Formatter<'a> {
                 self.line = saved_line;
                 // now add a single item per line ("block" style)
                 self.fit("[");
-                self.current_indent += 1;
+                self.current_continuation_indent += 1;
                 for item in items.iter() {
                     self.continue_line();
                     self.f(item);
                     self.add(",");
                 }
-                self.current_indent -= 1;
+                self.current_continuation_indent -= 1;
                 self.continue_line();
                 self.add("]");
             }
@@ -240,7 +247,7 @@ impl<'a> Formatter<'a> {
                 self.line = saved_line;
                 // now add a single item per line ("block" style)
                 self.fit("{");
-                self.current_indent += 1;
+                self.current_continuation_indent += 1;
                 for (k, v) in items.iter() {
                     self.continue_line();
                     self.f(k);
@@ -248,7 +255,7 @@ impl<'a> Formatter<'a> {
                     self.f(v);
                     self.add(",");
                 }
-                self.current_indent -= 1;
+                self.current_continuation_indent -= 1;
                 self.continue_line();
                 self.add("}");
             }
