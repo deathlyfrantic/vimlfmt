@@ -13,7 +13,7 @@ fn main() {
             Arg::with_name("ast")
                 .short("A")
                 .long("ast")
-                .help("Output AST instead of formatted output"),
+                .help("Output AST instead of formatted code"),
         ).arg(
             Arg::with_name("files")
                 .required(true)
