@@ -93,13 +93,15 @@ impl<'a> Formatter<'a> {
     }
 
     fn continue_line(&mut self) {
-        self.next_line();
-        let indent = self.indent();
-        self.line.push_str(&format!(
-            "{}{}\\ ",
-            indent,
-            &self.indent_style.repeat(self.continuation)
-        ));
+        self.output
+            .push(self.line.split_off(0).trim_end().to_string());
+        self.line
+            .push_str(&self.indent_style.repeat(self.continuation));
+        let mut indent = self.indent();
+        if indent.len() == 0 {
+            indent = " ".to_string();
+        }
+        self.line.push_str(&format!("\\{}", indent));
     }
 
     fn add(&mut self, s: &str) {
@@ -158,6 +160,82 @@ impl<'a> Formatter<'a> {
         self.f(right);
     }
 
+    fn f_list(&mut self, items: &[Box<Node>]) {
+        if items.len() == 0 {
+            self.fit("[]");
+        } else {
+            // try to fit this on one line first
+            let saved_line = self.line.clone();
+            let saved_output = self.output.clone();
+            self.fit("[");
+            let last = items.len();
+            for (i, item) in items.iter().enumerate() {
+                self.f(item);
+                if i != last - 1 {
+                    self.add(", ");
+                }
+            }
+            self.fit("]");
+            // did it fit?
+            if self.output.len() != saved_output.len() {
+                // if we had to add lines to the output, it did not. restore prior output.
+                self.output = saved_output;
+                self.line = saved_line;
+                // now add a single item per line ("block" style)
+                self.fit("[");
+                self.current_indent += 1;
+                for item in items.iter() {
+                    self.continue_line();
+                    self.f(item);
+                    self.add(",");
+                }
+                self.current_indent -= 1;
+                self.continue_line();
+                self.add("]");
+            }
+        }
+    }
+
+    fn f_dict(&mut self, items: &[(Box<Node>, Box<Node>)]) {
+        if items.len() == 0 {
+            self.fit("{}");
+        } else {
+            // try to fit on one line first
+            let saved_line = self.line.clone();
+            let saved_output = self.output.clone();
+            self.fit("{");
+            let last = items.len();
+            for (i, (k, v)) in items.iter().enumerate() {
+                self.f(k);
+                self.add(": ");
+                self.f(v);
+                if i != last - 1 {
+                    self.add(", ");
+                }
+            }
+            self.fit("}");
+            // did it fit?
+            if self.output.len() != saved_output.len() {
+                // if we had to add lines to the output, it did not. restore prior output.
+                self.output = saved_output;
+                self.line = saved_line;
+                // now add a single item per line ("block" style)
+                self.fit("{");
+                self.current_indent += 1;
+                for (k, v) in items.iter() {
+                    self.continue_line();
+                    self.f(k);
+                    self.add(": ");
+                    self.f(v);
+                    self.add(",");
+                }
+                self.current_indent -= 1;
+                self.continue_line();
+                self.add("}");
+            }
+        }
+    }
+
     fn f_node(&mut self, node: &Node) {
         // this method assumes there is not a value (besides the current indent) in self.line
         // already. it will always put at least something onto the end of the current line before
@@ -188,23 +266,7 @@ impl<'a> Formatter<'a> {
                 self.add("delfunction ");
                 self.f(left);
             }
-            Node::Dict { items, .. } => {
-                if items.len() == 0 {
-                    self.add("{}");
-                } else {
-                    self.add("{");
-                    let last = items.len();
-                    for (i, (k, v)) in items.iter().enumerate() {
-                        self.f(k);
-                        self.add(": ");
-                        self.f(v);
-                        if i != last - 1 {
-                            self.add(", ");
-                        }
-                    }
-                    self.add("}");
-                }
-            }
+            Node::Dict { items, .. } => self.f_dict(items),
             Node::Divide { left, right, .. } => self.f_lr("/", left, right),
             Node::Dot { left, right, .. } => {
                 self.f(left);
@@ -227,12 +289,12 @@ impl<'a> Formatter<'a> {
             }
             Node::ExCmd { value, .. } => {
                 // super hack; need to add augroup nodes to parser
-                if value == "augroup END" && self.current_indent > 0 {
+                if value.contains("augroup END") && self.current_indent > 0 {
                     self.current_indent -= 1;
                     self.line.clear();
                     let indent = self.indent();
                     self.line.push_str(&format!("{}{}", indent, value));
-                } else if value.starts_with("augroup") && !value.ends_with("END") {
+                } else if value.starts_with("augroup") {
                     self.add(&value);
                     self.current_indent += 1;
                 } else {
@@ -262,21 +324,7 @@ impl<'a> Formatter<'a> {
                 self.fit(&format!(" {} ", op));
                 self.f(right);
             }
-            Node::List { items, .. } => {
-                if items.len() == 0 {
-                    self.add("[]");
-                } else {
-                    self.add("[");
-                    let last = items.len();
-                    for (i, item) in items.iter().enumerate() {
-                        self.f(item);
-                        if i != last - 1 {
-                            self.add(", ");
-                        }
-                    }
-                    self.add("]");
-                }
-            }
+            Node::List { items, .. } => self.f_list(items),
             Node::LockVar { depth, list, .. } => {
                 self.add("lockvar ");
                 if let Some(d) = depth {
@@ -469,7 +517,7 @@ impl<'a> Formatter<'a> {
                 self.add("try");
                 self.f_body(body);
                 for catch in catches.iter() {
-                    self.f_body_node(catch)
+                    self.f_body_node(catch);
                 }
                 if let Some(f) = finally {
                     self.f_body_node(f);
@@ -479,11 +527,7 @@ impl<'a> Formatter<'a> {
             Node::While { cond, body, .. } => {
                 self.add("while ");
                 self.f(cond);
-                for node in body.iter() {
-                    self.next_line();
-                    self.f(node);
-                }
-                self.next_line();
+                self.f_body(body);
                 self.add("endwhile");
             }
             _ => (),
