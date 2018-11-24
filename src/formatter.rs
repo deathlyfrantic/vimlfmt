@@ -482,8 +482,12 @@ impl<'a> Formatter<'a> {
                 body,
                 ..
             } => {
-                if self.output.len() > 0 && self.output[self.output.len() - 1].trim() != "" {
-                    self.next_line(); // blank lines between functions
+                if self.output.len() > 0 {
+                    // a function must be preceded by a blank line or a comment
+                    let last_line = self.output[self.output.len() - 1].trim().to_string();
+                    if last_line != "" && !last_line.starts_with('"') {
+                        self.next_line(); // blank lines between functions
+                    }
                 }
                 self.add("function");
                 if ea.bang {
