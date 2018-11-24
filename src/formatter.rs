@@ -53,6 +53,13 @@ fn letlhs_to_string(node: &Node) -> String {
     rv
 }
 
+fn str_length_with_tabs(s: &str) -> usize {
+    // assume every tab == 8 spaces which isn't necessarily true for mid-line tabs. we just care
+    // about leading tabs here, for the heathens that use tabs for indentation.
+    let num_tabs = s.split('\t').collect::<Vec<&str>>().len() - 1;
+    s.len() + (num_tabs * 7) // 1 space of each tab is already included in s.len()
+}
+
 #[derive(Debug)]
 pub struct Formatter<'a> {
     ast: &'a Node,
@@ -82,7 +89,7 @@ impl<'a> Formatter<'a> {
     }
 
     fn will_fit(&self, item: &str) -> bool {
-        self.line.len() + item.len() <= self.max_len
+        str_length_with_tabs(&self.line) + str_length_with_tabs(item) <= self.max_len
     }
 
     fn next_line(&mut self) {
@@ -532,5 +539,16 @@ impl<'a> Formatter<'a> {
             }
             _ => (),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_str_length_with_tabs() {
+        assert_eq!(str_length_with_tabs("foobar"), 6);
+        assert_eq!(str_length_with_tabs("foo\tbar"), 14);
     }
 }
