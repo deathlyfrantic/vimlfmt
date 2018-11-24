@@ -443,12 +443,4 @@ endfunction"#;
         println!("reader buf length -> {}", reader.buf.len());
         println!("reader pos length -> {}", reader.pos.len());
     }
-
-    #[test]
-    fn test_from_file() {
-        let reader = Reader::from_file("auto-gutters.vim").unwrap();
-        println!("{:?}", reader);
-        println!("reader buf length -> {}", reader.buf.len());
-        println!("reader pos length -> {}", reader.pos.len());
-    }
 }
