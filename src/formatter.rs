@@ -62,7 +62,6 @@ fn str_length_with_tabs(s: &str) -> usize {
 
 #[derive(Debug)]
 pub struct Formatter<'a> {
-    ast: &'a Node,
     output: Vec<String>,
     indent_style: &'a str,
     current_indent: usize,
@@ -73,9 +72,8 @@ pub struct Formatter<'a> {
 }
 
 impl<'a> Formatter<'a> {
-    pub fn new(ast: &Node) -> Formatter {
+    pub fn new() -> Formatter<'a> {
         Formatter {
-            ast,
             output: vec![],
             indent_style: "  ",
             current_indent: 0,
@@ -132,8 +130,8 @@ impl<'a> Formatter<'a> {
         self.add(s);
     }
 
-    pub fn format(&mut self) -> String {
-        if let Node::TopLevel { body, .. } = self.ast {
+    pub fn format(&mut self, ast: &Node) -> String {
+        if let Node::TopLevel { body, .. } = ast {
             for node in body {
                 self.f(node);
                 self.next_line()
