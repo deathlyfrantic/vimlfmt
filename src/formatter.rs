@@ -69,6 +69,7 @@ pub struct Formatter<'a> {
     max_len: usize,
     continuation: usize,
     line: String,
+    last_line_was_blank: bool,
 }
 
 impl<'a> Formatter<'a> {
@@ -81,6 +82,7 @@ impl<'a> Formatter<'a> {
             max_len: 80,
             continuation: 3,
             line: String::new(),
+            last_line_was_blank: false,
         }
     }
 
@@ -93,8 +95,16 @@ impl<'a> Formatter<'a> {
     }
 
     fn next_line(&mut self) {
-        self.output
-            .push(self.line.split_off(0).trim_end().to_string());
+        let current_line = self.line.split_off(0).trim_end().to_string();
+        if current_line == "" {
+            if self.last_line_was_blank {
+                return;
+            }
+            self.last_line_was_blank = true;
+        } else {
+            self.last_line_was_blank = false;
+        }
+        self.output.push(current_line);
         let indent = self.indent();
         self.line.push_str(&indent);
     }

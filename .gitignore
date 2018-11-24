@@ -3,3 +3,4 @@
 parser/Cargo.lock
 vimlparser.py
 vim-vimlparser/
+parser/target
