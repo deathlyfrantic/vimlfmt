@@ -33,8 +33,8 @@ fn main() {
                     if matches.is_present("ast") {
                         println!("{}", output);
                     } else {
-                        let mut formatter = Formatter::new(&output);
-                        println!("{}", formatter.format());
+                        let mut formatter = Formatter::new();
+                        println!("{}", formatter.format(&output));
                     }
                 }
                 Err(e) => eprintln!("{}", e),
