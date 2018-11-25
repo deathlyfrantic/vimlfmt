@@ -269,6 +269,23 @@ impl<'a> Formatter<'a> {
         match node {
             Node::Add { left, right, .. } => self.f_lr("+", left, right),
             Node::And { left, right, .. } => self.f_lr("&&", left, right),
+            Node::Augroup { name, .. } => {
+                if name.len() > 0 {
+                    if name.to_lowercase() == "end" && self.current_indent > 0 {
+                        self.current_indent -= 1;
+                        let indent = self.indent();
+                        self.line = format!("{}augroup ", indent);
+                        self.fit("END"); // do not allow lowercase "end"
+                    } else {
+                        self.add("augroup ");
+                        self.fit(name);
+                        self.current_indent += 1;
+                    }
+                } else {
+                    self.add("augroup ");
+                    self.fit(name);
+                }
+            }
             Node::BinOp {
                 left, right, op, ..
             } => self.f_lr(op, left, right),
@@ -314,18 +331,7 @@ impl<'a> Formatter<'a> {
                 self.f(left);
             }
             Node::ExCmd { value, .. } => {
-                // super hack; need to add augroup nodes to parser
-                if value.contains("augroup END") && self.current_indent > 0 {
-                    self.current_indent -= 1;
-                    self.line.clear();
-                    let indent = self.indent();
-                    self.line.push_str(&format!("{}{}", indent, value));
-                } else if value.starts_with("augroup") {
-                    self.add(&value);
-                    self.current_indent += 1;
-                } else {
-                    self.add(&value);
-                }
+                self.add(&value);
             }
             Node::Execute { list, .. } => {
                 self.add("execute ");

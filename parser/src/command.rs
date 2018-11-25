@@ -35,6 +35,7 @@ pub enum Flag {
 #[derive(Debug, Clone, PartialEq)]
 pub enum ParserKind {
     Append,
+    Augroup,
     Break,
     Call,
     Catch,
@@ -284,7 +285,7 @@ fn common() -> Vec<Command> {
             name: "augroup".to_string(),
             minlen: 3,
             flags: vec![Flag::Bang, Flag::Word1, Flag::TrlBar, Flag::CmdWin],
-            parser: ParserKind::Common,
+            parser: ParserKind::Augroup,
         },
         Command {
             name: "aunmenu".to_string(),
