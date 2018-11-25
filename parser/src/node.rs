@@ -50,6 +50,10 @@ pub enum Node {
         left: Box<Node>,
         right: Box<Node>,
     },
+    Augroup {
+        pos: Position,
+        name: String,
+    },
     BinOp {
         pos: Position,
         op: String,
@@ -395,6 +399,13 @@ impl fmt::Display for Node {
             match &self {
                 Node::Add { left, right, .. } => display_lr("+", left, right),
                 Node::And { left, right, .. } => display_lr("&&", left, right),
+                Node::Augroup { name, .. } => {
+                    if name.len() == 0 {
+                        "(augroup)".to_string()
+                    } else {
+                        format!("(augroup {})", name)
+                    }
+                }
                 Node::BinOp {
                     op, left, right, ..
                 } => format!("({} {} {})", op, left, right),

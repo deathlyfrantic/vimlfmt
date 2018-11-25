@@ -535,6 +535,7 @@ impl<'a> Parser<'a> {
     fn _parse_command(&mut self, ea: ExArg) -> Result<(), ParseError> {
         match ea.cmd.parser {
             ParserKind::Append | ParserKind::Insert => Ok(self.parse_cmd_append(ea)),
+            ParserKind::Augroup => Ok(self.parse_cmd_augroup(ea)),
             ParserKind::Break => self.parse_cmd_break(ea),
             ParserKind::Call => self.parse_cmd_call(ea),
             ParserKind::Catch => self.parse_cmd_catch(ea),
@@ -594,6 +595,16 @@ impl<'a> Parser<'a> {
             ea,
             value: lines.join("\n"),
         });
+    }
+
+    fn parse_cmd_augroup(&mut self, ea: ExArg) {
+        let pos = ea.cmdpos;
+        self.reader.skip_white();
+        let mut name = String::new();
+        if self.reader.peek() != "\n" {
+            name = self.reader.get_line();
+        }
+        self.add_node(Node::Augroup { pos, name });
     }
 
     fn parse_cmd_break(&mut self, ea: ExArg) -> Result<(), ParseError> {
