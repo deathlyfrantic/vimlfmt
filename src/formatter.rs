@@ -193,7 +193,7 @@ impl<'a> Formatter<'a> {
         } else {
             // try to fit this on one line first
             let saved_line = self.line.clone();
-            let saved_output = self.output.clone();
+            let marker = self.output.len();
             self.fit("[");
             let last = items.len();
             for (i, item) in items.iter().enumerate() {
@@ -204,9 +204,9 @@ impl<'a> Formatter<'a> {
             }
             self.fit("]");
             // did it fit?
-            if self.output.len() != saved_output.len() {
-                // if we had to add lines to the output, it did not. restore prior output.
-                self.output = saved_output;
+            if self.output.len() != marker {
+                // if we had to add lines to the output, it did not. delete the lines we added.
+                self.output.truncate(marker - 1);
                 self.line = saved_line;
                 // now add a single item per line ("block" style)
                 self.fit("[");
@@ -229,7 +229,7 @@ impl<'a> Formatter<'a> {
         } else {
             // try to fit on one line first
             let saved_line = self.line.clone();
-            let saved_output = self.output.clone();
+            let marker = self.output.len();
             self.fit("{");
             let last = items.len();
             for (i, (k, v)) in items.iter().enumerate() {
@@ -242,9 +242,9 @@ impl<'a> Formatter<'a> {
             }
             self.fit("}");
             // did it fit?
-            if self.output.len() != saved_output.len() {
-                // if we had to add lines to the output, it did not. restore prior output.
-                self.output = saved_output;
+            if self.output.len() != marker {
+                // if we had to add lines to the output, it did not. delete the lines we added.
+                self.output.truncate(marker - 1);
                 self.line = saved_line;
                 // now add a single item per line ("block" style)
                 self.fit("{");
