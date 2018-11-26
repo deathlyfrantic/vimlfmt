@@ -381,7 +381,8 @@ impl<'a> Formatter<'a> {
             } => {
                 if *trailing {
                     let last = self.output.len() - 1;
-                    self.output[last].push_str(&format!(" \"{}", value));
+                    self.line = self.output.remove(last);
+                    self.add(&format!(" \"{}", value));
                 } else {
                     self.add(&format!("\"{}", value));
                 }
