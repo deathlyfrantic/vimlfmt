@@ -364,7 +364,6 @@ impl<'a> Formatter<'a> {
             Node::BinOp {
                 left, right, op, ..
             } => self.f_lr(op, left, right),
-            Node::Break { .. } => self.add("break"),
             Node::Call { name, args, .. } => {
                 self.f(name);
                 self.add("(");
@@ -388,7 +387,6 @@ impl<'a> Formatter<'a> {
                 }
             }
             Node::Concat { left, right, .. } => self.f_lr(".", left, right),
-            Node::Continue { .. } => self.add("continue"),
             Node::DelFunction { left, .. } => {
                 self.add("delfunction ");
                 self.f(left);

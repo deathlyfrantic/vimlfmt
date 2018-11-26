@@ -72,10 +72,6 @@ pub enum Node {
     BlankLine {
         pos: Position,
     },
-    Break {
-        ea: ExArg,
-        pos: Position,
-    },
     Call {
         pos: Position,
         name: Box<Node>,
@@ -96,10 +92,6 @@ pub enum Node {
         pos: Position,
         left: Box<Node>,
         right: Box<Node>,
-    },
-    Continue {
-        ea: ExArg,
-        pos: Position,
     },
     CurlyName {
         pos: Position,
@@ -456,7 +448,6 @@ impl fmt::Display for Node {
                 Node::BinOp {
                     op, left, right, ..
                 } => format!("({} {} {})", op, left, right),
-                Node::Break { .. } => "(break)".to_string(),
                 Node::Call { name, args, .. } => {
                     if args.len() > 0 {
                         format!(
@@ -473,7 +464,6 @@ impl fmt::Display for Node {
                 }
                 Node::Comment { value, .. } => format!(";{}", value),
                 Node::Concat { left, right, .. } => display_lr("concat", left, right),
-                Node::Continue { .. } => "(continue)".to_string(),
                 Node::CurlyName { pieces, .. } => pieces
                     .iter()
                     .map(|n| format!("{}", n))
@@ -507,7 +497,10 @@ impl fmt::Display for Node {
                 Node::Echo { cmd, list, .. } => display_with_list(&cmd, &list),
                 Node::EchoHl { value, .. } => format!("(echohl \"{}\")", escape(value)),
                 Node::ExCall { left, .. } => display_left("call", left),
-                Node::ExCmd { value, .. } => format!("(excmd \"{}\")", escape(value)),
+                Node::ExCmd { value, .. } => match value.as_str() {
+                    "break" | "continue" => format!("({})", value),
+                    _ => format!("(excmd \"{}\")", escape(value)),
+                },
                 Node::Execute { list, .. } => display_with_list("execute", &list),
                 Node::For {
                     var,
@@ -772,16 +765,18 @@ mod tests {
             var: None,
             list: vec![],
             rest: None,
-            right: Box::new(Node::Break {
+            right: Box::new(Node::ExCmd {
                 pos: Position::empty(),
                 ea: ExArg::new(),
+                value: "break".to_string(),
             }),
             body: vec![],
             end: None,
         };
-        let not_for_node = Node::Break {
+        let not_for_node = Node::ExCmd {
             pos: Position::empty(),
             ea: ExArg::new(),
+            value: "break".to_string(),
         };
         assert!(Node::is_for(&for_node));
         assert!(!Node::is_for(&not_for_node));
@@ -792,18 +787,20 @@ mod tests {
         let function_node = Node::Function {
             ea: ExArg::new(),
             pos: Position::empty(),
-            name: Box::new(Node::Break {
+            name: Box::new(Node::ExCmd {
                 pos: Position::empty(),
                 ea: ExArg::new(),
+                value: "break".to_string(),
             }),
             args: vec![],
             body: vec![],
             attrs: vec![],
             end: None,
         };
-        let not_function_node = Node::Break {
+        let not_function_node = Node::ExCmd {
             pos: Position::empty(),
             ea: ExArg::new(),
+            value: "break".to_string(),
         };
         assert!(Node::is_function(&function_node));
         assert!(!Node::is_function(&not_function_node));
@@ -815,15 +812,17 @@ mod tests {
             ea: ExArg::new(),
             pos: Position::empty(),
             body: vec![],
-            cond: Box::new(Node::Break {
+            cond: Box::new(Node::ExCmd {
                 pos: Position::empty(),
                 ea: ExArg::new(),
+                value: "break".to_string(),
             }),
             end: None,
         };
-        let not_while_node = Node::Break {
+        let not_while_node = Node::ExCmd {
             pos: Position::empty(),
             ea: ExArg::new(),
+            value: "break".to_string(),
         };
         assert!(Node::is_while(&while_node));
         assert!(!Node::is_while(&not_while_node));
@@ -835,15 +834,17 @@ mod tests {
             ea: ExArg::new(),
             pos: Position::empty(),
             body: vec![],
-            cond: Box::new(Node::Break {
+            cond: Box::new(Node::ExCmd {
                 pos: Position::empty(),
                 ea: ExArg::new(),
+                value: "break".to_string(),
             }),
             end: None,
         };
-        let break_node = Node::Break {
+        let break_node = Node::ExCmd {
             pos: Position::empty(),
             ea: ExArg::new(),
+            value: "break".to_string(),
         };
         assert!(Node::has_body(&while_node));
         assert!(!Node::has_body(&break_node));

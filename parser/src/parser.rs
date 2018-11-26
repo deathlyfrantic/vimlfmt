@@ -743,7 +743,11 @@ impl<'a> Parser<'a> {
         if !self.find_context(Node::is_while) && !self.find_context(Node::is_for) {
             return self.err("E587: :break without :while or :for");
         }
-        self.add_node(Node::Break { pos: ea.cmdpos, ea });
+        self.add_node(Node::ExCmd {
+            pos: ea.cmdpos,
+            ea,
+            value: "break".to_string(),
+        });
         Ok(())
     }
 
@@ -831,7 +835,11 @@ impl<'a> Parser<'a> {
                 pos: ea.cmdpos,
             });
         }
-        self.add_node(Node::Continue { pos: ea.cmdpos, ea });
+        self.add_node(Node::ExCmd {
+            pos: ea.cmdpos,
+            ea,
+            value: "continue".to_string(),
+        });
         Ok(())
     }
 
