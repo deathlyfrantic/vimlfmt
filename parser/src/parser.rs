@@ -1,5 +1,5 @@
 use super::{isargname, isdigit, isnamec, isvarname, iswhite, iswordc, ParseError, Position};
-use command::{neovim_commands, vim_commands, Command, Flag, ParserKind};
+use command::{neovim_commands, valid_autocmds, vim_commands, Command, Flag, ParserKind};
 use exarg::ExArg;
 use modifier::Modifier;
 use node::Node;
@@ -15,11 +15,25 @@ fn ends_excmds(s: &str) -> bool {
     ["", "|", "\"", "<EOF>", "\n"].contains(&s)
 }
 
+fn parse_piped_expressions(s: &str, neovim: bool) -> Result<Vec<Box<Node>>, ParseError> {
+    let reader = Reader::from_lines(&[s]);
+    let mut parser = Parser::new(&reader, neovim);
+    if let Node::TopLevel { body, .. } = parser.parse()? {
+        Ok(body)
+    } else {
+        Err(ParseError {
+            msg: "unknown sub-parser error: node returned was not a TopLevel node".to_string(),
+            pos: Position::empty(),
+        })
+    }
+}
+
 #[derive(Debug)]
 pub struct Parser<'a> {
     reader: &'a Reader,
     context: Vec<Node>,
     commands: HashMap<String, Rc<Command>>,
+    neovim: bool,
 }
 
 impl<'a> Parser<'a> {
@@ -32,6 +46,7 @@ impl<'a> Parser<'a> {
             } else {
                 vim_commands()
             },
+            neovim,
         }
     }
 
@@ -536,6 +551,7 @@ impl<'a> Parser<'a> {
         match ea.cmd.parser {
             ParserKind::Append | ParserKind::Insert => Ok(self.parse_cmd_append(ea)),
             ParserKind::Augroup => Ok(self.parse_cmd_augroup(ea)),
+            ParserKind::Autocmd => self.parse_cmd_autocmd(ea),
             ParserKind::Break => self.parse_cmd_break(ea),
             ParserKind::Call => self.parse_cmd_call(ea),
             ParserKind::Catch => self.parse_cmd_catch(ea),
@@ -605,6 +621,121 @@ impl<'a> Parser<'a> {
             name = self.reader.get_line();
         }
         self.add_node(Node::Augroup { pos, name });
+    }
+
+    fn parse_cmd_autocmd(&mut self, ea: ExArg) -> Result<(), ParseError> {
+        // this is a mess because autocmd syntax is bonkers - almost everything is optional
+        let pos = ea.cmdpos;
+        self.reader.skip_white();
+        if self.reader.peekn(1) == "" {
+            return Ok(self.add_node(Node::Autocmd {
+                pos,
+                ea,
+                group: String::new(),
+                events: vec![],
+                patterns: vec![],
+                nested: false,
+                body: vec![],
+            }));
+        }
+        let maybe_group = self.reader.read_nonwhite();
+        let (events_str, group) = if maybe_group
+            .split(",")
+            .all(|word| !valid_autocmds().contains_key(&word.to_lowercase().as_str()))
+        {
+            // maybe_group contains no autocmd names so assume it's a group
+            self.reader.skip_white();
+            if self.reader.peekn(1) == "" {
+                return Ok(self.add_node(Node::Autocmd {
+                    pos,
+                    ea,
+                    group: maybe_group,
+                    events: vec![],
+                    patterns: vec![],
+                    nested: false,
+                    body: vec![],
+                }));
+            }
+            (self.reader.read_nonwhite(), maybe_group)
+        } else {
+            // maybe_group contains at least one autocmd name so assume it's a list of events
+            (maybe_group, String::new())
+        };
+        let mut events = vec![];
+        for event in events_str.split(",") {
+            match valid_autocmds().get(&event.to_lowercase().as_str()) {
+                Some(e) => events.push(e.clone()),
+                None => return self.err(&format!("E216: No such group or event: {}", event)),
+            }
+        }
+        self.reader.skip_white();
+        if self.reader.peekn(1) == "" {
+            return Ok(self.add_node(Node::Autocmd {
+                pos,
+                ea,
+                group,
+                events,
+                patterns: vec![],
+                nested: false,
+                body: vec![],
+            }));
+        }
+        let patterns = self
+            .reader
+            .read_nonwhite()
+            .split(",")
+            .map(|s| s.to_string())
+            .collect::<Vec<String>>();
+        self.reader.skip_white();
+        if self.reader.peekn(1) == "" {
+            return Ok(self.add_node(Node::Autocmd {
+                pos,
+                ea,
+                group,
+                events,
+                patterns,
+                nested: false,
+                body: vec![],
+            }));
+        }
+        let nested = self.reader.peekn(6).to_lowercase() == "nested";
+        if nested {
+            self.reader.getn(6);
+            self.reader.skip_white();
+        }
+        if self.reader.peekn(1) == "" {
+            return Ok(self.add_node(Node::Autocmd {
+                pos,
+                ea,
+                group,
+                events,
+                patterns,
+                nested,
+                body: vec![],
+            }));
+        }
+        let offset = self.reader.tell();
+        let result = parse_piped_expressions(&self.reader.get_line(), self.neovim);
+        let body = match result {
+            Ok(body) => body,
+            Err(e) => {
+                self.reader.seek_set(e.pos.cursor + offset);
+                return Err(ParseError {
+                    msg: e.msg,
+                    pos: self.reader.getpos(),
+                });
+            }
+        };
+        self.add_node(Node::Autocmd {
+            pos,
+            ea,
+            group,
+            events,
+            patterns,
+            nested,
+            body,
+        });
+        Ok(())
     }
 
     fn parse_cmd_break(&mut self, ea: ExArg) -> Result<(), ParseError> {
@@ -1623,7 +1754,7 @@ impl<'a> Parser<'a> {
             let cmd = Rc::new(Command {
                 name: name.clone(),
                 minlen: 0,
-                flags: vec![Flag::UserCmd],
+                flags: vec![Flag::UserCmd, Flag::TrlBar],
                 parser: ParserKind::UserCmd,
             });
             self.commands.insert(name, Rc::clone(&cmd));
