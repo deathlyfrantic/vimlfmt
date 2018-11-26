@@ -238,7 +238,7 @@ impl<'a> Parser<'a> {
             return Ok(());
         }
         if self.reader.peek() == "\"" {
-            self.parse_comment()?;
+            self.parse_comment(false)?;
             self.reader.get();
             return Ok(());
         }
@@ -261,7 +261,7 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    fn parse_comment(&mut self) -> Result<(), ParseError> {
+    fn parse_comment(&mut self, trailing: bool) -> Result<(), ParseError> {
         let pos = self.reader.getpos();
         let c = self.reader.get();
         if c != "\"" {
@@ -273,6 +273,7 @@ impl<'a> Parser<'a> {
         self.add_node(Node::Comment {
             pos,
             value: self.reader.get_line(),
+            trailing,
         });
         Ok(())
     }
@@ -1775,7 +1776,7 @@ impl<'a> Parser<'a> {
                 Ok(())
             }
             "\"" => {
-                self.parse_comment()?;
+                self.parse_comment(true)?;
                 self.reader.get();
                 Ok(())
             }
