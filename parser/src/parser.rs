@@ -618,9 +618,10 @@ impl<'a> Parser<'a> {
         let pos = ea.cmdpos;
         self.reader.skip_white();
         let mut name = String::new();
-        if self.reader.peek() != "\n" {
-            name = self.reader.get_line();
+        while !["|", "\"", "\n"].contains(&self.reader.peek().as_str()) {
+            name.push_str(&self.reader.get());
         }
+        let name = name.trim_end().to_string();
         self.add_node(Node::Augroup { pos, name });
     }
 
