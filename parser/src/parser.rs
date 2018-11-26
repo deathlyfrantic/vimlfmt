@@ -572,7 +572,7 @@ impl<'a> Parser<'a> {
             ParserKind::EndWhile => self.parse_cmd_endwhile(ea),
             ParserKind::Execute => self.parse_cmd_execute(ea),
             ParserKind::Finally => self.parse_cmd_finally(ea),
-            ParserKind::Finish => self.parse_cmd_finish(ea),
+            ParserKind::Finish => self.parse_cmd_common(ea),
             ParserKind::For => self.parse_cmd_for(ea),
             ParserKind::Function => self.parse_cmd_function(ea),
             ParserKind::If => self.parse_cmd_if(ea),
@@ -1039,14 +1039,6 @@ impl<'a> Parser<'a> {
             body: vec![],
         });
         Ok(())
-    }
-
-    fn parse_cmd_finish(&mut self, ea: ExArg) -> Result<(), ParseError> {
-        let rv = self.parse_cmd_common(ea);
-        if let Node::TopLevel { .. } = self.current_context() {
-            self.reader.seek_end();
-        }
-        rv
     }
 
     fn parse_cmd_for(&mut self, ea: ExArg) -> Result<(), ParseError> {
