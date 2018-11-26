@@ -393,6 +393,7 @@ impl<'a> Formatter<'a> {
             }
             Node::Echo { cmd, list, .. } => {
                 self.add(cmd);
+                self.add(" ");
                 for item in list.iter() {
                     self.f(item);
                 }
