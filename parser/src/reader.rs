@@ -80,10 +80,6 @@ impl Reader {
         *self.cursor.borrow_mut() += i;
     }
 
-    pub fn seek_end(&self) {
-        *self.cursor.borrow_mut() = self.buf.len();
-    }
-
     pub fn peek_ahead(&self, i: usize) -> String {
         let cursor = *self.cursor.borrow();
         if cursor + i < self.buf.len() {
