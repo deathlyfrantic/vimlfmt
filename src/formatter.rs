@@ -1,3 +1,4 @@
+use std::cmp::max;
 use viml_parser::Node;
 
 fn node_is_atom(node: &Node) -> bool {
@@ -284,6 +285,80 @@ impl<'a> Formatter<'a> {
                 } else {
                     self.add("augroup ");
                     self.fit(name);
+                }
+            }
+            Node::Autocmd {
+                ea,
+                group,
+                events,
+                patterns,
+                nested,
+                body,
+                ..
+            } => {
+                self.add("autocmd");
+                if ea.bang {
+                    self.add("!");
+                }
+                if group.len() > 0 {
+                    self.add(" ");
+                    self.fit(group);
+                }
+                if events.len() > 0 {
+                    let mut events = events.clone();
+                    events.sort_unstable();
+                    self.fit(&format!(" {}", events.join(",")));
+                }
+                if patterns.len() > 0 {
+                    let mut patterns = patterns.clone();
+                    patterns.sort_unstable();
+                    self.fit(&format!(" {}", patterns.join(",")));
+                }
+                if *nested {
+                    self.fit(" nested");
+                }
+                if body.len() > 0 {
+                    // this part is crazyballs
+                    self.add(" ");
+                    let output = self.output.clone();
+                    self.output = vec![];
+                    let line = self.line.clone();
+                    self.line = self.indent();
+                    // try to fit it on one line
+                    for node in body {
+                        self.f(node);
+                        self.next_line();
+                        let formatted = self
+                            .output
+                            .iter()
+                            .map(|line| line.trim())
+                            .collect::<Vec<&str>>()
+                            .join(" | ");
+                        let new_output = self.output.clone();
+                        self.output = output.clone();
+                        self.line = line.clone();
+                        if self.will_fit(&formatted) {
+                            self.add(&formatted);
+                        } else {
+                            let last = new_output.len();
+                            let indent = self.indent();
+                            let longest = new_output
+                                .iter()
+                                .fold(0, |acc, s| max(acc, str_length_with_tabs(s)));
+                            for (i, line) in new_output.iter().enumerate() {
+                                self.continue_line();
+                                self.fit(
+                                    line.trim_end()
+                                        .get(str_length_with_tabs(&indent)..)
+                                        .unwrap(),
+                                );
+                                if i != last - 1 {
+                                    self.add(&" ".repeat(longest - str_length_with_tabs(line)));
+                                    self.add(" | ");
+                                }
+                            }
+                        }
+                    }
                 }
             }
             Node::BinOp {

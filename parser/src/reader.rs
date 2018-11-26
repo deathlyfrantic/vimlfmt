@@ -225,7 +225,7 @@ impl Reader {
     }
 
     pub fn read_nonwhite(&self) -> String {
-        self.read_base(|c| c == '\n' || !c.is_whitespace())
+        self.read_base(|c| !c.is_whitespace())
     }
 
     pub fn read_name(&self) -> String {

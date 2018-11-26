@@ -54,6 +54,15 @@ pub enum Node {
         pos: Position,
         name: String,
     },
+    Autocmd {
+        pos: Position,
+        ea: ExArg,
+        group: String,
+        events: Vec<String>,
+        patterns: Vec<String>,
+        nested: bool,
+        body: Vec<Box<Node>>,
+    },
     BinOp {
         pos: Position,
         op: String,
@@ -405,6 +414,43 @@ impl fmt::Display for Node {
                     } else {
                         format!("(augroup {})", name)
                     }
+                }
+                Node::Autocmd {
+                    group,
+                    events,
+                    patterns,
+                    nested,
+                    body,
+                    ..
+                } => {
+                    let mut rv = String::from("(autocmd");
+                    if group.len() > 0 {
+                        rv.push_str(&format!(" {}", group));
+                    }
+                    if events.len() > 0 {
+                        let mut events = events.clone();
+                        events.sort();
+                        rv.push_str(&format!(" {}", events.join(",")));
+                    }
+                    if patterns.len() > 0 {
+                        let mut patterns = patterns.clone();
+                        patterns.sort();
+                        rv.push_str(&format!(" {}", patterns.join(",")));
+                    }
+                    if *nested {
+                        rv.push_str(" nested");
+                    }
+                    if body.len() > 0 {
+                        rv.push_str(&format!(
+                            " {}",
+                            body.iter()
+                                .map(|n| format!("{}", n))
+                                .collect::<Vec<String>>()
+                                .join(" ")
+                        ));
+                    }
+                    rv.push(')');
+                    rv
                 }
                 Node::BinOp {
                     op, left, right, ..
