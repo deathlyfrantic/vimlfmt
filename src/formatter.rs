@@ -377,7 +377,16 @@ impl<'a> Formatter<'a> {
                 }
                 self.add(")");
             }
-            Node::Comment { value, .. } => self.add(&format!("\"{}", value)),
+            Node::Comment {
+                value, trailing, ..
+            } => {
+                if *trailing {
+                    let last = self.output.len() - 1;
+                    self.output[last].push_str(&format!(" \"{}", value));
+                } else {
+                    self.add(&format!("\"{}", value));
+                }
+            }
             Node::Concat { left, right, .. } => self.f_lr(".", left, right),
             Node::Continue { .. } => self.add("continue"),
             Node::DelFunction { left, .. } => {

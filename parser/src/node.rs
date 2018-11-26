@@ -90,6 +90,7 @@ pub enum Node {
     Comment {
         pos: Position,
         value: String,
+        trailing: bool,
     },
     Concat {
         pos: Position,
