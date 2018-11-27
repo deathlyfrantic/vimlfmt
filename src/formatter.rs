@@ -1,4 +1,3 @@
-use std::cmp::max;
 use viml_parser::Node;
 
 fn node_is_atom(node: &Node) -> bool {
@@ -310,45 +309,50 @@ impl<'a> Formatter<'a> {
                     self.fit(" nested");
                 }
                 if body.len() > 0 {
-                    // this part is crazyballs
-                    self.add(" ");
-                    let output = self.output.clone();
-                    self.output = vec![];
-                    let line = self.line.clone();
-                    self.line = self.indent();
-                    // try to fit it on one line
+                    let saved_output = self.output.split_off(0);
+                    let saved_line = self.line.split_off(0);
+                    let mut formatted = vec![];
+                    let mut trimmed = vec![];
                     for node in body {
+                        self.output.clear();
+                        self.line.clear();
                         self.f(node);
                         self.next_line();
-                        let formatted = self
-                            .output
-                            .iter()
-                            .map(|line| line.trim())
-                            .collect::<Vec<&str>>()
-                            .join(" | ");
-                        let new_output = self.output.clone();
-                        self.output = output.clone();
-                        self.line = line.clone();
-                        if self.will_fit(&formatted) {
-                            self.add(&formatted);
-                        } else {
-                            let last = new_output.len();
-                            let indent = self.indent();
-                            let longest = new_output
+                        formatted.push(
+                            self.output
                                 .iter()
-                                .fold(0, |acc, s| max(acc, str_length_with_tabs(s)));
-                            for (i, line) in new_output.iter().enumerate() {
+                                .map(|line| line.trim_end())
+                                .collect::<Vec<&str>>()
+                                .join(" | "),
+                        );
+                        trimmed.push(
+                            self.output
+                                .iter()
+                                .map(|line| line.trim())
+                                .collect::<Vec<&str>>()
+                                .join(" | "),
+                        );
+                    }
+                    self.output = saved_output;
+                    self.line = saved_line;
+                    self.add(" ");
+                    let last_formatted = formatted.len() - 1;
+                    for i in 0..formatted.len() {
+                        if self.will_fit(&trimmed[i]) {
+                            self.add(&trimmed[i]);
+                        } else {
+                            let pieces = formatted[i].split(" | ").collect::<Vec<&str>>();
+                            let last_piece = pieces.len() - 1;
+                            for (j, piece) in pieces.iter().enumerate() {
                                 self.continue_line();
-                                self.fit(
-                                    line.trim_end()
-                                        .get(str_length_with_tabs(&indent)..)
-                                        .unwrap(),
-                                );
-                                if i != last - 1 {
-                                    self.add(&" ".repeat(longest - str_length_with_tabs(line)));
+                                self.add(&piece);
+                                if j != last_piece {
                                     self.add(" | ");
                                 }
                             }
+                        }
+                        if i != last_formatted {
+                            self.add(" | ");
                         }
                     }
                 }
