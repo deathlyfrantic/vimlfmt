@@ -648,7 +648,25 @@ impl<'a> Formatter<'a> {
 
 #[cfg(test)]
 mod tests {
+    use super::super::viml_parser::parse_lines;
     use super::*;
+
+    fn create_node(s: &str) -> Node {
+        if let Node::TopLevel { body, .. } = parse_lines(&[s], false).unwrap() {
+            return *body[0].clone();
+        }
+        panic!("can't create node from '{}'", s);
+    }
+
+    #[test]
+    fn test_letlhs_to_string() {
+        let node = create_node("for var in something | echo 'foo' | endfor");
+        assert_eq!(&letlhs_to_string(&node), "var");
+        let node = create_node("for [a,b] in something | echo 'foo' | endfor");
+        assert_eq!(&letlhs_to_string(&node), "[a, b]");
+        let node = create_node("for [a,b;z] in something | echo 'foo' | endfor");
+        assert_eq!(&letlhs_to_string(&node), "[a, b; z]");
+    }
 
     #[test]
     fn test_str_length_with_tabs() {
