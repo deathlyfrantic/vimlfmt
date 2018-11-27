@@ -2258,7 +2258,10 @@ impl<'a> ExprParser<'a> {
                 Node::Dict { pos, items }
             }
             TokenKind::POpen => {
-                let node = self.parse_expr1()?;
+                let node = Node::ParenExpr {
+                    pos: token.pos,
+                    expr: Box::new(self.parse_expr1()?),
+                };
                 let token = self.tokenizer.get()?;
                 if token.kind != TokenKind::PClose {
                     return self.token_err(token);
