@@ -181,12 +181,6 @@ impl<'a> Formatter<'a> {
         self.fit(&format!("{}", node));
     }
 
-    fn f_lr(&mut self, op: &str, left: &Node, right: &Node) {
-        self.f(left);
-        self.fit(&format!(" {} ", op));
-        self.f(right);
-    }
-
     fn f_list(&mut self, items: &[Box<Node>]) {
         if items.len() == 0 {
             self.fit("[]");
@@ -268,8 +262,6 @@ impl<'a> Formatter<'a> {
         // already. it will always put at least something onto the end of the current line before
         // it checks length and possibly continues onto the next line.
         match node {
-            Node::Add { left, right, .. } => self.f_lr("+", left, right),
-            Node::And { left, right, .. } => self.f_lr("&&", left, right),
             Node::Augroup { name, .. } => {
                 if name.len() > 0 {
                     if name.to_lowercase() == "end" && self.current_indent > 0 {
@@ -361,9 +353,13 @@ impl<'a> Formatter<'a> {
                     }
                 }
             }
-            Node::BinOp {
+            Node::BinaryOp {
                 left, right, op, ..
-            } => self.f_lr(op, left, right),
+            } => {
+                self.f(left);
+                self.fit(&format!(" {} ", op));
+                self.f(right);
+            }
             Node::Call { name, args, .. } => {
                 self.f(name);
                 self.add("(");
@@ -387,13 +383,11 @@ impl<'a> Formatter<'a> {
                     self.add(&format!("\"{}", value));
                 }
             }
-            Node::Concat { left, right, .. } => self.f_lr(".", left, right),
             Node::DelFunction { left, .. } => {
                 self.add("delfunction ");
                 self.f(left);
             }
             Node::Dict { items, .. } => self.f_dict(items),
-            Node::Divide { left, right, .. } => self.f_lr("/", left, right),
             Node::Dot { left, right, .. } => {
                 self.f(left);
                 self.add(".");
@@ -452,21 +446,6 @@ impl<'a> Formatter<'a> {
                     self.add(" ");
                 }
             }
-            Node::Minus { left, .. } => {
-                self.add("-");
-                self.f(left);
-            }
-            Node::Multiply { left, right, .. } => self.f_lr("*", left, right),
-            Node::Not { left, .. } => {
-                self.add("!");
-                self.f(left);
-            }
-            Node::Or { left, right, .. } => self.f_lr("||", left, right),
-            Node::Plus { left, .. } => {
-                self.add("+");
-                self.f(left);
-            }
-            Node::Remainder { left, right, .. } => self.f_lr("%", left, right),
             Node::Return { left, .. } => {
                 self.add("return");
                 if let Some(l) = left {
@@ -495,7 +474,6 @@ impl<'a> Formatter<'a> {
                 self.f(index);
                 self.add("]");
             }
-            Node::Subtract { left, right, .. } => self.f_lr("-", left, right),
             Node::Ternary {
                 cond, left, right, ..
             } => {
@@ -643,6 +621,10 @@ impl<'a> Formatter<'a> {
                     self.f_body_node(f);
                 }
                 self.add("endtry");
+            }
+            Node::UnaryOp { op, right, .. } => {
+                self.add(&format!("{}", op));
+                self.f(right);
             }
             Node::While { cond, body, .. } => {
                 self.add("while ");
