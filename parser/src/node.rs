@@ -39,17 +39,119 @@ fn display_with_list<T: fmt::Display>(name: &str, list: &[T]) -> String {
 }
 
 #[derive(Debug, PartialEq, Clone)]
+pub enum BinaryOpKind {
+    Add,
+    And,
+    Concat,
+    Divide,
+    EqEq,
+    EqEqCI,
+    EqEqCS,
+    GT,
+    GTCI,
+    GTCS,
+    GTEq,
+    GTEqCI,
+    GTEqCS,
+    Is,
+    IsCI,
+    IsCS,
+    IsNot,
+    IsNotCI,
+    IsNotCS,
+    LT,
+    LTCI,
+    LTCS,
+    LTEq,
+    LTEqCI,
+    LTEqCS,
+    Match,
+    MatchCI,
+    MatchCS,
+    Multiply,
+    NoMatch,
+    NoMatchCI,
+    NoMatchCS,
+    NotEq,
+    NotEqCI,
+    NotEqCS,
+    Or,
+    Remainder,
+    Subtract,
+}
+
+impl fmt::Display for BinaryOpKind {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match &self {
+                BinaryOpKind::Add => "+",
+                BinaryOpKind::And => "&&",
+                BinaryOpKind::Concat => ".",
+                BinaryOpKind::Divide => "/",
+                BinaryOpKind::EqEq => "==",
+                BinaryOpKind::EqEqCI => "==?",
+                BinaryOpKind::EqEqCS => "==#",
+                BinaryOpKind::GT => ">",
+                BinaryOpKind::GTCI => ">?",
+                BinaryOpKind::GTCS => ">#",
+                BinaryOpKind::GTEq => ">=",
+                BinaryOpKind::GTEqCI => ">=?",
+                BinaryOpKind::GTEqCS => ">=#",
+                BinaryOpKind::Is => "is",
+                BinaryOpKind::IsCI => "is?",
+                BinaryOpKind::IsCS => "is#",
+                BinaryOpKind::IsNot => "isnot",
+                BinaryOpKind::IsNotCI => "isnot?",
+                BinaryOpKind::IsNotCS => "isnot#",
+                BinaryOpKind::LT => "<",
+                BinaryOpKind::LTCI => "<?",
+                BinaryOpKind::LTCS => "<#",
+                BinaryOpKind::LTEq => "<=",
+                BinaryOpKind::LTEqCI => "<=?",
+                BinaryOpKind::LTEqCS => "<=#",
+                BinaryOpKind::Match => "=~",
+                BinaryOpKind::MatchCI => "=~?",
+                BinaryOpKind::MatchCS => "=~#",
+                BinaryOpKind::Multiply => "*",
+                BinaryOpKind::NoMatch => "!~",
+                BinaryOpKind::NoMatchCI => "!~?",
+                BinaryOpKind::NoMatchCS => "!~#",
+                BinaryOpKind::NotEq => "!=",
+                BinaryOpKind::NotEqCI => "!=?",
+                BinaryOpKind::NotEqCS => "!=#",
+                BinaryOpKind::Or => "||",
+                BinaryOpKind::Remainder => "%",
+                BinaryOpKind::Subtract => "-",
+            }
+        )
+    }
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum UnaryOpKind {
+    Minus,
+    Not,
+    Plus,
+}
+
+impl fmt::Display for UnaryOpKind {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match &self {
+                UnaryOpKind::Minus => "-",
+                UnaryOpKind::Not => "!",
+                UnaryOpKind::Plus => "+",
+            }
+        )
+    }
+}
+
+#[derive(Debug, PartialEq, Clone)]
 pub enum Node {
-    Add {
-        pos: Position,
-        left: Box<Node>,
-        right: Box<Node>,
-    },
-    And {
-        pos: Position,
-        left: Box<Node>,
-        right: Box<Node>,
-    },
     Augroup {
         pos: Position,
         name: String,
@@ -63,9 +165,9 @@ pub enum Node {
         nested: bool,
         body: Vec<Box<Node>>,
     },
-    BinOp {
+    BinaryOp {
         pos: Position,
-        op: String,
+        op: BinaryOpKind,
         left: Box<Node>,
         right: Box<Node>,
     },
@@ -88,11 +190,6 @@ pub enum Node {
         value: String,
         trailing: bool,
     },
-    Concat {
-        pos: Position,
-        left: Box<Node>,
-        right: Box<Node>,
-    },
     CurlyName {
         pos: Position,
         pieces: Vec<Box<Node>>,
@@ -113,11 +210,6 @@ pub enum Node {
     Dict {
         pos: Position,
         items: Vec<(Box<Node>, Box<Node>)>,
-    },
-    Divide {
-        pos: Position,
-        left: Box<Node>,
-        right: Box<Node>,
     },
     Dot {
         pos: Position,
@@ -230,19 +322,6 @@ pub enum Node {
         depth: Option<usize>,
         list: Vec<Box<Node>>,
     },
-    Minus {
-        pos: Position,
-        left: Box<Node>,
-    },
-    Multiply {
-        pos: Position,
-        left: Box<Node>,
-        right: Box<Node>,
-    },
-    Not {
-        pos: Position,
-        left: Box<Node>,
-    },
     Number {
         pos: Position,
         value: String,
@@ -251,23 +330,9 @@ pub enum Node {
         pos: Position,
         value: String,
     },
-    Or {
-        pos: Position,
-        left: Box<Node>,
-        right: Box<Node>,
-    },
-    Plus {
-        pos: Position,
-        left: Box<Node>,
-    },
     Reg {
         pos: Position,
         value: String,
-    },
-    Remainder {
-        pos: Position,
-        left: Box<Node>,
-        right: Box<Node>,
     },
     Return {
         ea: ExArg,
@@ -293,11 +358,6 @@ pub enum Node {
         name: Box<Node>,
         index: Box<Node>,
     },
-    Subtract {
-        pos: Position,
-        left: Box<Node>,
-        right: Box<Node>,
-    },
     Ternary {
         pos: Position,
         cond: Box<Node>,
@@ -320,6 +380,11 @@ pub enum Node {
         catches: Vec<Box<Node>>,
         finally: Option<Box<Node>>,
         end: Option<Box<Node>>,
+    },
+    UnaryOp {
+        pos: Position,
+        op: UnaryOpKind,
+        right: Box<Node>,
     },
     Unlet {
         ea: ExArg,
@@ -399,8 +464,6 @@ impl fmt::Display for Node {
             f,
             "{}",
             match &self {
-                Node::Add { left, right, .. } => display_lr("+", left, right),
-                Node::And { left, right, .. } => display_lr("&&", left, right),
                 Node::Augroup { name, .. } => {
                     if name.len() == 0 {
                         "(augroup)".to_string()
@@ -445,9 +508,15 @@ impl fmt::Display for Node {
                     rv.push(')');
                     rv
                 }
-                Node::BinOp {
+                Node::BinaryOp {
                     op, left, right, ..
-                } => format!("({} {} {})", op, left, right),
+                } => {
+                    let op = match op {
+                        BinaryOpKind::Concat => "concat".to_string(),
+                        _ => format!("{}", op),
+                    };
+                    format!("({} {} {})", op, left, right)
+                }
                 Node::Call { name, args, .. } => {
                     if args.len() > 0 {
                         format!(
@@ -463,7 +532,6 @@ impl fmt::Display for Node {
                     }
                 }
                 Node::Comment { value, .. } => format!(";{}", value),
-                Node::Concat { left, right, .. } => display_lr("concat", left, right),
                 Node::CurlyName { pieces, .. } => pieces
                     .iter()
                     .map(|n| format!("{}", n))
@@ -492,7 +560,6 @@ impl fmt::Display for Node {
                         "(dict)".to_string()
                     }
                 }
-                Node::Divide { left, right, .. } => display_lr("/", left, right),
                 Node::Dot { left, right, .. } => display_lr("dot", left, right),
                 Node::Echo { cmd, list, .. } => display_with_list(&cmd, &list),
                 Node::EchoHl { value, .. } => format!("(echohl \"{}\")", escape(value)),
@@ -630,12 +697,6 @@ impl fmt::Display for Node {
                         display_with_list("lockvar", &list)
                     }
                 }
-                Node::Minus { left, .. } => display_left("-", left),
-                Node::Multiply { left, right, .. } => display_lr("*", left, right),
-                Node::Not { left, .. } => display_left("!", left),
-                Node::Or { left, right, .. } => display_lr("||", left, right),
-                Node::Plus { left, .. } => display_left("+", left),
-                Node::Remainder { left, right, .. } => display_lr("%", left, right),
                 Node::Return { left, .. } => {
                     if let Some(ref l) = left {
                         display_left("return", l)
@@ -658,7 +719,6 @@ impl fmt::Display for Node {
                     format!("(slice {} {} {})", name, r0, r1)
                 }
                 Node::Subscript { name, index, .. } => display_lr("subscript", name, index),
-                Node::Subtract { left, right, .. } => display_lr("-", left, right),
                 Node::Ternary {
                     cond, left, right, ..
                 } => display_lr(&format!("?: {}", cond), left, right),
@@ -707,6 +767,7 @@ impl fmt::Display for Node {
                     rv.push_str(")");
                     rv
                 }
+                Node::UnaryOp { op, right, .. } => display_left(&format!("{}", op), right),
                 Node::Unlet { list, .. } => display_with_list("unlet", &list),
                 Node::UnlockVar { depth, list, .. } => {
                     if let Some(d) = depth {

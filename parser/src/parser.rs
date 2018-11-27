@@ -2,7 +2,7 @@ use super::{isargname, isdigit, isnamec, isvarname, iswhite, iswordc, ParseError
 use command::{neovim_commands, valid_autocmds, vim_commands, Command, Flag, ParserKind};
 use exarg::ExArg;
 use modifier::Modifier;
-use node::Node;
+use node::{BinaryOpKind, Node, UnaryOpKind};
 use reader::Reader;
 use regex::Regex;
 use std::collections::HashMap;
@@ -1851,8 +1851,9 @@ impl<'a> ExprParser<'a> {
             let pos = self.reader.tell();
             let token = self.tokenizer.get()?;
             if token.kind == TokenKind::OrOr {
-                let node = Node::Or {
+                let node = Node::BinaryOp {
                     pos: token.pos,
+                    op: BinaryOpKind::Or,
                     left: Box::new(left),
                     right: Box::new(self.parse_expr3()?),
                 };
@@ -1871,8 +1872,9 @@ impl<'a> ExprParser<'a> {
             let pos = self.reader.tell();
             let token = self.tokenizer.get()?;
             if token.kind == TokenKind::AndAnd {
-                let node = Node::And {
+                let node = Node::BinaryOp {
                     pos: token.pos,
+                    op: BinaryOpKind::And,
                     left: Box::new(left),
                     right: Box::new(self.parse_expr4()?),
                 };
@@ -1892,42 +1894,42 @@ impl<'a> ExprParser<'a> {
         let pos = token.pos;
         let left_side = Box::new(left.clone());
         let op = match token.kind {
-            TokenKind::EqEq => "==",
-            TokenKind::EqEqCI => "==?",
-            TokenKind::EqEqCS => "==#",
-            TokenKind::NotEq => "!=",
-            TokenKind::NotEqCI => "!=?",
-            TokenKind::NotEqCS => "!=#",
-            TokenKind::GT => ">",
-            TokenKind::GTCI => ">?",
-            TokenKind::GTCS => ">#",
-            TokenKind::GTEq => ">=",
-            TokenKind::GTEqCI => ">=?",
-            TokenKind::GTEqCS => ">=#",
-            TokenKind::LT => "<",
-            TokenKind::LTCI => "<?",
-            TokenKind::LTCS => "<#",
-            TokenKind::LTEq => "<=",
-            TokenKind::LTEqCI => "<=?",
-            TokenKind::LTEqCS => "<=#",
-            TokenKind::Match => "=~",
-            TokenKind::MatchCI => "=~?",
-            TokenKind::MatchCS => "=~#",
-            TokenKind::NoMatch => "!~",
-            TokenKind::NoMatchCI => "!~?",
-            TokenKind::NoMatchCS => "!~#",
-            TokenKind::Is => "is",
-            TokenKind::IsCI => "is?",
-            TokenKind::IsCS => "is#",
-            TokenKind::IsNot => "isnot",
-            TokenKind::IsNotCI => "isnot?",
-            TokenKind::IsNotCS => "isnot#",
+            TokenKind::EqEq => BinaryOpKind::EqEq,
+            TokenKind::EqEqCI => BinaryOpKind::EqEqCI,
+            TokenKind::EqEqCS => BinaryOpKind::EqEqCS,
+            TokenKind::NotEq => BinaryOpKind::NotEq,
+            TokenKind::NotEqCI => BinaryOpKind::NotEqCI,
+            TokenKind::NotEqCS => BinaryOpKind::NotEqCS,
+            TokenKind::GT => BinaryOpKind::GT,
+            TokenKind::GTCI => BinaryOpKind::GTCI,
+            TokenKind::GTCS => BinaryOpKind::GTCS,
+            TokenKind::GTEq => BinaryOpKind::GTEq,
+            TokenKind::GTEqCI => BinaryOpKind::GTEqCI,
+            TokenKind::GTEqCS => BinaryOpKind::GTEqCS,
+            TokenKind::LT => BinaryOpKind::LT,
+            TokenKind::LTCI => BinaryOpKind::LTCI,
+            TokenKind::LTCS => BinaryOpKind::LTCS,
+            TokenKind::LTEq => BinaryOpKind::LTEq,
+            TokenKind::LTEqCI => BinaryOpKind::LTEqCI,
+            TokenKind::LTEqCS => BinaryOpKind::LTEqCS,
+            TokenKind::Match => BinaryOpKind::Match,
+            TokenKind::MatchCI => BinaryOpKind::MatchCI,
+            TokenKind::MatchCS => BinaryOpKind::MatchCS,
+            TokenKind::NoMatch => BinaryOpKind::NoMatch,
+            TokenKind::NoMatchCI => BinaryOpKind::NoMatchCI,
+            TokenKind::NoMatchCS => BinaryOpKind::NoMatchCS,
+            TokenKind::Is => BinaryOpKind::Is,
+            TokenKind::IsCI => BinaryOpKind::IsCI,
+            TokenKind::IsCS => BinaryOpKind::IsCS,
+            TokenKind::IsNot => BinaryOpKind::IsNot,
+            TokenKind::IsNotCI => BinaryOpKind::IsNotCI,
+            TokenKind::IsNotCS => BinaryOpKind::IsNotCS,
             _ => {
                 self.reader.seek_set(cursor);
                 return Ok(left);
             }
-        }.to_string();
-        let node = Node::BinOp {
+        };
+        let node = Node::BinaryOp {
             pos,
             op,
             left: left_side,
@@ -1944,26 +1946,20 @@ impl<'a> ExprParser<'a> {
             let token = self.tokenizer.get()?;
             let pos = token.pos;
             let left_side = Box::new(left.clone());
-            let node = match token.kind {
-                TokenKind::Plus => Node::Add {
-                    pos,
-                    left: left_side,
-                    right: Box::new(self.parse_expr6()?),
-                },
-                TokenKind::Minus => Node::Subtract {
-                    pos,
-                    left: left_side,
-                    right: Box::new(self.parse_expr6()?),
-                },
-                TokenKind::Dot => Node::Concat {
-                    pos,
-                    left: left_side,
-                    right: Box::new(self.parse_expr6()?),
-                },
+            let op = match token.kind {
+                TokenKind::Plus => BinaryOpKind::Add,
+                TokenKind::Minus => BinaryOpKind::Subtract,
+                TokenKind::Dot => BinaryOpKind::Concat,
                 _ => {
                     self.reader.seek_set(cursor);
                     break;
                 }
+            };
+            let node = Node::BinaryOp {
+                pos,
+                op,
+                left: left_side,
+                right: Box::new(self.parse_expr6()?),
             };
             left = node;
         }
@@ -1977,26 +1973,20 @@ impl<'a> ExprParser<'a> {
             let token = self.tokenizer.get()?;
             let pos = token.pos;
             let left_side = Box::new(left.clone());
-            let node = match token.kind {
-                TokenKind::Star => Node::Multiply {
-                    pos,
-                    left: left_side,
-                    right: Box::new(self.parse_expr7()?),
-                },
-                TokenKind::Slash => Node::Divide {
-                    pos,
-                    left: left_side,
-                    right: Box::new(self.parse_expr7()?),
-                },
-                TokenKind::Percent => Node::Remainder {
-                    pos,
-                    left: left_side,
-                    right: Box::new(self.parse_expr7()?),
-                },
+            let op = match token.kind {
+                TokenKind::Star => BinaryOpKind::Multiply,
+                TokenKind::Slash => BinaryOpKind::Divide,
+                TokenKind::Percent => BinaryOpKind::Remainder,
                 _ => {
                     self.reader.seek_set(cursor);
                     break;
                 }
+            };
+            let node = Node::BinaryOp {
+                pos,
+                op,
+                left: left_side,
+                right: Box::new(self.parse_expr7()?),
             };
             left = node;
         }
@@ -2007,23 +1997,19 @@ impl<'a> ExprParser<'a> {
         let cursor = self.reader.tell();
         let token = self.tokenizer.get()?;
         let pos = token.pos;
-        let node = match token.kind {
-            TokenKind::Not => Node::Not {
-                pos,
-                left: Box::new(self.parse_expr7()?),
-            },
-            TokenKind::Minus => Node::Minus {
-                pos,
-                left: Box::new(self.parse_expr7()?),
-            },
-            TokenKind::Plus => Node::Plus {
-                pos,
-                left: Box::new(self.parse_expr7()?),
-            },
+        let op = match token.kind {
+            TokenKind::Not => UnaryOpKind::Not,
+            TokenKind::Minus => UnaryOpKind::Minus,
+            TokenKind::Plus => UnaryOpKind::Plus,
             _ => {
                 self.reader.seek_set(cursor);
                 return self.parse_expr8();
             }
+        };
+        let node = Node::UnaryOp {
+            pos,
+            op,
+            right: Box::new(self.parse_expr7()?),
         };
         Ok(node)
     }
