@@ -330,6 +330,10 @@ pub enum Node {
         pos: Position,
         value: String,
     },
+    ParenExpr {
+        pos: Position,
+        expr: Box<Node>,
+    },
     Reg {
         pos: Position,
         value: String,
@@ -697,6 +701,7 @@ impl fmt::Display for Node {
                         display_with_list("lockvar", &list)
                     }
                 }
+                Node::ParenExpr { expr, .. } => format!("{}", expr),
                 Node::Return { left, .. } => {
                     if let Some(ref l) = left {
                         display_left("return", l)

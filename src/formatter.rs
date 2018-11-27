@@ -446,6 +446,11 @@ impl<'a> Formatter<'a> {
                     self.add(" ");
                 }
             }
+            Node::ParenExpr { expr, .. } => {
+                self.add("(");
+                self.f(expr);
+                self.fit(")");
+            }
             Node::Return { left, .. } => {
                 self.add("return");
                 if let Some(l) = left {
