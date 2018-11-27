@@ -311,20 +311,13 @@ impl<'a> Formatter<'a> {
                 if body.len() > 0 {
                     let saved_output = self.output.split_off(0);
                     let saved_line = self.line.split_off(0);
-                    let mut formatted = vec![];
                     let mut trimmed = vec![];
+                    let mut raw = vec![];
                     for node in body {
                         self.output.clear();
                         self.line.clear();
                         self.f(node);
                         self.next_line();
-                        formatted.push(
-                            self.output
-                                .iter()
-                                .map(|line| line.trim_end())
-                                .collect::<Vec<&str>>()
-                                .join(" | "),
-                        );
                         trimmed.push(
                             self.output
                                 .iter()
@@ -332,26 +325,32 @@ impl<'a> Formatter<'a> {
                                 .collect::<Vec<&str>>()
                                 .join(" | "),
                         );
+                        raw.push(self.output.split_off(0));
                     }
                     self.output = saved_output;
                     self.line = saved_line;
                     self.add(" ");
-                    let last_formatted = formatted.len() - 1;
-                    for i in 0..formatted.len() {
+                    let last_raw = raw.len() - 1;
+                    for i in 0..raw.len() {
                         if self.will_fit(&trimmed[i]) {
                             self.add(&trimmed[i]);
                         } else {
-                            let pieces = formatted[i].split(" | ").collect::<Vec<&str>>();
+                            let pieces = raw[i].clone();
                             let last_piece = pieces.len() - 1;
+                            let indent = str_length_with_tabs(&self.indent());
                             for (j, piece) in pieces.iter().enumerate() {
                                 self.continue_line();
-                                self.add(&piece);
+                                if j == 0 {
+                                    self.add(&piece);
+                                } else {
+                                    self.add(piece.get(indent..).unwrap());
+                                }
                                 if j != last_piece {
                                     self.add(" | ");
                                 }
                             }
                         }
-                        if i != last_formatted {
+                        if i != last_raw {
                             self.add(" | ");
                         }
                     }
