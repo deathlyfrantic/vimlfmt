@@ -16,15 +16,15 @@ mod parser;
 mod reader;
 mod token;
 
-pub fn parse_lines(lines: &[&str], neovim: bool) -> Result<node::Node, ParseError> {
+pub fn parse_lines(lines: &[&str]) -> Result<node::Node, ParseError> {
     let reader = reader::Reader::from_lines(lines);
-    let mut parser = parser::Parser::new(&reader, neovim);
+    let mut parser = parser::Parser::new(&reader);
     parser.parse()
 }
 
-pub fn parse_file(path: &str, neovim: bool) -> Result<node::Node, ParseError> {
+pub fn parse_file(path: &str) -> Result<node::Node, ParseError> {
     let reader = reader::Reader::from_file(path)?;
-    let mut parser = parser::Parser::new(&reader, neovim);
+    let mut parser = parser::Parser::new(&reader);
     parser.parse()
 }
 

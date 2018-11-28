@@ -193,7 +193,7 @@ pub struct Command {
     pub parser: ParserKind,
 }
 
-fn common() -> Vec<Command> {
+fn command_vec() -> Vec<Command> {
     vec![
         Command {
             name: "append".to_string(),
@@ -5359,11 +5359,6 @@ fn common() -> Vec<Command> {
             name: "tunmap".to_string(),
             parser: ParserKind::Common,
         },
-    ]
-}
-
-fn neovim_only() -> Vec<Command> {
-    vec![
         Command {
             name: "rshada".to_string(),
             minlen: 3,
@@ -5376,11 +5371,6 @@ fn neovim_only() -> Vec<Command> {
             flags: vec![Flag::Bang, Flag::File1, Flag::TrlBar, Flag::CmdWin],
             parser: ParserKind::Common,
         },
-    ]
-}
-
-fn vim_only() -> Vec<Command> {
-    vec![
         Command {
             name: "Print".to_string(),
             minlen: 1,
@@ -5458,14 +5448,6 @@ fn command_hashmap(commands: Vec<Command>) -> HashMap<String, Rc<Command>> {
     map
 }
 
-pub fn vim_commands() -> HashMap<String, Rc<Command>> {
-    let mut commands = common();
-    commands.extend(vim_only());
-    command_hashmap(commands)
-}
-
-pub fn neovim_commands() -> HashMap<String, Rc<Command>> {
-    let mut commands = common();
-    commands.extend(neovim_only());
-    command_hashmap(commands)
+pub fn commands() -> HashMap<String, Rc<Command>> {
+    command_hashmap(command_vec())
 }
