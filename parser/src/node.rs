@@ -472,7 +472,10 @@ impl fmt::Display for Node {
                     if name.len() == 0 {
                         "(augroup)".to_string()
                     } else {
-                        format!("(augroup {})", name)
+                        format!(
+                            "(augroup {})",
+                            name.replace("|", "\\|").replace("\"", "\\\"")
+                        )
                     }
                 }
                 Node::Autocmd {

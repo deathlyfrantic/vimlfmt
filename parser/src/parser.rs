@@ -618,8 +618,17 @@ impl<'a> Parser<'a> {
         let pos = ea.cmdpos;
         self.reader.skip_white();
         let mut name = String::new();
-        while !["|", "\"", "\n"].contains(&self.reader.peek().as_str()) {
-            name.push_str(&self.reader.get());
+        loop {
+            let c = self.reader.peek();
+            let c2 = self.reader.peek_ahead(1);
+            if c == "\\" && (c2 == "|" || c2 == "\"") {
+                self.reader.get();
+                name.push_str(&self.reader.get());
+            } else if ends_excmds(&c.as_str()) {
+                break;
+            } else {
+                name.push_str(&self.reader.get());
+            }
         }
         let name = name.trim_end().to_string();
         self.add_node(Node::Augroup { pos, name });
