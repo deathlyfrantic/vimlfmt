@@ -270,12 +270,11 @@ impl<'a> Formatter<'a> {
                         self.fit("END"); // do not allow lowercase "end"
                     } else {
                         self.add("augroup ");
-                        self.fit(name);
+                        self.fit(&name.replace("|", "\\|").replace("\"", "\\\""));
                         self.current_indent += 1;
                     }
                 } else {
-                    self.add("augroup ");
-                    self.fit(name);
+                    self.add("augroup");
                 }
             }
             Node::Autocmd {
