@@ -1,5 +1,5 @@
 use super::{isargname, isdigit, isnamec, isvarname, iswhite, iswordc, ParseError, Position};
-use command::{neovim_commands, valid_autocmds, vim_commands, Command, Flag, ParserKind};
+use command::{commands, valid_autocmds, Command, Flag, ParserKind};
 use exarg::ExArg;
 use modifier::Modifier;
 use node::{BinaryOpKind, Node, UnaryOpKind};
@@ -15,9 +15,9 @@ fn ends_excmds(s: &str) -> bool {
     ["", "|", "\"", "<EOF>", "\n"].contains(&s)
 }
 
-fn parse_piped_expressions(s: &str, neovim: bool) -> Result<Vec<Box<Node>>, ParseError> {
+fn parse_piped_expressions(s: &str) -> Result<Vec<Box<Node>>, ParseError> {
     let reader = Reader::from_lines(&[s]);
-    let mut parser = Parser::new(&reader, neovim);
+    let mut parser = Parser::new(&reader);
     if let Node::TopLevel { body, .. } = parser.parse()? {
         Ok(body)
     } else {
@@ -33,20 +33,14 @@ pub struct Parser<'a> {
     reader: &'a Reader,
     context: Vec<Node>,
     commands: HashMap<String, Rc<Command>>,
-    neovim: bool,
 }
 
 impl<'a> Parser<'a> {
-    pub fn new(reader: &'a Reader, neovim: bool) -> Parser {
+    pub fn new(reader: &'a Reader) -> Parser {
         Parser {
             reader,
             context: vec![],
-            commands: if neovim {
-                neovim_commands()
-            } else {
-                vim_commands()
-            },
-            neovim,
+            commands: commands(),
         }
     }
 
@@ -726,7 +720,7 @@ impl<'a> Parser<'a> {
             }));
         }
         let offset = self.reader.tell();
-        let result = parse_piped_expressions(&self.reader.get_line(), self.neovim);
+        let result = parse_piped_expressions(&self.reader.get_line());
         let body = match result {
             Ok(body) => body,
             Err(e) => {

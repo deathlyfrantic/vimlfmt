@@ -20,11 +20,6 @@ fn main() {
                 .min_values(1)
                 .help("File(s) to parse"),
         ).arg(
-            Arg::with_name("neovim")
-                .short("n")
-                .long("neovim")
-                .help("Parse as Neovim"),
-        ).arg(
             Arg::with_name("indent")
                 .short("i")
                 .long("indent")
@@ -43,7 +38,6 @@ fn main() {
                 .default_value("80")
                 .help("max length of formatted lines"),
         ).get_matches();
-    let use_neovim = matches.is_present("neovim");
     let indent = matches.value_of("indent").unwrap();
     let indent = if indent.to_lowercase().starts_with("tab") {
         "\t".to_string()
@@ -67,7 +61,7 @@ fn main() {
     if let Some(files) = matches.values_of("files") {
         let mut formatter = Formatter::new(&indent, continuation, length);
         for file in files {
-            match parse_file(&file, use_neovim) {
+            match parse_file(&file) {
                 Ok(output) => {
                     if matches.is_present("ast") {
                         println!("{}", output);
