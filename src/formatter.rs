@@ -494,6 +494,10 @@ impl<'a> Formatter<'a> {
                 self.add("throw ");
                 self.f(err);
             }
+            Node::UnaryOp { op, right, .. } => {
+                self.add(&format!("{}", op));
+                self.f(right);
+            }
             Node::Unlet { list, .. } => {
                 self.add("unlet ");
                 for item in list.iter() {
@@ -628,10 +632,6 @@ impl<'a> Formatter<'a> {
                     self.f_body_node(f);
                 }
                 self.add("endtry");
-            }
-            Node::UnaryOp { op, right, .. } => {
-                self.add(&format!("{}", op));
-                self.f(right);
             }
             Node::While { cond, body, .. } => {
                 self.add("while ");
