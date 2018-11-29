@@ -199,7 +199,7 @@ impl<'a> Formatter<'a> {
             // did it fit?
             if self.output.len() != marker {
                 // if we had to add lines to the output, it did not. delete the lines we added.
-                self.output.truncate(marker - 1);
+                self.output.truncate(marker);
                 self.line = saved_line;
                 // now add a single item per line ("block" style)
                 self.fit("[");
@@ -237,7 +237,7 @@ impl<'a> Formatter<'a> {
             // did it fit?
             if self.output.len() != marker {
                 // if we had to add lines to the output, it did not. delete the lines we added.
-                self.output.truncate(marker - 1);
+                self.output.truncate(marker);
                 self.line = saved_line;
                 // now add a single item per line ("block" style)
                 self.fit("{");
