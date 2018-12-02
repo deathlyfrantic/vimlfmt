@@ -526,8 +526,12 @@ impl<'a> Formatter<'a> {
                 self.add(&format!("{}", op));
                 self.f(right);
             }
-            Node::Unlet { list, .. } => {
-                self.add("unlet ");
+            Node::Unlet { list, ea, .. } => {
+                self.add("unlet");
+                if ea.bang {
+                    self.add("!");
+                }
+                self.add(" ");
                 for item in list.iter() {
                     self.f(item);
                     self.add(" ");
