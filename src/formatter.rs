@@ -422,12 +422,16 @@ impl<'a> Formatter<'a> {
             }
             Node::Lambda { args, expr, .. } => {
                 self.add("{");
-                for arg in args.iter() {
+                for (i, arg) in args.iter().enumerate() {
                     self.f(arg);
-                    self.add(", ");
+                    if i != args.len() - 1 {
+                        self.add(",");
+                    }
+                    self.add(" ");
                 }
                 self.add("-> ");
                 self.f(expr);
+                self.fit("}");
             }
             Node::Let { right, op, .. } => {
                 let var = letlhs_to_string(node);
