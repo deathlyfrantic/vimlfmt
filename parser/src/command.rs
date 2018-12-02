@@ -174,6 +174,7 @@ pub enum ParserKind {
     Let,
     LoadKeymap,
     LockVar,
+    Mapping,
     Return,
     Syntax,
     Throw,
@@ -865,7 +866,7 @@ fn command_vec() -> Vec<Command> {
                 Flag::UseCtrlV,
                 Flag::CmdWin,
             ],
-            parser: ParserKind::Common,
+            parser: ParserKind::Mapping,
         },
         Command {
             name: "cmapclear".to_string(),
@@ -928,7 +929,7 @@ fn command_vec() -> Vec<Command> {
                 Flag::UseCtrlV,
                 Flag::CmdWin,
             ],
-            parser: ParserKind::Common,
+            parser: ParserKind::Mapping,
         },
         Command {
             name: "cnoreabbrev".to_string(),
@@ -1817,7 +1818,7 @@ fn command_vec() -> Vec<Command> {
                 Flag::UseCtrlV,
                 Flag::CmdWin,
             ],
-            parser: ParserKind::Common,
+            parser: ParserKind::Mapping,
         },
         Command {
             name: "imapclear".to_string(),
@@ -1850,7 +1851,7 @@ fn command_vec() -> Vec<Command> {
                 Flag::UseCtrlV,
                 Flag::CmdWin,
             ],
-            parser: ParserKind::Common,
+            parser: ParserKind::Mapping,
         },
         Command {
             name: "inoreabbrev".to_string(),
@@ -2279,7 +2280,7 @@ fn command_vec() -> Vec<Command> {
                 Flag::UseCtrlV,
                 Flag::CmdWin,
             ],
-            parser: ParserKind::Common,
+            parser: ParserKind::Mapping,
         },
         Command {
             name: "lmapclear".to_string(),
@@ -2327,7 +2328,7 @@ fn command_vec() -> Vec<Command> {
                 Flag::UseCtrlV,
                 Flag::CmdWin,
             ],
-            parser: ParserKind::Common,
+            parser: ParserKind::Mapping,
         },
         Command {
             name: "loadkeymap".to_string(),
@@ -2539,7 +2540,7 @@ fn command_vec() -> Vec<Command> {
                 Flag::UseCtrlV,
                 Flag::CmdWin,
             ],
-            parser: ParserKind::Common,
+            parser: ParserKind::Mapping,
         },
         Command {
             name: "mapclear".to_string(),
@@ -2711,7 +2712,7 @@ fn command_vec() -> Vec<Command> {
                 Flag::UseCtrlV,
                 Flag::CmdWin,
             ],
-            parser: ParserKind::Common,
+            parser: ParserKind::Mapping,
         },
         Command {
             name: "nmapclear".to_string(),
@@ -2744,7 +2745,7 @@ fn command_vec() -> Vec<Command> {
                 Flag::UseCtrlV,
                 Flag::CmdWin,
             ],
-            parser: ParserKind::Common,
+            parser: ParserKind::Mapping,
         },
         Command {
             name: "nnoremenu".to_string(),
@@ -2778,7 +2779,7 @@ fn command_vec() -> Vec<Command> {
                 Flag::UseCtrlV,
                 Flag::CmdWin,
             ],
-            parser: ParserKind::Common,
+            parser: ParserKind::Mapping,
         },
         Command {
             name: "nohlsearch".to_string(),
@@ -2888,7 +2889,7 @@ fn command_vec() -> Vec<Command> {
                 Flag::UseCtrlV,
                 Flag::CmdWin,
             ],
-            parser: ParserKind::Common,
+            parser: ParserKind::Mapping,
         },
         Command {
             name: "omapclear".to_string(),
@@ -2927,7 +2928,7 @@ fn command_vec() -> Vec<Command> {
                 Flag::UseCtrlV,
                 Flag::CmdWin,
             ],
-            parser: ParserKind::Common,
+            parser: ParserKind::Mapping,
         },
         Command {
             name: "onoremenu".to_string(),
@@ -3752,7 +3753,7 @@ fn command_vec() -> Vec<Command> {
                 Flag::UseCtrlV,
                 Flag::CmdWin,
             ],
-            parser: ParserKind::Common,
+            parser: ParserKind::Mapping,
         },
         Command {
             name: "smapclear".to_string(),
@@ -3811,7 +3812,7 @@ fn command_vec() -> Vec<Command> {
                 Flag::UseCtrlV,
                 Flag::CmdWin,
             ],
-            parser: ParserKind::Common,
+            parser: ParserKind::Mapping,
         },
         Command {
             name: "snoremenu".to_string(),
@@ -4631,7 +4632,7 @@ fn command_vec() -> Vec<Command> {
                 Flag::UseCtrlV,
                 Flag::CmdWin,
             ],
-            parser: ParserKind::Common,
+            parser: ParserKind::Mapping,
         },
         Command {
             name: "vmapclear".to_string(),
@@ -4678,7 +4679,7 @@ fn command_vec() -> Vec<Command> {
                 Flag::UseCtrlV,
                 Flag::CmdWin,
             ],
-            parser: ParserKind::Common,
+            parser: ParserKind::Mapping,
         },
         Command {
             name: "vnoremenu".to_string(),
@@ -4905,7 +4906,7 @@ fn command_vec() -> Vec<Command> {
                 Flag::UseCtrlV,
                 Flag::CmdWin,
             ],
-            parser: ParserKind::Common,
+            parser: ParserKind::Mapping,
         },
         Command {
             name: "xmenu".to_string(),
@@ -4932,7 +4933,7 @@ fn command_vec() -> Vec<Command> {
                 Flag::UseCtrlV,
                 Flag::CmdWin,
             ],
-            parser: ParserKind::Common,
+            parser: ParserKind::Mapping,
         },
         Command {
             name: "xnoremenu".to_string(),
@@ -5327,7 +5328,7 @@ fn command_vec() -> Vec<Command> {
             ],
             minlen: 3,
             name: "tmap".to_string(),
-            parser: ParserKind::Common,
+            parser: ParserKind::Mapping,
         },
         Command {
             flags: vec![Flag::Extra, Flag::TrlBar, Flag::CmdWin],
@@ -5345,7 +5346,7 @@ fn command_vec() -> Vec<Command> {
             ],
             minlen: 3,
             name: "tnoremap".to_string(),
-            parser: ParserKind::Common,
+            parser: ParserKind::Mapping,
         },
         Command {
             flags: vec![

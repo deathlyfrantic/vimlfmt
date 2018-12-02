@@ -575,6 +575,7 @@ impl<'a> Parser<'a> {
             ParserKind::Let => self.parse_cmd_let(ea),
             ParserKind::LoadKeymap => self.parse_cmd_loadkeymap(ea),
             ParserKind::LockVar => self.parse_cmd_lockvar(ea),
+            ParserKind::Mapping => self.parse_cmd_mapping(ea),
             ParserKind::Return => self.parse_cmd_return(ea),
             ParserKind::Syntax => self.parse_cmd_syntax(ea),
             ParserKind::Throw => self.parse_cmd_throw(ea),
@@ -1195,6 +1196,73 @@ impl<'a> Parser<'a> {
             list: self.parse_lvaluelist()?,
         };
         self.add_node(node);
+        Ok(())
+    }
+
+    fn parse_cmd_mapping(&mut self, ea: ExArg) -> Result<(), ParseError> {
+        let command = ea.cmd.name.clone();
+        let mut attrs = vec![];
+        loop {
+            self.reader.skip_white();
+            let pos = self.reader.getpos();
+            if self.reader.peek() != "<" {
+                break;
+            } else {
+                self.reader.get();
+                let attr = self.reader.read_alpha();
+                match attr.as_str() {
+                    "buffer" | "nowait" | "silent" | "script" | "unique" | "expr" => {
+                        attrs.push(attr);
+                        if self.reader.peek() == ">" {
+                            self.reader.get();
+                        } else {
+                            return self.err(&format!("unexpected token: {}", self.reader.peek()));
+                        }
+                    }
+                    _ => {
+                        // this is a special key in a mapping, e.g. `nnoremap <C-t> ...`,
+                        // so reset position and continue parsing
+                        self.reader.setpos(pos);
+                        break;
+                    }
+                }
+            }
+        }
+        let left = if !["|", "", "\n", "<EOF>"].contains(&self.reader.peekn(1).as_str()) {
+            self.reader.read_nonwhite()
+        } else {
+            return Ok(self.add_node(Node::Mapping {
+                command,
+                attrs,
+                left: String::new(),
+                right: String::new(),
+                pos: ea.cmdpos,
+                ea,
+            }));
+        };
+        self.reader.skip_white();
+        let mut right = String::new();
+        loop {
+            let c = self.reader.peek();
+            let c2 = self.reader.peek_ahead(1);
+            if c == "\\" && c2 == "|" {
+                self.reader.get();
+                right.push_str(&self.reader.get());
+            } else if ends_excmds(&c.as_str()) {
+                break;
+            } else {
+                right.push_str(&self.reader.get());
+            }
+        }
+        let right = right.trim_end().to_string();
+        self.add_node(Node::Mapping {
+            command,
+            attrs,
+            left,
+            right,
+            pos: ea.cmdpos,
+            ea,
+        });
         Ok(())
     }
 
