@@ -1248,7 +1248,7 @@ impl<'a> Parser<'a> {
             if c == "\\" && c2 == "|" {
                 self.reader.get();
                 right.push_str(&self.reader.get());
-            } else if ends_excmds(&c.as_str()) {
+            } else if c != "\"" && ends_excmds(&c.as_str()) {
                 break;
             } else {
                 right.push_str(&self.reader.get());
