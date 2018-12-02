@@ -571,10 +571,10 @@ impl<'a> Parser<'a> {
             ParserKind::For => self.parse_cmd_for(ea),
             ParserKind::Function => self.parse_cmd_function(ea),
             ParserKind::If => self.parse_cmd_if(ea),
+            ParserKind::Lang => self.parse_cmd_lang(ea),
             ParserKind::Let => self.parse_cmd_let(ea),
             ParserKind::LoadKeymap => self.parse_cmd_loadkeymap(ea),
             ParserKind::LockVar => self.parse_cmd_lockvar(ea),
-            ParserKind::Lang => self.parse_cmd_lang(ea),
             ParserKind::Return => self.parse_cmd_return(ea),
             ParserKind::Syntax => self.parse_cmd_syntax(ea),
             ParserKind::Throw => self.parse_cmd_throw(ea),
@@ -1092,6 +1092,41 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
+    fn parse_cmd_lang(&mut self, ea: ExArg) -> Result<(), ParseError> {
+        let mut lines = vec![];
+        self.reader.skip_white();
+        if self.reader.peekn(2) == "<<" {
+            self.reader.getn(2);
+            self.reader.skip_white();
+            let mut m = self.reader.get_line();
+            if m == "" {
+                m = ".".to_string();
+            }
+            self.reader.setpos(ea.linepos);
+            lines.push(self.reader.get_line());
+            self.reader.get();
+            loop {
+                if self.reader.peek() == "<EOF>" {
+                    break;
+                }
+                lines.push(self.reader.get_line());
+                if lines.last().unwrap() == &m {
+                    break;
+                }
+                self.reader.get();
+            }
+        } else {
+            self.reader.setpos(ea.linepos);
+            lines.push(self.reader.get_line());
+        }
+        self.add_node(Node::ExCmd {
+            pos: ea.cmdpos,
+            ea,
+            value: lines.join("\n"),
+        });
+        Ok(())
+    }
+
     fn parse_cmd_let(&mut self, ea: ExArg) -> Result<(), ParseError> {
         let pos = self.reader.tell();
         self.reader.skip_white();
@@ -1160,41 +1195,6 @@ impl<'a> Parser<'a> {
             list: self.parse_lvaluelist()?,
         };
         self.add_node(node);
-        Ok(())
-    }
-
-    fn parse_cmd_lang(&mut self, ea: ExArg) -> Result<(), ParseError> {
-        let mut lines = vec![];
-        self.reader.skip_white();
-        if self.reader.peekn(2) == "<<" {
-            self.reader.getn(2);
-            self.reader.skip_white();
-            let mut m = self.reader.get_line();
-            if m == "" {
-                m = ".".to_string();
-            }
-            self.reader.setpos(ea.linepos);
-            lines.push(self.reader.get_line());
-            self.reader.get();
-            loop {
-                if self.reader.peek() == "<EOF>" {
-                    break;
-                }
-                lines.push(self.reader.get_line());
-                if lines.last().unwrap() == &m {
-                    break;
-                }
-                self.reader.get();
-            }
-        } else {
-            self.reader.setpos(ea.linepos);
-            lines.push(self.reader.get_line());
-        }
-        self.add_node(Node::ExCmd {
-            pos: ea.cmdpos,
-            ea,
-            value: lines.join("\n"),
-        });
         Ok(())
     }
 
