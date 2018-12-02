@@ -322,6 +322,14 @@ pub enum Node {
         depth: Option<usize>,
         list: Vec<Box<Node>>,
     },
+    Mapping {
+        pos: Position,
+        ea: ExArg,
+        command: String,
+        left: String,
+        right: String,
+        attrs: Vec<String>,
+    },
     Number {
         pos: Position,
         value: String,
@@ -703,6 +711,22 @@ impl fmt::Display for Node {
                     } else {
                         display_with_list("lockvar", &list)
                     }
+                }
+                Node::Mapping {
+                    command,
+                    left,
+                    right,
+                    ..
+                } => {
+                    let mut rv = format!("({}", command);
+                    if left.len() > 0 {
+                        rv.push_str(&format!(" {}", left));
+                        if right.len() > 0 {
+                            rv.push_str(&format!(" {}", right));
+                        }
+                    }
+                    rv.push(')');
+                    rv
                 }
                 Node::ParenExpr { expr, .. } => format!("{}", expr),
                 Node::Return { left, .. } => {

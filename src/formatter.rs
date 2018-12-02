@@ -448,6 +448,30 @@ impl<'a> Formatter<'a> {
                     self.add(" ");
                 }
             }
+            Node::Mapping {
+                command,
+                attrs,
+                left,
+                right,
+                ..
+            } => {
+                self.add(&command);
+                if attrs.len() > 0 {
+                    let mut attrs = attrs.clone();
+                    attrs.sort_unstable();
+                    for attr in attrs {
+                        self.fit(&format!(" <{}>", attr));
+                    }
+                }
+                if left.len() > 0 {
+                    self.add(" ");
+                    self.fit(&left);
+                    if right.len() > 0 {
+                        self.add(" ");
+                        self.fit(&right.replace("|", "\\|"));
+                    }
+                }
+            }
             Node::ParenExpr { expr, .. } => {
                 self.add("(");
                 self.f(expr);
