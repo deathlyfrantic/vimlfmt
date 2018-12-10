@@ -682,7 +682,7 @@ mod tests {
     use super::*;
 
     fn create_node(s: &str) -> Node {
-        if let Node::TopLevel { body, .. } = parse_lines(&[s], false).unwrap() {
+        if let Node::TopLevel { body, .. } = parse_lines(&[s]).unwrap() {
             return *body[0].clone();
         }
         panic!("can't create node from '{}'", s);
