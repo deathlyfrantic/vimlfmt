@@ -2768,7 +2768,7 @@ endfunction"#;
         assert_eq!(
             format!(
                 "{}",
-                parse_lines(&code.split("\n").collect::<Vec<&str>>(), true).unwrap()
+                parse_lines(&code.split("\n").collect::<Vec<&str>>()).unwrap()
             ),
             expected
         );
