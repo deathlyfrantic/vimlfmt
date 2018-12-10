@@ -163,14 +163,14 @@ impl<'a> Tokenizer<'a> {
             }
             return Ok(Token::new(TokenKind::Number, value, pos));
         }
-        if self.reader.peekn(2) == "is" && self.reader.peek_ahead(2).is_word() {
+        if self.reader.peekn(2) == "is" && !self.reader.peek_ahead(2).is_word() {
             return Ok(match self.reader.peek_ahead(2) {
                 '?' => Token::new(TokenKind::IsCI, self.reader.getn(3), pos),
                 '#' => Token::new(TokenKind::IsCS, self.reader.getn(3), pos),
                 _ => Token::new(TokenKind::Is, self.reader.getn(2), pos),
             });
         }
-        if self.reader.peekn(5) == "isnot" && self.reader.peek_ahead(5).is_word() {
+        if self.reader.peekn(5) == "isnot" && !self.reader.peek_ahead(5).is_word() {
             return Ok(match self.reader.peek_ahead(5) {
                 '?' => Token::new(TokenKind::IsNotCI, self.reader.getn(6), pos),
                 '#' => Token::new(TokenKind::IsNotCS, self.reader.getn(6), pos),
