@@ -122,6 +122,42 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_is_word() {
+        assert!('_'.is_word());
+        assert!('a'.is_word());
+        assert!('A'.is_word());
+        assert!('0'.is_word());
+        assert!(!':'.is_word());
+    }
+
+    #[test]
+    fn test_is_word1() {
+        assert!('_'.is_word1());
+        assert!('a'.is_word1());
+        assert!('A'.is_word1());
+        assert!(!'0'.is_word1());
+        assert!(!':'.is_word1());
+    }
+
+    #[test]
+    fn test_is_white() {
+        assert!(' '.is_white());
+        assert!('\t'.is_white());
+        assert!(!'A'.is_white());
+    }
+
+    #[test]
+    fn test_is_name() {
+        assert!('_'.is_name());
+        assert!('a'.is_name());
+        assert!('A'.is_name());
+        assert!('0'.is_name());
+        assert!(':'.is_name());
+        assert!('#'.is_name());
+        assert!(!'!'.is_name());
+    }
+
+    #[test]
     fn test_isargname() {
         assert!(isargname("_foo1"));
         assert!(isargname("Foo2"));
