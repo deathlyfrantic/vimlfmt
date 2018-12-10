@@ -1,4 +1,4 @@
-use super::{isargname, isdigit, isnamec, isvarname, iswhite, iswordc, ParseError, Position};
+use super::{isargname, isvarname, CharClassification, ParseError, Position, EOF, EOL};
 use command::{commands, valid_autocmds, Command, Flag, ParserKind};
 use exarg::ExArg;
 use modifier::Modifier;
@@ -11,8 +11,8 @@ use token::{Token, TokenKind, Tokenizer};
 
 const MAX_FUNC_ARGS: usize = 20;
 
-fn ends_excmds(s: &str) -> bool {
-    ["", "|", "\"", "<EOF>", "\n"].contains(&s)
+fn ends_excmds(c: char) -> bool {
+    ['|', '"', EOF, EOL].contains(&c)
 }
 
 fn parse_piped_expressions(s: &str) -> Result<Vec<Box<Node>>, ParseError> {
@@ -203,7 +203,7 @@ impl<'a> Parser<'a> {
     pub fn parse(&mut self) -> Result<Node, ParseError> {
         let pos = self.reader.getpos();
         self.push_context(Node::TopLevel { pos, body: vec![] });
-        while self.reader.peek() != "<EOF>" {
+        while self.reader.peek() != EOF {
             self.parse_one_cmd()?;
         }
         self.check_missing_endfunction("TOPLEVEL", self.reader.getpos())?;
@@ -226,12 +226,12 @@ impl<'a> Parser<'a> {
         }
         let pos = self.reader.getpos();
         self.reader.skip_white_and_colon();
-        if self.reader.peek() == "\n" {
+        if self.reader.peek() == EOL {
             self.reader.get();
             self.add_node(Node::BlankLine { pos });
             return Ok(());
         }
-        if self.reader.peek() == "\"" {
+        if self.reader.peek() == '"' {
             self.parse_comment(false)?;
             self.reader.get();
             return Ok(());
@@ -258,7 +258,7 @@ impl<'a> Parser<'a> {
     fn parse_comment(&mut self, trailing: bool) -> Result<(), ParseError> {
         let pos = self.reader.getpos();
         let c = self.reader.get();
-        if c != "\"" {
+        if c != '"' {
             return Err(ParseError {
                 msg: format!("unexpected character: {}", c),
                 pos,
@@ -277,7 +277,7 @@ impl<'a> Parser<'a> {
         loop {
             let pos = self.reader.tell();
             let mut d = "".to_string();
-            if isdigit(&self.reader.peek()) {
+            if self.reader.peek().is_ascii_digit() {
                 d = self.reader.read_digit();
                 self.reader.skip_white();
             }
@@ -313,7 +313,7 @@ impl<'a> Parser<'a> {
                     modifiers.push(Modifier::new("keeppatterns"))
                 }
                 _ if "hide".starts_with(&k) && k.len() >= 3 => {
-                    if ends_excmds(&c) {
+                    if ends_excmds(c) {
                         break;
                     }
                     modifiers.push(Modifier::new("hide"))
@@ -338,7 +338,7 @@ impl<'a> Parser<'a> {
                 }
                 _ if "silent".starts_with(&k) && k.len() >= 3 => {
                     let mut mods = Modifier::new("silent");
-                    if c == "!" {
+                    if c == '!' {
                         mods.bang = true;
                         self.reader.get();
                     }
@@ -383,36 +383,35 @@ impl<'a> Parser<'a> {
             loop {
                 self.reader.skip_white();
                 let c = self.reader.peek();
-                match c.as_str() {
-                    "" => break,
-                    "." | "$" => tokens.push(self.reader.get()),
-                    "'" => {
-                        if self.reader.peek_ahead(1) == "\n" {
+                match c {
+                    '.' | '$' => tokens.push(self.reader.get().to_string()),
+                    '\'' => {
+                        if self.reader.peek_ahead(1) == EOL {
                             break;
                         }
                         tokens.push(self.reader.getn(2));
                     }
-                    "/" | "?" => {
+                    '/' | '?' => {
                         self.reader.get();
-                        let (pattern, _) = self.parse_pattern(&c)?;
+                        let (pattern, _) = self.parse_pattern(&c.to_string())?;
                         tokens.push(pattern);
                     }
-                    "\\" => {
+                    '\\' => {
                         let m = self.reader.peek_ahead(1);
-                        if m == "&" || m == "?" || m == "/" {
+                        if m == '&' || m == '?' || m == '/' {
                             tokens.push(self.reader.getn(2));
                         } else {
                             return self.err("E10: \\\\ should be followed by /, ? or &");
                         }
                     }
-                    _ if isdigit(&c) => {
+                    _ if c.is_ascii_digit() => {
                         tokens.push(self.reader.read_digit());
                     }
                     _ => (),
                 }
                 loop {
                     self.reader.skip_white();
-                    if self.reader.peek() == "\n" {
+                    if self.reader.peek() == EOL {
                         break;
                     }
                     let n = self.reader.read_integer();
@@ -421,17 +420,17 @@ impl<'a> Parser<'a> {
                     }
                     tokens.push(n);
                 }
-                if self.reader.peek() != "/" && self.reader.peek() != "?" {
+                if self.reader.peek() != '/' && self.reader.peek() != '?' {
                     break;
                 }
             }
             let p = self.reader.peek();
-            if p == "%" || p == "*" {
-                tokens.push(self.reader.get());
+            if p == '%' || p == '*' {
+                tokens.push(self.reader.get().to_string());
             }
             let p = self.reader.peek();
-            if p == ";" || p == "," {
-                tokens.push(self.reader.get());
+            if p == ';' || p == ',' {
+                tokens.push(self.reader.get().to_string());
                 continue;
             }
             break;
@@ -455,11 +454,11 @@ impl<'a> Parser<'a> {
             pattern.push_str(&c);
             if c == "\\" {
                 let c = self.reader.peek();
-                if c == "\n" {
+                if c == EOL {
                     return self.err("E682: Invalid search pattern or delimiter");
                 }
                 self.reader.getn(1);
-                pattern.push_str(&c);
+                pattern.push(c);
             } else if c == "[" {
                 in_bracket += 1;
             } else if c == "]" {
@@ -472,7 +471,7 @@ impl<'a> Parser<'a> {
     fn parse_command(&mut self, mut ea: ExArg) -> Result<(), ParseError> {
         self.reader.skip_white_and_colon();
         ea.cmdpos = self.reader.getpos();
-        if ["\n", "\"", "<EOF>", ""].contains(&self.reader.peek().as_str()) {
+        if [EOL, '"', EOF].contains(&self.reader.peek()) {
             if ea.modifiers.len() > 0 || ea.range.len() > 0 {
                 self.parse_cmd_modifier_range(ea);
             }
@@ -489,7 +488,7 @@ impl<'a> Parser<'a> {
                 ));
             }
         }
-        if self.reader.peek() == "!"
+        if self.reader.peek() == '!'
             && !["substitute", "smagic", "snomagic"].contains(&ea.cmd.name.as_str())
         {
             self.reader.get();
@@ -510,13 +509,13 @@ impl<'a> Parser<'a> {
             self.parse_argopt()?;
         }
         if ea.cmd.name == "write" || ea.cmd.name == "update" {
-            if self.reader.peek() == ">" {
-                if self.reader.peek_ahead(1) == ">" {
+            if self.reader.peek() == '>' {
+                if self.reader.peek_ahead(1) == '>' {
                     return self.err("E494: Use w or w>>");
                 }
                 self.reader.seek_cur(2);
                 self.reader.skip_white();
-            } else if self.reader.peek() == "!" && ea.cmd.name == "write" {
+            } else if self.reader.peek() == '!' && ea.cmd.name == "write" {
                 self.reader.get();
                 ea.use_filter = true;
             }
@@ -525,13 +524,13 @@ impl<'a> Parser<'a> {
             if ea.bang {
                 ea.use_filter = true;
                 ea.bang = false;
-            } else if self.reader.peek() == "!" {
+            } else if self.reader.peek() == '!' {
                 self.reader.get();
                 ea.use_filter = true;
             }
         }
         if ea.cmd.name == "<" || ea.cmd.name == ">" {
-            while self.reader.peek() == ea.cmd.name {
+            while self.reader.peek().to_string() == ea.cmd.name {
                 self.reader.get();
             }
             self.reader.skip_white();
@@ -593,7 +592,7 @@ impl<'a> Parser<'a> {
         self.reader.get();
         let mut lines = vec![cmdline];
         loop {
-            if self.reader.peek() == "<EOF>" {
+            if self.reader.peek() == EOF {
                 break;
             }
             lines.push(self.reader.get_line());
@@ -616,13 +615,13 @@ impl<'a> Parser<'a> {
         loop {
             let c = self.reader.peek();
             let c2 = self.reader.peek_ahead(1);
-            if c == "\\" && (c2 == "|" || c2 == "\"") {
+            if c == '\\' && (c2 == '|' || c2 == '"') {
                 self.reader.get();
-                name.push_str(&self.reader.get());
-            } else if ends_excmds(&c.as_str()) {
+                name.push(self.reader.get());
+            } else if ends_excmds(c) {
                 break;
             } else {
-                name.push_str(&self.reader.get());
+                name.push(self.reader.get());
             }
         }
         let name = name.trim_end().to_string();
@@ -759,7 +758,7 @@ impl<'a> Parser<'a> {
     fn parse_cmd_call(&mut self, ea: ExArg) -> Result<(), ParseError> {
         let pos = ea.cmdpos;
         self.reader.skip_white();
-        if ends_excmds(&self.reader.peek()) {
+        if ends_excmds(self.reader.peek()) {
             return self.err("E471: Argument required");
         }
         let left = self.parse_expr()?;
@@ -798,8 +797,8 @@ impl<'a> Parser<'a> {
                 });
             }
         };
-        let pattern = if !ends_excmds(&self.reader.peek()) {
-            let (pat, _) = self.parse_pattern(&self.reader.get())?;
+        let pattern = if !ends_excmds(self.reader.peek()) {
+            let (pat, _) = self.parse_pattern(&self.reader.get().to_string())?;
             Some(pat)
         } else {
             None
@@ -881,8 +880,8 @@ impl<'a> Parser<'a> {
 
     fn parse_cmd_echohl(&mut self, ea: ExArg) -> Result<(), ParseError> {
         let mut value = String::new();
-        while !ends_excmds(&self.reader.peek()) {
-            value.push_str(&self.reader.get());
+        while !ends_excmds(self.reader.peek()) {
+            value.push(self.reader.get());
         }
         self.add_node(Node::EchoHl {
             pos: ea.cmdpos,
@@ -1107,7 +1106,7 @@ impl<'a> Parser<'a> {
             lines.push(self.reader.get_line());
             self.reader.get();
             loop {
-                if self.reader.peek() == "<EOF>" {
+                if self.reader.peek() == EOF {
                     break;
                 }
                 lines.push(self.reader.get_line());
@@ -1131,7 +1130,7 @@ impl<'a> Parser<'a> {
     fn parse_cmd_let(&mut self, ea: ExArg) -> Result<(), ParseError> {
         let pos = self.reader.tell();
         self.reader.skip_white();
-        if ends_excmds(&self.reader.peek()) {
+        if ends_excmds(self.reader.peek()) {
             self.reader.seek_set(pos);
             return self.parse_cmd_common(ea);
         }
@@ -1139,16 +1138,16 @@ impl<'a> Parser<'a> {
         self.reader.skip_white();
         let s1 = self.reader.peek();
         let s2 = self.reader.peekn(2);
-        if ends_excmds(&s1) || s2 != "+=" && s2 != "-=" && s2 != ".=" && s1 != "=" {
+        if ends_excmds(s1) || s2 != "+=" && s2 != "-=" && s2 != ".=" && s1 != '=' {
             self.reader.seek_set(pos);
             return self.parse_cmd_common(ea);
         }
         let op = if s2 == "+=" || s2 == "-=" || s2 == ".=" {
             self.reader.getn(2);
             s2
-        } else if s1 == "=" {
+        } else if s1 == '=' {
             self.reader.get();
-            s1
+            s1.to_string()
         } else {
             return self.err("NOT REACHED");
         };
@@ -1169,7 +1168,7 @@ impl<'a> Parser<'a> {
         self.reader.setpos(ea.linepos);
         let mut lines = vec![self.reader.get_line()];
         loop {
-            if self.reader.peek() == "<EOF>" {
+            if self.reader.peek() == EOF {
                 break;
             }
             lines.push(self.reader.get_line());
@@ -1184,7 +1183,7 @@ impl<'a> Parser<'a> {
 
     fn parse_cmd_lockvar(&mut self, ea: ExArg) -> Result<(), ParseError> {
         self.reader.skip_white();
-        let depth = if isdigit(&self.reader.peek()) {
+        let depth = if self.reader.peek().is_ascii_digit() {
             Some(self.reader.read_digit().parse::<usize>().unwrap())
         } else {
             None
@@ -1205,7 +1204,7 @@ impl<'a> Parser<'a> {
         loop {
             self.reader.skip_white();
             let pos = self.reader.getpos();
-            if self.reader.peek() != "<" {
+            if self.reader.peek() != '<' {
                 break;
             } else {
                 self.reader.get();
@@ -1213,7 +1212,7 @@ impl<'a> Parser<'a> {
                 match attr.as_str() {
                     "buffer" | "nowait" | "silent" | "script" | "unique" | "expr" => {
                         attrs.push(attr);
-                        if self.reader.peek() == ">" {
+                        if self.reader.peek() == '>' {
                             self.reader.get();
                         } else {
                             return self.err(&format!("unexpected token: {}", self.reader.peek()));
@@ -1245,13 +1244,13 @@ impl<'a> Parser<'a> {
         loop {
             let c = self.reader.peek();
             let c2 = self.reader.peek_ahead(1);
-            if c == "\\" && c2 == "|" {
+            if c == '\\' && c2 == '|' {
                 self.reader.get();
-                right.push_str(&self.reader.get());
-            } else if c != "\"" && ends_excmds(&c.as_str()) {
+                right.push(self.reader.get());
+            } else if c != '"' && ends_excmds(c) {
                 break;
             } else {
-                right.push_str(&self.reader.get());
+                right.push(self.reader.get());
             }
         }
         let right = right.trim_end().to_string();
@@ -1275,7 +1274,7 @@ impl<'a> Parser<'a> {
         }
         self.reader.skip_white();
         let c = self.reader.peek();
-        let left = if c == "\"" || !ends_excmds(&c) {
+        let left = if c == '"' || !ends_excmds(c) {
             Some(Box::new(self.parse_expr()?))
         } else {
             None
@@ -1293,17 +1292,17 @@ impl<'a> Parser<'a> {
         loop {
             end = self.reader.getpos();
             let c = self.reader.peek();
-            if c == "/" || c == "'" || c == "\"" {
+            if c == '/' || c == '\'' || c == '"' {
                 self.reader.get();
-                self.parse_pattern(&c)?;
-            } else if c == "=" {
+                self.parse_pattern(&c.to_string())?;
+            } else if c == '=' {
                 self.reader.get();
                 self.parse_pattern(" ")?;
-            } else if ends_excmds(&c) {
+            } else if ends_excmds(c) {
                 break;
             }
             let peeked = self.reader.peek();
-            if !["/", "'", "\"", "="].contains(&peeked.as_str()) {
+            if !['/', '\'', '"', '='].contains(&peeked) {
                 self.reader.getn(1);
             }
         }
@@ -1349,7 +1348,7 @@ impl<'a> Parser<'a> {
 
     fn parse_cmd_unlockvar(&mut self, ea: ExArg) -> Result<(), ParseError> {
         self.reader.skip_white();
-        let depth = if isdigit(&self.reader.peek()) {
+        let depth = if self.reader.peek().is_ascii_digit() {
             Some(self.reader.read_digit().parse::<usize>().unwrap())
         } else {
             None
@@ -1382,13 +1381,13 @@ impl<'a> Parser<'a> {
             return self.err("E471: Argument required");
         } else if c == "g" || c == "\x07" {
             let c2 = self.reader.getn(1);
-            if c2 == "" || iswhite(&c2) {
+            if ["", " ", "\t"].contains(&c2.as_str()) {
                 return self.err("E474: Invalid argument");
             }
         }
         let end = self.reader.getpos();
         self.reader.skip_white();
-        if !ends_excmds(&self.reader.peek()) {
+        if !ends_excmds(self.reader.peek()) {
             return self.err("E474: Invalid argument");
         }
         self.add_node(Node::ExCmd {
@@ -1447,7 +1446,7 @@ impl<'a> Parser<'a> {
     fn parse_cmd_function(&mut self, ea: ExArg) -> Result<(), ParseError> {
         let pos = self.reader.tell();
         self.reader.skip_white();
-        if ends_excmds(&self.reader.peek()) || self.reader.peek() == "/" {
+        if ends_excmds(self.reader.peek()) || self.reader.peek() == '/' {
             self.reader.seek_set(pos);
             return self.parse_cmd_common(ea);
         }
@@ -1468,7 +1467,7 @@ impl<'a> Parser<'a> {
                 });
             }
         }
-        if self.reader.peek() != "(" {
+        if self.reader.peek() != '(' {
             self.reader.seek_set(pos);
             return self.parse_cmd_common(ea);
         }
@@ -1502,7 +1501,7 @@ impl<'a> Parser<'a> {
                         pos: token.pos,
                         value: token.value,
                     }));
-                    if iswhite(&self.reader.peek()) && tokenizer.peek()?.kind == TokenKind::Comma {
+                    if self.reader.peek().is_white() && tokenizer.peek()?.kind == TokenKind::Comma {
                         return self
                             .err("E475: Invalid argument: White space is not allowed before comma");
                     }
@@ -1578,7 +1577,7 @@ impl<'a> Parser<'a> {
         loop {
             self.reader.skip_white();
             let c = self.reader.peek();
-            if c != "\"" && ends_excmds(&c) {
+            if c != '"' && ends_excmds(c) {
                 break;
             }
             let node = self.parse_expr()?;
@@ -1620,7 +1619,7 @@ impl<'a> Parser<'a> {
         nodes.push(Box::new(self.parse_expr()?));
         loop {
             self.reader.skip_white();
-            if ends_excmds(&self.reader.peek()) {
+            if ends_excmds(self.reader.peek()) {
                 break;
             }
             nodes.push(Box::new(self.parse_lvalue()?));
@@ -1650,23 +1649,23 @@ impl<'a> Parser<'a> {
         if ["vimgrep", "vimgrepadd", "lvimgrep", "lvimgrepadd"].contains(&ea.cmd.name.as_str()) {
             self.skip_vimgrep_pat()?;
         }
-        let mut pc = String::new();
+        let mut pc: char = EOF;
         let mut end = self.reader.getpos();
         let mut nospend = end;
         loop {
             end = self.reader.getpos();
-            if !iswhite(&pc) {
+            if !pc.is_white() {
                 nospend = end;
             }
             let mut c = self.reader.peek();
-            if c == "\n" || c == "<EOF>" {
+            if c == EOL || c == EOF {
                 break;
-            } else if c == "\x16" {
+            } else if c == '\x16' {
                 self.reader.get();
                 end = self.reader.getpos();
                 nospend = end;
                 c = self.reader.peek();
-                if c == "\n" || c == "<EOF>" {
+                if c == EOL || c == EOF {
                     break;
                 }
                 self.reader.get();
@@ -1677,19 +1676,24 @@ impl<'a> Parser<'a> {
             {
                 self.reader.getn(2);
                 self.parse_expr()?;
-                c = self.reader.peekn(1);
-                if c != "`" {
+                let peeked = self.reader.peekn(1);
+                if peeked != "`" {
                     return self.err(&format!("unexpected character: {}", c));
                 }
-                self.reader.getn(1);
-            } else if ["|", "\n", "\""].contains(&c.as_str())
+                let gotten = self.reader.getn(1);
+                c = if gotten.len() == 0 {
+                    EOF
+                } else {
+                    gotten.chars().nth(0).unwrap()
+                };
+            } else if ['|', EOL, '"'].contains(&c)
                 && !ea.cmd.flags.contains(&Flag::NoTrlCom)
                 && (ea.cmd.name != "@" && ea.cmd.name != "*" || self.reader.getpos() != ea.argpos)
                 && (ea.cmd.name != "redir"
                     || self.reader.getpos().cursor != ea.argpos.cursor + 1
-                    || pc != "@")
+                    || pc != '@')
             {
-                if !ea.cmd.flags.contains(&Flag::UseCtrlV) && pc == "\\" {
+                if !ea.cmd.flags.contains(&Flag::UseCtrlV) && pc == '\\' {
                     self.reader.get();
                 } else {
                     break;
@@ -1707,16 +1711,16 @@ impl<'a> Parser<'a> {
 
     fn skip_vimgrep_pat(&mut self) -> Result<(), ParseError> {
         let c = self.reader.peek();
-        if c == "\n" {
-        } else if iswordc(&c) {
+        if c == EOL {
+        } else if c.is_word() {
             self.reader.read_nonwhite();
         } else {
             let c = self.reader.get();
-            let (_, endc) = self.parse_pattern(&c)?;
-            if c != endc {
+            let (_, endc) = self.parse_pattern(&c.to_string())?;
+            if c.to_string() != endc {
                 return Ok(());
             }
-            while self.reader.peek() == "g" || self.reader.peek() == "j" {
+            while self.reader.peek() == 'g' || self.reader.peek() == 'j' {
                 self.reader.get();
             }
         }
@@ -1724,9 +1728,9 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_argcmd(&mut self) {
-        if self.reader.peek() == "+" {
+        if self.reader.peek() == '+' {
             self.reader.get();
-            if self.reader.peek() != " " {
+            if self.reader.peek() != ' ' {
                 self.read_cmdarg();
             }
         }
@@ -1735,7 +1739,7 @@ impl<'a> Parser<'a> {
     fn read_cmdarg(&mut self) {
         loop {
             let c = self.reader.peekn(1);
-            if c == "" || c.chars().collect::<Vec<char>>()[0].is_whitespace() {
+            if c == "" || c.chars().collect::<Vec<char>>()[0].is_white() {
                 break;
             }
             self.reader.get();
@@ -1800,13 +1804,13 @@ impl<'a> Parser<'a> {
             static ref SUB_RE: Regex = Regex::new("^s(c[^sr][^i][^p]|g|i[^mlg]|I|r[^e])").unwrap();
             static ref DEL_RE: Regex = Regex::new("^d(elete|elet|ele|el|e)[lp]$").unwrap();
         }
-        if c == "k" {
-            name.push_str(&self.reader.get());
-        } else if c == "s" && SUB_RE.is_match(&self.reader.peekn(5)) {
+        if c == 'k' {
+            name.push(self.reader.get());
+        } else if c == 's' && SUB_RE.is_match(&self.reader.peekn(5)) {
             self.reader.get();
             name.push_str("substitute");
-        } else if ["@", "*", "!", "=", ">", "<", "&", "~", "#"].contains(&c.as_str()) {
-            name.push_str(&self.reader.get());
+        } else if ['@', '*', '!', '=', '>', '<', '&', '~', '#'].contains(&c) {
+            name.push(self.reader.get());
         } else if self.reader.peekn(2) == "py" {
             name.push_str(&self.reader.read_alnum());
         } else {
@@ -1849,13 +1853,13 @@ impl<'a> Parser<'a> {
     fn parse_trail(&mut self) -> Result<(), ParseError> {
         self.reader.skip_white();
         let c = self.reader.peek();
-        match c.as_str() {
-            "<EOF>" => Ok(()),
-            "\n" | "|" => {
+        match c {
+            EOF => Ok(()),
+            EOL | '|' => {
                 self.reader.get();
                 Ok(())
             }
-            "\"" => {
+            '"' => {
                 self.parse_comment(true)?;
                 self.reader.get();
                 Ok(())
@@ -2091,7 +2095,7 @@ impl<'a> ExprParser<'a> {
             let cursor = self.reader.tell();
             let c = self.reader.peek();
             let token = self.tokenizer.get()?;
-            if !iswhite(&c) && token.kind == TokenKind::SqOpen {
+            if !c.is_white() && token.kind == TokenKind::SqOpen {
                 left = self.parse_slice(left, token.pos)?;
             } else if token.kind == TokenKind::POpen {
                 let pos = token.pos;
@@ -2123,7 +2127,7 @@ impl<'a> ExprParser<'a> {
                 }
                 let node = Node::Call { pos, name, args };
                 left = node;
-            } else if !iswhite(&c) && token.kind == TokenKind::Dot {
+            } else if !c.is_white() && token.kind == TokenKind::Dot {
                 match self.parse_dot(token, left.clone()) {
                     Some(node) => {
                         left = node;
@@ -2232,7 +2236,8 @@ impl<'a> ExprParser<'a> {
                                     value: token.value,
                                 };
                                 let maybe_comma = self.tokenizer.peek()?.kind;
-                                if iswhite(&self.reader.peek()) && maybe_comma == TokenKind::Comma {
+                                if self.reader.peek().is_white() && maybe_comma == TokenKind::Comma
+                                {
                                     return Err(ParseError {
                                         msg: String::from(
                                             "E475: invalid argument: White space is not allowed before comma"
@@ -2400,17 +2405,17 @@ impl<'a> ExprParser<'a> {
         let mut curly_parts = vec![];
         let c = self.reader.peek();
         let pos = self.reader.getpos();
-        if c == "<" && self.reader.peekn(5).eq_ignore_ascii_case("<SID>") {
+        if c == '<' && self.reader.peekn(5).eq_ignore_ascii_case("<SID>") {
             let name = self.reader.getn(5);
             curly_parts.push(Node::CurlyNamePart { pos, value: name });
         }
         loop {
             let c = self.reader.peek();
-            if isnamec(&c) {
+            if c.is_name() {
                 let pos = self.reader.getpos();
                 let name = self.reader.read_name();
                 curly_parts.push(Node::CurlyNamePart { pos, value: name });
-            } else if c == "{" {
+            } else if c == '{' {
                 self.reader.get();
                 let pos = self.reader.getpos();
                 curly_parts.push(Node::CurlyNameExpr {
@@ -2419,7 +2424,7 @@ impl<'a> ExprParser<'a> {
                 });
                 self.reader.skip_white();
                 let c = self.reader.peek();
-                if c != "}" {
+                if c != '}' {
                     return Err(ParseError {
                         msg: format!("unexpected token: {}", c),
                         pos: self.reader.getpos(),
@@ -2443,12 +2448,12 @@ impl<'a> ExprParser<'a> {
             | Node::Dot { .. } => (),
             _ => return None,
         }
-        if !iswordc(&self.reader.peek()) {
+        if !self.reader.peek().is_word() {
             return None;
         }
         let pos = self.reader.getpos();
         let name = self.reader.read_word();
-        if isnamec(&self.reader.peek()) {
+        if self.reader.peek().is_name() {
             return None;
         }
         let right = Box::new(Node::Identifier { pos, value: name });
@@ -2528,9 +2533,9 @@ impl<'a> ExprParser<'a> {
             let cursor = self.reader.tell();
             let c = self.reader.peek();
             let token = self.tokenizer.get()?;
-            if !iswhite(&c) && token.kind == TokenKind::SqOpen {
+            if !c.is_white() && token.kind == TokenKind::SqOpen {
                 left = self.parse_slice(left, token.pos)?;
-            } else if !iswhite(&c) && token.kind == TokenKind::Dot {
+            } else if !c.is_white() && token.kind == TokenKind::Dot {
                 match self.parse_dot(token, left.clone()) {
                     Some(n) => {
                         left = n;
