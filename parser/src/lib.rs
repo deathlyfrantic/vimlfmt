@@ -16,6 +16,9 @@ mod parser;
 mod reader;
 mod token;
 
+pub(crate) const EOF: char = '\x04';
+pub(crate) const EOL: char = '\n';
+
 pub fn parse_lines(lines: &[&str]) -> Result<node::Node, ParseError> {
     let reader = reader::Reader::from_lines(lines);
     let mut parser = parser::Parser::new(&reader);
@@ -74,42 +77,29 @@ impl From<std::io::Error> for ParseError {
     }
 }
 
-fn str_is<F>(s: &str, func: F) -> bool
-where
-    F: Fn(char) -> bool,
-{
-    for c in s.chars() {
-        if !func(c) {
-            return false;
-        }
+pub(crate) trait CharClassification {
+    fn is_word(&self) -> bool;
+    fn is_word1(&self) -> bool;
+    fn is_white(&self) -> bool;
+    fn is_name(&self) -> bool;
+}
+
+impl CharClassification for char {
+    fn is_word(&self) -> bool {
+        self.is_ascii_alphanumeric() || *self == '_'
     }
-    true
-}
 
-fn isdigit(s: &str) -> bool {
-    str_is(s, |c| c.is_ascii_digit())
-}
+    fn is_word1(&self) -> bool {
+        self.is_ascii_alphabetic() || *self == '_'
+    }
 
-fn isxdigit(s: &str) -> bool {
-    str_is(s, |c| c.is_ascii_hexdigit())
-}
+    fn is_white(&self) -> bool {
+        *self == ' ' || *self == '\t'
+    }
 
-fn iswordc(s: &str) -> bool {
-    str_is(s, |c| c.is_ascii_alphanumeric() || c == '_')
-}
-
-fn iswordc1(s: &str) -> bool {
-    str_is(s, |c| c.is_ascii_alphabetic() || c == '_')
-}
-
-fn iswhite(s: &str) -> bool {
-    str_is(s, |c| c == '\t' || c == ' ')
-}
-
-fn isnamec(s: &str) -> bool {
-    str_is(s, |c| {
-        c.is_ascii_alphanumeric() || c == '_' || c == ':' || c == '#'
-    })
+    fn is_name(&self) -> bool {
+        self.is_ascii_alphanumeric() || ['_', ':', '#'].contains(&self)
+    }
 }
 
 fn isargname(s: &str) -> bool {
@@ -130,42 +120,6 @@ fn isvarname(s: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_isdigit() {
-        assert!(isdigit("0123456789"));
-        assert!(!isdigit("abc"));
-    }
-
-    #[test]
-    fn test_isxdigit() {
-        assert!(isxdigit("0123456789ABCDEFabcdef"));
-        assert!(!isxdigit("xqz"));
-    }
-
-    #[test]
-    fn test_iswordc() {
-        assert!(iswordc("Abc_123"));
-        assert!(!iswordc("*@"));
-    }
-
-    #[test]
-    fn test_iswordc1() {
-        assert!(iswordc1("Abc_foo"));
-        assert!(!iswordc1("Abc_123"));
-    }
-
-    #[test]
-    fn test_iswhite() {
-        assert!(iswhite(" \t"));
-        assert!(!iswhite("\nX"));
-    }
-
-    #[test]
-    fn test_isnamec() {
-        assert!(isnamec("Abc_123:#"));
-        assert!(!isnamec("*@"));
-    }
 
     #[test]
     fn test_isargname() {

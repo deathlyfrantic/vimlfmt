@@ -1,4 +1,4 @@
-use super::{isdigit, iswhite, iswordc, iswordc1, isxdigit, ParseError, Position};
+use super::{CharClassification, ParseError, Position, EOF, EOL};
 use reader::Reader;
 use std::collections::HashMap;
 
@@ -123,39 +123,39 @@ impl<'a> Tokenizer<'a> {
     fn _get(&mut self) -> Result<Token, ParseError> {
         let c = self.reader.peek();
         let pos = self.reader.getpos();
-        if c == "<EOF>" {
-            return Ok(Token::new(TokenKind::EOF, c, pos));
+        if c == EOF {
+            return Ok(Token::new(TokenKind::EOF, c.to_string(), pos));
         }
-        if c == "\n" {
+        if c == EOL {
             self.reader.get();
-            return Ok(Token::new(TokenKind::EOL, c, pos));
+            return Ok(Token::new(TokenKind::EOL, c.to_string(), pos));
         }
-        if iswhite(&c) {
+        if c.is_white() {
             // I don't think this ever happens (see skip_white() call in self.get())
-            return Ok(Token::new(TokenKind::Space, c, pos));
+            return Ok(Token::new(TokenKind::Space, c.to_string(), pos));
         }
-        if isdigit(&c) {
+        if c.is_ascii_digit() {
             let x = self.reader.peek_ahead(1);
             let n = self.reader.peek_ahead(2);
-            if c == "0" && (x == "x" || x == "X") && isxdigit(&n) {
+            if c == '0' && (x == 'x' || x == 'X') && n.is_ascii_hexdigit() {
                 let mut value = self.reader.getn(3);
                 value.push_str(&self.reader.read_hex_digit());
                 return Ok(Token::new(TokenKind::Number, value, pos));
             }
-            if c == "0" && (x == "b" || x == "B") && (n == "0" || n == "1") {
+            if c == '0' && (x == 'b' || x == 'B') && (n == '0' || n == '1') {
                 let mut value = self.reader.getn(3);
                 value.push_str(&self.reader.read_bin_digit());
                 return Ok(Token::new(TokenKind::Number, value, pos));
             }
             let mut value = self.reader.read_digit();
-            if self.reader.peek() == "." && isdigit(&self.reader.peek_ahead(1)) {
-                value.push_str(&self.reader.get());
+            if self.reader.peek() == '.' && self.reader.peek_ahead(1).is_ascii_digit() {
+                value.push(self.reader.get());
                 value.push_str(&self.reader.read_digit());
                 let e = self.reader.peek();
                 let n = self.reader.peek_ahead(1);
                 let n2 = self.reader.peek_ahead(2);
-                if (e == "E" || e == "e")
-                    && (isdigit(&n) || ((n == "-" || n == "+") && isdigit(&n2)))
+                if (e == 'E' || e == 'e')
+                    && (n.is_ascii_digit() || ((n == '-' || n == '+') && n2.is_ascii_digit()))
                 {
                     value.push_str(&self.reader.getn(2));
                     value.push_str(&self.reader.read_digit());
@@ -163,21 +163,21 @@ impl<'a> Tokenizer<'a> {
             }
             return Ok(Token::new(TokenKind::Number, value, pos));
         }
-        if self.reader.peekn(2) == "is" && !iswordc(&self.reader.peek_ahead(2)) {
-            return Ok(match self.reader.peek_ahead(2).as_str() {
-                "?" => Token::new(TokenKind::IsCI, self.reader.getn(3), pos),
-                "#" => Token::new(TokenKind::IsCS, self.reader.getn(3), pos),
+        if self.reader.peekn(2) == "is" && self.reader.peek_ahead(2).is_word() {
+            return Ok(match self.reader.peek_ahead(2) {
+                '?' => Token::new(TokenKind::IsCI, self.reader.getn(3), pos),
+                '#' => Token::new(TokenKind::IsCS, self.reader.getn(3), pos),
                 _ => Token::new(TokenKind::Is, self.reader.getn(2), pos),
             });
         }
-        if self.reader.peekn(5) == "isnot" && !iswordc(&self.reader.peek_ahead(5)) {
-            return Ok(match self.reader.peek_ahead(5).as_str() {
-                "?" => Token::new(TokenKind::IsNotCI, self.reader.getn(6), pos),
-                "#" => Token::new(TokenKind::IsNotCS, self.reader.getn(6), pos),
+        if self.reader.peekn(5) == "isnot" && self.reader.peek_ahead(5).is_word() {
+            return Ok(match self.reader.peek_ahead(5) {
+                '?' => Token::new(TokenKind::IsNotCI, self.reader.getn(6), pos),
+                '#' => Token::new(TokenKind::IsNotCS, self.reader.getn(6), pos),
                 _ => Token::new(TokenKind::IsNot, self.reader.getn(5), pos),
             });
         }
-        if iswordc1(&c) {
+        if c.is_word1() {
             return Ok(Token::new(
                 TokenKind::Identifier,
                 self.reader.read_name(),
@@ -188,109 +188,201 @@ impl<'a> Tokenizer<'a> {
             "||" => return Ok(Token::new(TokenKind::OrOr, self.reader.getn(2), pos)),
             "&&" => return Ok(Token::new(TokenKind::AndAnd, self.reader.getn(2), pos)),
             "==" => {
-                return Ok(match self.reader.peek_ahead(2).as_str() {
-                    "?" => Token::new(TokenKind::EqEqCI, self.reader.getn(3), pos),
-                    "#" => Token::new(TokenKind::EqEqCS, self.reader.getn(3), pos),
+                return Ok(match self.reader.peek_ahead(2) {
+                    '?' => Token::new(TokenKind::EqEqCI, self.reader.getn(3), pos),
+                    '#' => Token::new(TokenKind::EqEqCS, self.reader.getn(3), pos),
                     _ => Token::new(TokenKind::EqEq, self.reader.getn(2), pos),
                 });
             }
             "!=" => {
-                return Ok(match self.reader.peek_ahead(2).as_str() {
-                    "?" => Token::new(TokenKind::NotEqCI, self.reader.getn(3), pos),
-                    "#" => Token::new(TokenKind::NotEqCS, self.reader.getn(3), pos),
+                return Ok(match self.reader.peek_ahead(2) {
+                    '?' => Token::new(TokenKind::NotEqCI, self.reader.getn(3), pos),
+                    '#' => Token::new(TokenKind::NotEqCS, self.reader.getn(3), pos),
                     _ => Token::new(TokenKind::NotEq, self.reader.getn(2), pos),
                 });
             }
             ">=" => {
-                return Ok(match self.reader.peek_ahead(2).as_str() {
-                    "?" => Token::new(TokenKind::GTEqCI, self.reader.getn(3), pos),
-                    "#" => Token::new(TokenKind::GTEqCS, self.reader.getn(3), pos),
+                return Ok(match self.reader.peek_ahead(2) {
+                    '?' => Token::new(TokenKind::GTEqCI, self.reader.getn(3), pos),
+                    '#' => Token::new(TokenKind::GTEqCS, self.reader.getn(3), pos),
                     _ => Token::new(TokenKind::GTEq, self.reader.getn(2), pos),
                 });
             }
             "<=" => {
-                return Ok(match self.reader.peek_ahead(2).as_str() {
-                    "?" => Token::new(TokenKind::LTEqCI, self.reader.getn(3), pos),
-                    "#" => Token::new(TokenKind::LTEqCS, self.reader.getn(3), pos),
+                return Ok(match self.reader.peek_ahead(2) {
+                    '?' => Token::new(TokenKind::LTEqCI, self.reader.getn(3), pos),
+                    '#' => Token::new(TokenKind::LTEqCS, self.reader.getn(3), pos),
                     _ => Token::new(TokenKind::LTEq, self.reader.getn(2), pos),
                 });
             }
             "=~" => {
-                return Ok(match self.reader.peek_ahead(2).as_str() {
-                    "?" => Token::new(TokenKind::MatchCI, self.reader.getn(3), pos),
-                    "#" => Token::new(TokenKind::MatchCS, self.reader.getn(3), pos),
+                return Ok(match self.reader.peek_ahead(2) {
+                    '?' => Token::new(TokenKind::MatchCI, self.reader.getn(3), pos),
+                    '#' => Token::new(TokenKind::MatchCS, self.reader.getn(3), pos),
                     _ => Token::new(TokenKind::Match, self.reader.getn(2), pos),
                 });
             }
             "!~" => {
-                return Ok(match self.reader.peek_ahead(2).as_str() {
-                    "?" => Token::new(TokenKind::NoMatchCI, self.reader.getn(3), pos),
-                    "#" => Token::new(TokenKind::NoMatchCS, self.reader.getn(3), pos),
+                return Ok(match self.reader.peek_ahead(2) {
+                    '?' => Token::new(TokenKind::NoMatchCI, self.reader.getn(3), pos),
+                    '#' => Token::new(TokenKind::NoMatchCS, self.reader.getn(3), pos),
                     _ => Token::new(TokenKind::NoMatch, self.reader.getn(2), pos),
                 });
             }
             _ => (),
         };
-        match c.as_str() {
-            ">" => Ok(match self.reader.peek_ahead(1).as_str() {
-                "?" => Token::new(TokenKind::GTCI, self.reader.getn(2), pos),
-                "#" => Token::new(TokenKind::GTCS, self.reader.getn(2), pos),
-                _ => Token::new(TokenKind::GT, self.reader.get(), pos),
+        match c {
+            '>' => Ok(match self.reader.peek_ahead(1) {
+                '?' => Token::new(TokenKind::GTCI, self.reader.getn(2), pos),
+                '#' => Token::new(TokenKind::GTCS, self.reader.getn(2), pos),
+                _ => Token::new(TokenKind::GT, self.reader.get().to_string(), pos),
             }),
-            "<" => Ok(match self.reader.peek_ahead(1).as_str() {
-                "?" => Token::new(TokenKind::LTCI, self.reader.getn(2), pos),
-                "#" => Token::new(TokenKind::LTCS, self.reader.getn(2), pos),
-                _ => Token::new(TokenKind::LT, self.reader.get(), pos),
+            '<' => Ok(match self.reader.peek_ahead(1) {
+                '?' => Token::new(TokenKind::LTCI, self.reader.getn(2), pos),
+                '#' => Token::new(TokenKind::LTCS, self.reader.getn(2), pos),
+                _ => Token::new(TokenKind::LT, self.reader.get().to_string(), pos),
             }),
-            "+" => Ok(Token::new(TokenKind::Plus, self.reader.get(), pos)),
-            "-" => {
-                if self.reader.peek_ahead(1) == ">" {
+            '+' => Ok(Token::new(
+                TokenKind::Plus,
+                self.reader.get().to_string(),
+                pos,
+            )),
+            '-' => {
+                if self.reader.peek_ahead(1) == '>' {
                     return Ok(Token::new(TokenKind::Arrow, self.reader.getn(2), pos));
                 }
-                Ok(Token::new(TokenKind::Minus, self.reader.get(), pos))
+                Ok(Token::new(
+                    TokenKind::Minus,
+                    self.reader.get().to_string(),
+                    pos,
+                ))
             }
-            "." => {
+            '.' => {
                 if self.reader.peekn(3) == "..." {
                     return Ok(Token::new(TokenKind::DotDotDot, self.reader.getn(3), pos));
                 }
-                Ok(Token::new(TokenKind::Dot, self.reader.get(), pos))
+                Ok(Token::new(
+                    TokenKind::Dot,
+                    self.reader.get().to_string(),
+                    pos,
+                ))
             }
-            "*" => Ok(Token::new(TokenKind::Star, self.reader.get(), pos)),
-            "/" => Ok(Token::new(TokenKind::Slash, self.reader.get(), pos)),
-            "%" => Ok(Token::new(TokenKind::Percent, self.reader.get(), pos)),
-            "!" => Ok(Token::new(TokenKind::Not, self.reader.get(), pos)),
-            "?" => Ok(Token::new(TokenKind::Question, self.reader.get(), pos)),
-            ":" => Ok(Token::new(TokenKind::Colon, self.reader.get(), pos)),
-            "#" => Ok(Token::new(TokenKind::Sharp, self.reader.get(), pos)),
-            "(" => Ok(Token::new(TokenKind::POpen, self.reader.get(), pos)),
-            ")" => Ok(Token::new(TokenKind::PClose, self.reader.get(), pos)),
-            "[" => Ok(Token::new(TokenKind::SqOpen, self.reader.get(), pos)),
-            "]" => Ok(Token::new(TokenKind::SqClose, self.reader.get(), pos)),
-            "{" => Ok(Token::new(TokenKind::COpen, self.reader.get(), pos)),
-            "}" => Ok(Token::new(TokenKind::CClose, self.reader.get(), pos)),
-            "," => Ok(Token::new(TokenKind::Comma, self.reader.get(), pos)),
-            "'" => Ok(Token::new(TokenKind::SQuote, self.reader.get(), pos)),
-            "\"" => Ok(Token::new(TokenKind::DQuote, self.reader.get(), pos)),
-            "$" => {
-                let mut value = self.reader.get();
+            '*' => Ok(Token::new(
+                TokenKind::Star,
+                self.reader.get().to_string(),
+                pos,
+            )),
+            '/' => Ok(Token::new(
+                TokenKind::Slash,
+                self.reader.get().to_string(),
+                pos,
+            )),
+            '%' => Ok(Token::new(
+                TokenKind::Percent,
+                self.reader.get().to_string(),
+                pos,
+            )),
+            '!' => Ok(Token::new(
+                TokenKind::Not,
+                self.reader.get().to_string(),
+                pos,
+            )),
+            '?' => Ok(Token::new(
+                TokenKind::Question,
+                self.reader.get().to_string(),
+                pos,
+            )),
+            ':' => Ok(Token::new(
+                TokenKind::Colon,
+                self.reader.get().to_string(),
+                pos,
+            )),
+            '#' => Ok(Token::new(
+                TokenKind::Sharp,
+                self.reader.get().to_string(),
+                pos,
+            )),
+            '(' => Ok(Token::new(
+                TokenKind::POpen,
+                self.reader.get().to_string(),
+                pos,
+            )),
+            ')' => Ok(Token::new(
+                TokenKind::PClose,
+                self.reader.get().to_string(),
+                pos,
+            )),
+            '[' => Ok(Token::new(
+                TokenKind::SqOpen,
+                self.reader.get().to_string(),
+                pos,
+            )),
+            ']' => Ok(Token::new(
+                TokenKind::SqClose,
+                self.reader.get().to_string(),
+                pos,
+            )),
+            '{' => Ok(Token::new(
+                TokenKind::COpen,
+                self.reader.get().to_string(),
+                pos,
+            )),
+            '}' => Ok(Token::new(
+                TokenKind::CClose,
+                self.reader.get().to_string(),
+                pos,
+            )),
+            ',' => Ok(Token::new(
+                TokenKind::Comma,
+                self.reader.get().to_string(),
+                pos,
+            )),
+            '\'' => Ok(Token::new(
+                TokenKind::SQuote,
+                self.reader.get().to_string(),
+                pos,
+            )),
+            '"' => Ok(Token::new(
+                TokenKind::DQuote,
+                self.reader.get().to_string(),
+                pos,
+            )),
+            '$' => {
+                let mut value = self.reader.get().to_string();
                 value.push_str(&self.reader.read_word());
                 Ok(Token::new(TokenKind::Env, value, pos))
             }
-            "@" => Ok(Token::new(TokenKind::Reg, self.reader.getn(2), pos)),
-            "&" => {
+            '@' => Ok(Token::new(TokenKind::Reg, self.reader.getn(2), pos)),
+            '&' => {
                 let p = self.reader.peek_ahead(1);
-                let mut value = if (p == "g" || p == "l") && self.reader.peek_ahead(2) == ":" {
+                let mut value = if (p == 'g' || p == 'l') && self.reader.peek_ahead(2) == ':' {
                     self.reader.getn(3)
                 } else {
-                    self.reader.get()
+                    self.reader.get().to_string()
                 };
                 value.push_str(&self.reader.read_word());
                 Ok(Token::new(TokenKind::Option, value, pos))
             }
-            "=" => Ok(Token::new(TokenKind::Eq, self.reader.get(), pos)),
-            "|" => Ok(Token::new(TokenKind::Or, self.reader.get(), pos)),
-            ";" => Ok(Token::new(TokenKind::Semicolon, self.reader.get(), pos)),
-            "`" => Ok(Token::new(TokenKind::Backtick, self.reader.get(), pos)),
+            '=' => Ok(Token::new(
+                TokenKind::Eq,
+                self.reader.get().to_string(),
+                pos,
+            )),
+            '|' => Ok(Token::new(
+                TokenKind::Or,
+                self.reader.get().to_string(),
+                pos,
+            )),
+            ';' => Ok(Token::new(
+                TokenKind::Semicolon,
+                self.reader.get().to_string(),
+                pos,
+            )),
+            '`' => Ok(Token::new(
+                TokenKind::Backtick,
+                self.reader.get().to_string(),
+                pos,
+            )),
             _ => Err(ParseError {
                 msg: format!("unexpected character: {}", c),
                 pos,
@@ -301,7 +393,7 @@ impl<'a> Tokenizer<'a> {
     pub fn get_sstring(&mut self) -> Result<String, ParseError> {
         self.reader.skip_white();
         let c = self.reader.peek();
-        if c != "'" {
+        if c != '\'' {
             return Err(ParseError {
                 msg: format!("unexpected character: {}", c),
                 pos: self.reader.getpos(),
@@ -311,22 +403,22 @@ impl<'a> Tokenizer<'a> {
         let mut value = String::new();
         loop {
             let c = self.reader.peek();
-            if c == "<EOF>" || c == "\n" {
+            if c == EOF || c == EOL {
                 return Err(ParseError {
                     msg: "unexpected EOL".to_string(),
                     pos: self.reader.getpos(),
                 });
             }
-            if c == "'" {
+            if c == '\'' {
                 self.reader.get();
-                if self.reader.peek() == "'" {
+                if self.reader.peek() == '\'' {
                     self.reader.get();
                     value.push_str("''")
                 } else {
                     break;
                 }
             } else {
-                value.push_str(&self.reader.get());
+                value.push(self.reader.get());
             }
         }
         Ok(value)
@@ -335,7 +427,7 @@ impl<'a> Tokenizer<'a> {
     pub fn get_dstring(&mut self) -> Result<String, ParseError> {
         self.reader.skip_white();
         let c = self.reader.peek();
-        if c != "\"" {
+        if c != '"' {
             return Err(ParseError {
                 msg: format!("unexpected character: {}", c),
                 pos: self.reader.getpos(),
@@ -345,27 +437,27 @@ impl<'a> Tokenizer<'a> {
         let mut value = String::new();
         loop {
             let c = self.reader.peek();
-            if c == "<EOF>" || c == "\n" {
+            if c == EOF || c == EOL {
                 return Err(ParseError {
                     msg: "unexpected EOL".to_string(),
                     pos: self.reader.getpos(),
                 });
             }
-            if c == "\"" {
+            if c == '"' {
                 self.reader.get();
                 break;
-            } else if c == "\\" {
-                value.push_str(&self.reader.get());
+            } else if c == '\\' {
+                value.push(self.reader.get());
                 let c = self.reader.peek();
-                if c == "<EOF>" || c == "\n" {
+                if c == EOF || c == EOL {
                     return Err(ParseError {
                         msg: "unexpected EOL".to_string(),
                         pos: self.reader.getpos(),
                     });
                 }
-                value.push_str(&self.reader.get());
+                value.push(self.reader.get());
             } else {
-                value.push_str(&self.reader.get());
+                value.push(self.reader.get());
             }
         }
         Ok(value)
