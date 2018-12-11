@@ -1227,7 +1227,7 @@ impl<'a> Parser<'a> {
                 }
             }
         }
-        let left = if !["|", "", "\n", "<EOF>"].contains(&self.reader.peekn(1).as_str()) {
+        let left = if !["|", "", "\n", &EOF.to_string()].contains(&self.reader.peekn(1).as_str()) {
             self.reader.read_nonwhite()
         } else {
             return Ok(self.add_node(Node::Mapping {
