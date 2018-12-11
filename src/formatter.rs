@@ -457,6 +457,7 @@ impl<'a> Formatter<'a> {
                 attrs,
                 left,
                 right,
+                right_expr,
                 ..
             } => {
                 self.add(&command);
@@ -470,7 +471,10 @@ impl<'a> Formatter<'a> {
                 if left.len() > 0 {
                     self.add(" ");
                     self.fit(&left);
-                    if right.len() > 0 {
+                    if let Some(re) = right_expr {
+                        self.add(" ");
+                        self.f(re);
+                    } else if right.len() > 0 {
                         self.add(" ");
                         self.fit(&right.replace("|", "\\|"));
                     }
