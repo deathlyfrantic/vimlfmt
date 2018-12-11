@@ -766,7 +766,8 @@ impl fmt::Display for Node {
                             None
                         } else {
                             Some(format!("{}", n))
-                        }).collect::<Vec<String>>()
+                        })
+                        .collect::<Vec<String>>()
                         .join("\n")
                 ),
                 Node::Try {

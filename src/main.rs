@@ -14,30 +14,35 @@ fn main() {
                 .short("A")
                 .long("ast")
                 .help("Output AST instead of formatted code"),
-        ).arg(
+        )
+        .arg(
             Arg::with_name("files")
                 .required(true)
                 .min_values(1)
                 .help("File(s) to parse"),
-        ).arg(
+        )
+        .arg(
             Arg::with_name("indent")
                 .short("i")
                 .long("indent")
                 .default_value("2")
                 .help("Number of spaces to use for indentation; use \"tab\" for tabs"),
-        ).arg(
+        )
+        .arg(
             Arg::with_name("continuation")
                 .short("c")
                 .long("continuation")
                 .default_value("3")
                 .help("Number of indents to use for continued lines"),
-        ).arg(
+        )
+        .arg(
             Arg::with_name("length")
                 .short("l")
                 .long("length")
                 .default_value("80")
                 .help("max length of formatted lines"),
-        ).get_matches();
+        )
+        .get_matches();
     let indent = matches.value_of("indent").unwrap();
     let indent = if indent.to_lowercase().starts_with("tab") {
         "\t".to_string()
