@@ -3,7 +3,7 @@ use std::rc::Rc;
 
 pub fn valid_autocmds() -> &'static HashMap<&'static str, String> {
     lazy_static! {
-        static ref VALID_AUTOCMDS: HashMap<&'static str, String> = hashmap!{
+        static ref VALID_AUTOCMDS: HashMap<&'static str, String> = hashmap! {
             "bufadd"               => "BufAdd".to_string(),
             "bufcreate"            => "BufCreate".to_string(),
             "bufdelete"            => "BufDelete".to_string(),
