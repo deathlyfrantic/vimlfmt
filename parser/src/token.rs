@@ -476,7 +476,7 @@ mod tests {
             tokenizer.get(),
             Ok(Token::new(
                 TokenKind::EOF,
-                "<EOF>".to_string(),
+                EOF.to_string(),
                 Position::new(0, 1, 0)
             ))
         );
