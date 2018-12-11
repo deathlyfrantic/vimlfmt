@@ -1301,8 +1301,7 @@ impl<'a> Parser<'a> {
             } else if ends_excmds(c) {
                 break;
             }
-            let peeked = self.reader.peek();
-            if !['/', '\'', '"', '='].contains(&peeked) {
+            if !['/', '\'', '"', '='].contains(&self.reader.peek()) {
                 self.reader.getn(1);
             }
         }
