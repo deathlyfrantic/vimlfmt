@@ -328,6 +328,7 @@ pub enum Node {
         command: String,
         left: String,
         right: String,
+        right_expr: Option<Box<Node>>,
         attrs: Vec<String>,
     },
     Number {
@@ -716,12 +717,15 @@ impl fmt::Display for Node {
                     command,
                     left,
                     right,
+                    right_expr,
                     ..
                 } => {
                     let mut rv = format!("({}", command);
                     if left.len() > 0 {
                         rv.push_str(&format!(" {}", left));
-                        if right.len() > 0 {
+                        if let Some(re) = right_expr {
+                            rv.push_str(&format!(" {}", re));
+                        } else if right.len() > 0 {
                             rv.push_str(&format!(" {}", right));
                         }
                     }

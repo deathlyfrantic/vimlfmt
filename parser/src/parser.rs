@@ -1201,6 +1201,7 @@ impl<'a> Parser<'a> {
     fn parse_cmd_mapping(&mut self, ea: ExArg) -> Result<(), ParseError> {
         let command = ea.cmd.name.clone();
         let mut attrs = vec![];
+        let mut right_expr = None;
         loop {
             self.reader.skip_white();
             let pos = self.reader.getpos();
@@ -1209,9 +1210,9 @@ impl<'a> Parser<'a> {
             } else {
                 self.reader.get();
                 let attr = self.reader.read_alpha();
-                match attr.as_str() {
+                match attr.to_lowercase().as_str() {
                     "buffer" | "nowait" | "silent" | "script" | "unique" | "expr" => {
-                        attrs.push(attr);
+                        attrs.push(attr.to_lowercase());
                         if self.reader.peek() == '>' {
                             self.reader.get();
                         } else {
@@ -1235,30 +1236,37 @@ impl<'a> Parser<'a> {
                 attrs,
                 left: String::new(),
                 right: String::new(),
+                right_expr,
                 pos: ea.cmdpos,
                 ea,
             }));
         };
         self.reader.skip_white();
-        let mut right = String::new();
-        loop {
-            let c = self.reader.peek();
-            let c2 = self.reader.peek_ahead(1);
-            if c == '\\' && c2 == '|' {
-                self.reader.get();
-                right.push(self.reader.get());
-            } else if c != '"' && ends_excmds(c) {
-                break;
-            } else {
-                right.push(self.reader.get());
+        let right = if attrs.contains(&"expr".to_string()) {
+            right_expr = Some(Box::new(self.parse_expr()?));
+            String::new()
+        } else {
+            let mut right = String::new();
+            loop {
+                let c = self.reader.peek();
+                let c2 = self.reader.peek_ahead(1);
+                if c == '\\' && c2 == '|' {
+                    self.reader.get();
+                    right.push(self.reader.get());
+                } else if c != '"' && ends_excmds(c) {
+                    break;
+                } else {
+                    right.push(self.reader.get());
+                }
             }
-        }
-        let right = right.trim_end().to_string();
+            right.trim_end().to_string()
+        };
         self.add_node(Node::Mapping {
             command,
             attrs,
             left,
             right,
+            right_expr,
             pos: ea.cmdpos,
             ea,
         });
