@@ -2597,185 +2597,230 @@ impl<'a> ExprParser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use super::super::parse_lines;
+    use super::super::{parse_lines, Node, Position};
+
+    fn create_node(s: &str) -> Node {
+        if let Node::TopLevel { body, .. } = parse_lines(&[s]).unwrap() {
+            return *body[0].clone();
+        }
+        panic!("can't create node from '{}'", s);
+    }
+
+    // tests below test parsing and fmt::Display formatting
 
     #[test]
-    fn test_parser() {
-        let code = r#"#! /pointless/shebang
-function! z#preview(text) abort
-    if &previewwindow
-        return
-    endif
-    let l:win = win_getid()
-    let l:winview = winsaveview()
-    pclose!
-    execute 'topleft' &previewheight 'new'
-    set previewwindow noswapfile nobuflisted buftype=nofile
-    nnoremap <silent> <buffer> q :pclose!<CR>
-    nnoremap <silent> <buffer> <C-c> :pclose!<CR>
-    let l:text = type(a:text) == v:t_list ? a:text : split(a:text, '\n')
-    call append(0, l:text)
-    call cursor(1, 1)
-    call win_gotoid(l:win)
-    call winrestview(l:winview)
-endfunction
-
-delfunction z#preview
-
-" this is a comment
-function! z#enumerate(l, ...) abort
-    let start = a:0 ? a:1 : 0
-    let collection = type(a:l) == v:t_string ? split(a:l, '\zs') : a:l
-    unlet start
-    return map(collection, {i, v -> [(i + start), v]})
-endfunction
-
-function! z#zip(a, b) abort
-    let collection = len(a:a) > len(a:b) ? a:a[:len(a:b)-1] : a:a
-    return map(collection, {i, v -> [v, a:b[i]]})
-endfunction
-
-function! z#flatten(list) abort
-    let rv = []
-    let d = {'foo': 'bar'}
-    let d.baz = d.foo / 7
-    let s = 'quux' . 'garply' * 12
-    for item in a:list
-        let rv += type(item) == v:t_list ? z#flatten(item) : [item]
-    endfor
-    return rv
-endfunction
-
-function! s:while_loop() dict
-    " dummy function to add some more node types
-    let i = 0
-    while i < 10
-        lockvar 3 some_{i}_variable
-        if i % 3 == 0
-            continue
-        elseif i && 9
-            unlockvar some_other_thing
-            break
-        endif
-    endwhile
-endfunction
-
-function! z#echohl(hl, msg) abort
-    let l:msg = type(a:msg) == v:t_list ? a:msg : [a:msg]
-    let l:echo = 'WarningMsg\|ErrorMsg' =~? a:hl ? 'echomsg' : 'echo'
-    execute 'echohl' a:hl
-    try
-        for m in l:msg
-            execute l:echo 'm'
-        endfor
-    catch
-        echoerr 'error'
-    finally
-        echohl None
-    endtry
-endfunction
-
-function! z#multisub(expr, pat, sub, ...)
-    let flags = a:0 ? a:1 : ''
-    let pat = type(a:pat) == v:t_list ? a:pat : [a:pat]
-    if type(a:sub) == v:t_list || +1
-        let sub = a:sub
-        let minus_reg = -@x
-        let not_env = !$ENV
-        throw 'foobar'
-    else
-        let sub = []
-        for _ in pat
-            let sub += [a:sub]
-        endfor
-    endif
-    let rv = a:expr
-    for [search, replace] in z#zip(pat, sub)
-        let rv = substitute(rv, search, replace, flags)
-    endfor
-    return rv
-endfunction"#;
-
-        // this output came from running vimlparser.py on the above code (plus manually adding the
-        // shebang), so it is a reasonable test to assure the parser behaves like the original.
-        let expected = r#"(#! " /pointless/shebang")
-(function (z#preview text)
-  (if &previewwindow
-    (return))
-  (let = l:win (win_getid))
-  (let = l:winview (winsaveview))
-  (excmd "pclose!")
-  (execute 'topleft' &previewheight 'new')
-  (excmd "set previewwindow noswapfile nobuflisted buftype=nofile")
-  (excmd "nnoremap <silent> <buffer> q :pclose!<CR>")
-  (excmd "nnoremap <silent> <buffer> <C-c> :pclose!<CR>")
-  (let = l:text (?: (== (type a:text) v:t_list) a:text (split a:text '\n')))
-  (call (append 0 l:text))
-  (call (cursor 1 1))
-  (call (win_gotoid l:win))
-  (call (winrestview l:winview)))
-(delfunction z#preview)
-; this is a comment
-(function (z#enumerate l . ...)
-  (let = start (?: a:0 a:1 0))
-  (let = collection (?: (== (type a:l) v:t_string) (split a:l '\zs') a:l))
-  (unlet start)
-  (return (map collection (lambda (i v) (list (+ i start) v)))))
-(function (z#zip a b)
-  (let = collection (?: (> (len a:a) (len a:b)) (slice a:a nil (- (len a:b) 1)) a:a))
-  (return (map collection (lambda (i v) (list v (subscript a:b i))))))
-(function (z#flatten list)
-  (let = rv (list))
-  (let = d (dict ('foo' 'bar')))
-  (let = (dot d baz) (/ (dot d foo) 7))
-  (let = s (concat 'quux' (* 'garply' 12)))
-  (for item a:list
-    (let += rv (?: (== (type item) v:t_list) (z#flatten item) (list item))))
-  (return rv))
-(function (s:while_loop)
-  ; dummy function to add some more node types
-  (let = i 0)
-  (while (< i 10)
-    (lockvar 3 some_{i}_variable)
-    (if (== (% i 3) 0)
-      (continue)
-     elseif (&& i 9)
-      (unlockvar some_other_thing)
-      (break))))
-(function (z#echohl hl msg)
-  (let = l:msg (?: (== (type a:msg) v:t_list) a:msg (list a:msg)))
-  (let = l:echo (?: (=~? 'WarningMsg\|ErrorMsg' a:hl) 'echomsg' 'echo'))
-  (execute 'echohl' a:hl)
-  (try
-    (for m l:msg
-      (execute l:echo 'm'))
-   catch
-    (echoerr 'error')
-   finally
-    (echohl "None")))
-(function (z#multisub expr pat sub . ...)
-  (let = flags (?: a:0 a:1 ''))
-  (let = pat (?: (== (type a:pat) v:t_list) a:pat (list a:pat)))
-  (if (|| (== (type a:sub) v:t_list) (+ 1))
-    (let = sub a:sub)
-    (let = minus_reg (- @x))
-    (let = not_env (! $ENV))
-    (throw 'foobar')
-   else
-    (let = sub (list))
-    (for _ pat
-      (let += sub (list a:sub))))
-  (let = rv a:expr)
-  (for (search replace) (z#zip pat sub)
-    (let = rv (substitute rv search replace flags)))
-  (return rv))"#;
-
-        assert_eq!(
-            format!(
-                "{}",
-                parse_lines(&code.split("\n").collect::<Vec<&str>>()).unwrap()
-            ),
-            expected
+    fn test_augroup_and_autocmds() {
+        let code = ["augroup foo", "autocmd VimEnter * Command", "augroup END"];
+        let expected = concat!(
+            "(augroup foo)\n",
+            "(autocmd VimEnter * (excmd \"Command\"))\n",
+            "(augroup END)"
         );
+        assert_eq!(&format!("{}", parse_lines(&code).unwrap()), expected);
+    }
+
+    #[test]
+    fn test_echo_and_binary_op() {
+        let code = ["echo foo + bar"];
+        let expected = "(echo (+ foo bar))";
+        assert_eq!(&format!("{}", parse_lines(&code).unwrap()), expected);
+    }
+
+    #[test]
+    fn test_blank_line() {
+        let node = create_node("\n");
+        let expected = Node::BlankLine {
+            pos: Position {
+                cursor: 0,
+                line: 1,
+                col: 1,
+            },
+        };
+        assert_eq!(node, expected);
+    }
+
+    #[test]
+    fn test_call_excall_and_identifier() {
+        let code = ["call foo(bar, baz)"];
+        let expected = "(call (foo bar baz))";
+        assert_eq!(&format!("{}", parse_lines(&code).unwrap()), expected);
+    }
+
+    #[test]
+    fn test_try_catch_finally_echomsg_and_echoerr() {
+        let code = [
+            "try",
+            "echomsg 1",
+            "catch /foo/",
+            "echoerr 2",
+            "catch",
+            "echoerr 3",
+            "finally",
+            "echomsg 4",
+            "endtry",
+        ];
+        let expected = concat!(
+            "(try\n",
+            "  (echomsg 1)\n",
+            " catch /foo/\n",
+            "  (echoerr 2)\n",
+            " catch\n",
+            "  (echoerr 3)\n",
+            " finally\n",
+            "  (echomsg 4))"
+        );
+        assert_eq!(&format!("{}", parse_lines(&code).unwrap()), expected);
+    }
+
+    #[test]
+    fn test_comment_squote_string_let_and_unlet() {
+        let code = [
+            "\" NOT TRAILING COMMENT",
+            "let x = 'something' \" trailing comment",
+            "unlet x",
+        ];
+        let expected = concat!(
+            "; NOT TRAILING COMMENT\n",
+            "(let = x 'something')\n",
+            "; trailing comment\n",
+            "(unlet x)"
+        );
+        assert_eq!(&format!("{}", parse_lines(&code).unwrap()), expected);
+    }
+
+    #[test]
+    fn test_curly_name() {
+        let code = ["let foo{bar}baz = 'something'"];
+        let expected = "(let = foo{bar}baz 'something')";
+        assert_eq!(&format!("{}", parse_lines(&code).unwrap()), expected);
+    }
+
+    #[test]
+    fn test_dict_and_echon() {
+        let code = ["echon {}", "echon {'foo': 1, 'bar': 2}"];
+        let expected = "(echon (dict))\n(echon (dict ('foo' 1) ('bar' 2)))";
+        assert_eq!(&format!("{}", parse_lines(&code).unwrap()), expected);
+    }
+
+    #[test]
+    fn test_dot() {
+        let code = ["echo foo.bar"];
+        let expected = "(echo (dot foo bar))";
+        assert_eq!(&format!("{}", parse_lines(&code).unwrap()), expected);
+    }
+
+    #[test]
+    fn test_if_else_elseif_env_option_and_reg() {
+        let code = [
+            "if foo\n",
+            "echo $ENV\n",
+            "elseif bar\n",
+            "echo &number\n",
+            "else\n",
+            "echo @r\n",
+            "endif",
+        ];
+        let expected = concat!(
+            "(if foo\n",
+            "  (echo $ENV)\n",
+            " elseif bar\n",
+            "  (echo &number)\n",
+            " else\n",
+            "  (echo @r))"
+        );
+        assert_eq!(&format!("{}", parse_lines(&code).unwrap()), expected);
+    }
+
+    #[test]
+    fn test_execute() {
+        let code = ["execute UserCmd"];
+        let expected = "(execute UserCmd)";
+        assert_eq!(&format!("{}", parse_lines(&code).unwrap()), expected);
+    }
+
+    #[test]
+    fn test_excmd() {
+        let code = ["UserCmd something 123"];
+        let expected = "(excmd \"UserCmd something 123\")";
+        assert_eq!(&format!("{}", parse_lines(&code).unwrap()), expected);
+    }
+
+    #[test]
+    fn test_for() {
+        let code = ["for [a, b; z] in something", "echo a b z", "endfor"];
+        let expected = concat!("(for (a b . z) something\n", "  (echo a b z))");
+        assert_eq!(&format!("{}", parse_lines(&code).unwrap()), expected);
+    }
+
+    #[test]
+    fn test_function_lambda_list_and_return() {
+        let code = [
+            "function! s:foo() abort dict",
+            "  return map([1, 2, 3], {i, v -> v * 2 + i})",
+            "endfunction",
+            "delfunction s:foo",
+        ];
+        let expected = concat!(
+            "(function (s:foo)\n",
+            "  (return (map (list 1 2 3) (lambda (i v) (+ (* v 2) i)))))\n",
+            "(delfunction s:foo)"
+        );
+        assert_eq!(&format!("{}", parse_lines(&code).unwrap()), expected);
+    }
+
+    #[test]
+    fn test_lockvar_mapping_and_unlockvar() {
+        let code = [
+            "lockvar 1 foo",
+            "nnoremap <expr> <silent> <C-x> unlockvar 1 foo",
+        ];
+        let expected = concat!("(lockvar 1 foo)\n", "(nnoremap <C-x> unlockvar 1 foo)");
+        assert_eq!(&format!("{}", parse_lines(&code).unwrap()), expected);
+    }
+
+    #[test]
+    fn test_parenexpr_and_bin_op() {
+        let code = ["let x = ((a && b) || c * d)"];
+        let expected = "(let = x (|| (&& a b) (* c d)))";
+        assert_eq!(&format!("{}", parse_lines(&code).unwrap()), expected);
+    }
+
+    #[test]
+    fn test_shebang() {
+        let code = ["#!/usr/bin/vim"];
+        let expected = "(#! \"/usr/bin/vim\")";
+        assert_eq!(&format!("{}", parse_lines(&code).unwrap()), expected);
+    }
+
+    #[test]
+    fn test_string_subscript_and_slice() {
+        let code = ["echo 'foobar'[1:-2][1]"];
+        let expected = "(echo (subscript (slice 'foobar' 1 (- 2)) 1))";
+        assert_eq!(&format!("{}", parse_lines(&code).unwrap()), expected);
+    }
+
+    #[test]
+    fn test_ternary() {
+        let code = ["echo foo ? 'bar' : 'baz'"];
+        let expected = "(echo (?: foo 'bar' 'baz'))";
+        assert_eq!(&format!("{}", parse_lines(&code).unwrap()), expected);
+    }
+
+    #[test]
+    fn test_while_break_continue_and_throw() {
+        let code = [
+            "while 1",
+            "throw 'EXCEPTION!!!'",
+            "break",
+            "continue",
+            "endwhile",
+        ];
+        let expected = concat!(
+            "(while 1\n",
+            "  (throw 'EXCEPTION!!!')\n",
+            "  (break)\n",
+            "  (continue))"
+        );
+        assert_eq!(&format!("{}", parse_lines(&code).unwrap()), expected);
     }
 }
