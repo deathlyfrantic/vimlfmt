@@ -2779,9 +2779,14 @@ mod tests {
     fn test_lockvar_mapping_and_unlockvar() {
         let code = [
             "lockvar 1 foo",
-            "nnoremap <expr> <silent> <C-x> unlockvar 1 foo",
+            "nnoremap <expr> <silent> <C-x> SomeFunction()",
+            "unlockvar 1 foo",
         ];
-        let expected = concat!("(lockvar 1 foo)\n", "(nnoremap <C-x> unlockvar 1 foo)");
+        let expected = concat!(
+            "(lockvar 1 foo)\n",
+            "(nnoremap <C-x> (SomeFunction))\n",
+            "(unlockvar 1 foo)"
+        );
         assert_eq!(&format!("{}", parse_lines(&code).unwrap()), expected);
     }
 
