@@ -2205,101 +2205,16 @@ impl<'a> ExprParser<'a> {
                 Node::List { pos, items }
             }
             TokenKind::COpen => {
+                // dict or lambda
                 let savepos = self.reader.tell();
                 let mut token = self.tokenizer.get()?;
                 let mut is_lambda = token.kind == TokenKind::Arrow;
-                if !is_lambda && token.kind != TokenKind::SQuote && token.kind != TokenKind::DQuote
-                {
+                if !is_lambda && ![TokenKind::SQuote, TokenKind::DQuote].contains(&token.kind) {
                     let token2 = self.tokenizer.peek()?;
-                    is_lambda = token2.kind == TokenKind::Arrow || token2.kind == TokenKind::Comma;
+                    is_lambda = [TokenKind::Arrow, TokenKind::Comma].contains(&token2.kind);
                 }
-                let mut fallback = false;
                 if is_lambda {
-                    let mut args = vec![];
-                    let mut named: Vec<String> = vec![];
-                    loop {
-                        match token.kind {
-                            TokenKind::Arrow => {
-                                break;
-                            }
-                            TokenKind::Identifier => {
-                                if !isargname(&token.value) {
-                                    return Err(ParseError {
-                                        msg: format!("E125: Illegal argument: {}", token.value),
-                                        pos: token.pos,
-                                    });
-                                } else if named.contains(&token.value.clone()) {
-                                    return Err(ParseError {
-                                        msg: format!(
-                                            "E853: Duplicate argument name: {}",
-                                            token.value
-                                        ),
-                                        pos: token.pos,
-                                    });
-                                }
-                                named.push(token.value.clone());
-                                let varnode = Node::Identifier {
-                                    pos: token.pos,
-                                    value: token.value,
-                                };
-                                let maybe_comma = self.tokenizer.peek()?.kind;
-                                if self.reader.peek().is_white() && maybe_comma == TokenKind::Comma
-                                {
-                                    return Err(ParseError {
-                                        msg: String::from(
-                                            "E475: invalid argument: White space is not allowed before comma"
-                                        ),
-                                        pos: self.reader.getpos()
-                                    });
-                                }
-                                token = self.tokenizer.get()?;
-                                args.push(Box::new(varnode));
-                                if token.kind == TokenKind::Comma {
-                                    token = self.tokenizer.peek()?;
-                                    if token.kind == TokenKind::Arrow {
-                                        self.tokenizer.get()?;
-                                        break;
-                                    }
-                                } else if token.kind == TokenKind::Arrow {
-                                    break;
-                                } else {
-                                    return Err(ParseError {
-                                        msg: format!(
-                                            "unexpected token: {}, type: {:#?}",
-                                            token.value, token.kind
-                                        ),
-                                        pos: token.pos,
-                                    });
-                                }
-                            }
-                            TokenKind::DotDotDot => {
-                                let varnode = Node::Identifier {
-                                    pos: token.pos,
-                                    value: token.value,
-                                };
-                                args.push(Box::new(varnode));
-                                token = self.tokenizer.peek()?;
-                                if token.kind == TokenKind::Arrow {
-                                    self.tokenizer.get()?;
-                                    break;
-                                } else {
-                                    return self.token_err(token);
-                                }
-                            }
-                            _ => {
-                                fallback = true;
-                                break;
-                            }
-                        }
-                        token = self.tokenizer.get()?;
-                    }
-                    if !fallback {
-                        let expr = Box::new(self.parse_expr1()?);
-                        let node = Node::Lambda { pos, args, expr };
-                        token = self.tokenizer.get()?;
-                        if token.kind != TokenKind::CClose {
-                            return self.token_err(token);
-                        }
+                    if let Some(node) = self.parse_lambda(token, pos)? {
                         return Ok(node);
                     }
                 }
@@ -2381,6 +2296,98 @@ impl<'a> ExprParser<'a> {
                 return self.token_err(token);
             }
         })
+    }
+
+    fn parse_lambda(
+        &mut self,
+        mut token: Token,
+        pos: Position,
+    ) -> Result<Option<Node>, ParseError> {
+        let mut fallback = false;
+        let mut args = vec![];
+        let mut named: Vec<String> = vec![];
+        loop {
+            match token.kind {
+                TokenKind::Arrow => {
+                    break;
+                }
+                TokenKind::Identifier => {
+                    if !isargname(&token.value) {
+                        return Err(ParseError {
+                            msg: format!("E125: Illegal argument: {}", token.value),
+                            pos: token.pos,
+                        });
+                    } else if named.contains(&token.value.clone()) {
+                        return Err(ParseError {
+                            msg: format!("E853: Duplicate argument name: {}", token.value),
+                            pos: token.pos,
+                        });
+                    }
+                    named.push(token.value.clone());
+                    let varnode = Node::Identifier {
+                        pos: token.pos,
+                        value: token.value,
+                    };
+                    let maybe_comma = self.tokenizer.peek()?.kind;
+                    if self.reader.peek().is_white() && maybe_comma == TokenKind::Comma {
+                        return Err(ParseError {
+                            msg: String::from(
+                                "E475: invalid argument: White space is not allowed before comma",
+                            ),
+                            pos: self.reader.getpos(),
+                        });
+                    }
+                    token = self.tokenizer.get()?;
+                    args.push(Box::new(varnode));
+                    if token.kind == TokenKind::Comma {
+                        token = self.tokenizer.peek()?;
+                        if token.kind == TokenKind::Arrow {
+                            self.tokenizer.get()?;
+                            break;
+                        }
+                    } else if token.kind == TokenKind::Arrow {
+                        break;
+                    } else {
+                        return Err(ParseError {
+                            msg: format!(
+                                "unexpected token: {}, type: {:#?}",
+                                token.value, token.kind
+                            ),
+                            pos: token.pos,
+                        });
+                    }
+                }
+                TokenKind::DotDotDot => {
+                    let varnode = Node::Identifier {
+                        pos: token.pos,
+                        value: token.value,
+                    };
+                    args.push(Box::new(varnode));
+                    token = self.tokenizer.peek()?;
+                    if token.kind == TokenKind::Arrow {
+                        self.tokenizer.get()?;
+                        break;
+                    } else {
+                        return self.token_err(token);
+                    }
+                }
+                _ => {
+                    fallback = true;
+                    break;
+                }
+            }
+            token = self.tokenizer.get()?;
+        }
+        if !fallback {
+            let expr = Box::new(self.parse_expr1()?);
+            let node = Node::Lambda { pos, args, expr };
+            token = self.tokenizer.get()?;
+            if token.kind != TokenKind::CClose {
+                return self.token_err(token);
+            }
+            return Ok(Some(node));
+        }
+        Ok(None)
     }
 
     fn parse_identifier(&mut self) -> Result<Node, ParseError> {
