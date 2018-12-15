@@ -441,8 +441,14 @@ impl<'a> Formatter<'a> {
                 self.f(right);
             }
             Node::List { items, .. } => self.f_list(items),
-            Node::LockVar { depth, list, .. } => {
-                self.add("lockvar ");
+            Node::LockVar {
+                cmd, depth, list, ..
+            } => {
+                self.add(&cmd);
+                if ea.bang {
+                    self.add("!");
+                }
+                self.add(" ");
                 if let Some(d) = depth {
                     self.add(&d.to_string());
                     self.add(" ");
@@ -536,17 +542,6 @@ impl<'a> Formatter<'a> {
                     self.add("!");
                 }
                 self.add(" ");
-                for item in list.iter() {
-                    self.f(item);
-                    self.add(" ");
-                }
-            }
-            Node::UnlockVar { depth, list, .. } => {
-                self.add("unlockvar ");
-                if let Some(d) = depth {
-                    self.add(&d.to_string());
-                    self.add(" ");
-                }
                 for item in list.iter() {
                     self.f(item);
                     self.add(" ");
