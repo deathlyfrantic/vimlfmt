@@ -180,7 +180,6 @@ pub enum ParserKind {
     Throw,
     Try,
     Unlet,
-    UnlockVar,
     UserCmd,
     While,
     WinCmd,
@@ -4470,7 +4469,7 @@ fn command_vec() -> Vec<Command> {
                 Flag::SBoxOk,
                 Flag::CmdWin,
             ],
-            parser: ParserKind::UnlockVar,
+            parser: ParserKind::LockVar,
         },
         Command {
             name: "unmap".to_string(),

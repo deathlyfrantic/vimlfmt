@@ -319,6 +319,7 @@ pub enum Node {
     LockVar {
         ea: ExArg,
         pos: Position,
+        cmd: String, // lockvar or unlockvar
         depth: Option<usize>,
         list: Vec<Box<Node>>,
     },
@@ -402,12 +403,6 @@ pub enum Node {
     Unlet {
         ea: ExArg,
         pos: Position,
-        list: Vec<Box<Node>>,
-    },
-    UnlockVar {
-        ea: ExArg,
-        pos: Position,
-        depth: Option<usize>,
         list: Vec<Box<Node>>,
     },
     While {
@@ -706,11 +701,13 @@ impl fmt::Display for Node {
                         display_with_list("list", &items)
                     }
                 }
-                Node::LockVar { depth, list, .. } => {
+                Node::LockVar {
+                    cmd, depth, list, ..
+                } => {
                     if let Some(d) = depth {
-                        display_with_list(&format!("lockvar {}", d), &list)
+                        display_with_list(&format!("{} {}", cmd, d), &list)
                     } else {
-                        display_with_list("lockvar", &list)
+                        display_with_list(&cmd, &list)
                     }
                 }
                 Node::Mapping {
@@ -806,13 +803,6 @@ impl fmt::Display for Node {
                 }
                 Node::UnaryOp { op, right, .. } => display_left(&format!("{}", op), right),
                 Node::Unlet { list, .. } => display_with_list("unlet", &list),
-                Node::UnlockVar { depth, list, .. } => {
-                    if let Some(d) = depth {
-                        display_with_list(&format!("unlockvar {}", d), &list)
-                    } else {
-                        display_with_list("unlockvar", &list)
-                    }
-                }
                 Node::While { cond, body, .. } => {
                     let mut rv = format!("(while {}", cond);
                     rv.push_str(&format_body(body.as_slice()));

@@ -580,7 +580,6 @@ impl<'a> Parser<'a> {
             ParserKind::Throw => self.parse_cmd_throw(ea),
             ParserKind::Try => self.parse_cmd_try(ea),
             ParserKind::Unlet => self.parse_cmd_unlet(ea),
-            ParserKind::UnlockVar => self.parse_cmd_unlockvar(ea),
             ParserKind::While => self.parse_cmd_while(ea),
             ParserKind::WinCmd => self.parse_cmd_wincmd(ea),
         }
@@ -1189,6 +1188,7 @@ impl<'a> Parser<'a> {
             None
         };
         let node = Node::LockVar {
+            cmd: ea.cmd.name.to_string(),
             pos: ea.cmdpos,
             ea,
             depth,
@@ -1348,23 +1348,6 @@ impl<'a> Parser<'a> {
             pos: ea.cmdpos,
             ea,
             list: self.parse_lvaluelist()?,
-        };
-        self.add_node(node);
-        Ok(())
-    }
-
-    fn parse_cmd_unlockvar(&mut self, ea: ExArg) -> Result<(), ParseError> {
-        self.reader.skip_white();
-        let depth = if self.reader.peek().is_ascii_digit() {
-            Some(self.reader.read_digit().parse::<usize>().unwrap())
-        } else {
-            None
-        };
-        let node = Node::UnlockVar {
-            pos: ea.cmdpos,
-            ea,
-            depth,
-            list: self.parse_exprlist()?,
         };
         self.add_node(node);
         Ok(())
