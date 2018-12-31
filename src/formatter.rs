@@ -442,7 +442,11 @@ impl<'a> Formatter<'a> {
             }
             Node::List { items, .. } => self.f_list(items),
             Node::LockVar {
-                cmd, depth, list, ..
+                cmd,
+                depth,
+                list,
+                ea,
+                ..
             } => {
                 self.add(&cmd);
                 if ea.bang {
