@@ -98,6 +98,7 @@ impl<'a> Formatter<'a> {
         let current_line = self.line.split_off(0).trim_end().to_string();
         if current_line == "" {
             if self.last_line_was_blank {
+                // don't allow more than one blank line
                 return;
             }
             self.last_line_was_blank = true;
