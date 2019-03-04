@@ -1,14 +1,15 @@
 use super::{isargname, isvarname, CharClassification, ParseError, Position, EOF, EOL};
-use crate::command::{commands, valid_autocmds, Command, Flag, ParserKind};
-use crate::exarg::ExArg;
-use crate::modifier::Modifier;
-use crate::node::{BinaryOpKind, Node, UnaryOpKind};
-use crate::reader::Reader;
-use crate::token::{Token, TokenKind, Tokenizer};
+use crate::{
+    command::{commands, valid_autocmds, Command, Flag, ParserKind},
+    exarg::ExArg,
+    modifier::Modifier,
+    node::{BinaryOpKind, Node, UnaryOpKind},
+    reader::Reader,
+    token::{Token, TokenKind, Tokenizer},
+};
 use lazy_static::lazy_static;
 use regex::Regex;
-use std::collections::HashMap;
-use std::rc::Rc;
+use std::{collections::HashMap, rc::Rc};
 
 const MAX_FUNC_ARGS: usize = 20;
 
