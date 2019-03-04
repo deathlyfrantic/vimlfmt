@@ -5,7 +5,8 @@ mod formatter;
 
 use clap::{App, Arg};
 use formatter::Formatter;
-use viml_parser::parse_file;
+use std::io::{self, BufRead};
+use viml_parser::parse_lines;
 
 fn main() {
     let matches = App::new("vimfmt")
@@ -15,12 +16,6 @@ fn main() {
                 .short("A")
                 .long("ast")
                 .help("Output AST instead of formatted code"),
-        )
-        .arg(
-            Arg::with_name("files")
-                .required(true)
-                .min_values(1)
-                .help("File(s) to parse"),
         )
         .arg(
             Arg::with_name("indent")
@@ -64,19 +59,23 @@ fn main() {
         .unwrap()
         .parse::<usize>()
         .expect("length must be a positive integer");
-    if let Some(files) = matches.values_of("files") {
-        let mut formatter = Formatter::new(&indent, continuation, length);
-        for file in files {
-            match parse_file(&file) {
-                Ok(output) => {
-                    if matches.is_present("ast") {
-                        println!("{}", output);
-                    } else {
-                        println!("{}", formatter.format(&output));
-                    }
-                }
-                Err(e) => eprintln!("{}", e),
+    let mut formatter = Formatter::new(&indent, continuation, length);
+    let stdin = io::stdin();
+    let lines: Vec<String> = stdin.lock().lines().filter_map(|l| l.ok()).collect();
+    match parse_lines(
+        lines
+            .iter()
+            .map(|l| l.as_str())
+            .collect::<Vec<&str>>()
+            .as_slice(),
+    ) {
+        Ok(output) => {
+            if matches.is_present("ast") {
+                println!("{}", output);
+            } else {
+                println!("{}", formatter.format(&output));
             }
         }
+        Err(e) => eprintln!("{}", e),
     }
 }
