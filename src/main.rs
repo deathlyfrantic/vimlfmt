@@ -57,8 +57,7 @@ fn main() {
         .parse::<usize>()
         .expect("length must be a positive integer");
     let mut formatter = Formatter::new(&indent, continuation, length);
-    let stdin = io::stdin();
-    let lines: Vec<String> = stdin.lock().lines().filter_map(|l| l.ok()).collect();
+    let lines: Vec<String> = io::stdin().lock().lines().filter_map(|l| l.ok()).collect();
     match parse_lines(
         lines
             .iter()
