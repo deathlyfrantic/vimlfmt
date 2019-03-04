@@ -1,10 +1,7 @@
-extern crate clap;
-extern crate viml_parser;
-
 mod formatter;
 
+use crate::formatter::Formatter;
 use clap::{App, Arg};
-use formatter::Formatter;
 use std::io::{self, BufRead};
 use viml_parser::parse_lines;
 
