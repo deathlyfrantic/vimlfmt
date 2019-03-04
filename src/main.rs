@@ -9,6 +9,7 @@ use viml_parser::parse_file;
 
 fn main() {
     let matches = App::new("vimfmt")
+        .version("0.1.0")
         .arg(
             Arg::with_name("ast")
                 .short("A")
