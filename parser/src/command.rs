@@ -1,7 +1,6 @@
 use lazy_static::lazy_static;
 use maplit::hashmap;
-use std::collections::HashMap;
-use std::rc::Rc;
+use std::{collections::HashMap, rc::Rc};
 
 pub fn valid_autocmds() -> &'static HashMap<&'static str, String> {
     lazy_static! {

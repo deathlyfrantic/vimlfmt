@@ -1,8 +1,5 @@
 use super::{CharClassification, Position, EOF, EOL};
-use std::cell::RefCell;
-use std::cmp::min;
-use std::fs::File;
-use std::io::prelude::*;
+use std::{cell::RefCell, cmp::min, fs::File, io::prelude::*};
 
 #[derive(Debug, PartialEq)]
 pub struct Reader {
