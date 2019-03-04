@@ -1,13 +1,14 @@
 use super::{isargname, isvarname, CharClassification, ParseError, Position, EOF, EOL};
-use command::{commands, valid_autocmds, Command, Flag, ParserKind};
-use exarg::ExArg;
-use modifier::Modifier;
-use node::{BinaryOpKind, Node, UnaryOpKind};
-use reader::Reader;
+use crate::command::{commands, valid_autocmds, Command, Flag, ParserKind};
+use crate::exarg::ExArg;
+use crate::modifier::Modifier;
+use crate::node::{BinaryOpKind, Node, UnaryOpKind};
+use crate::reader::Reader;
+use crate::token::{Token, TokenKind, Tokenizer};
+use lazy_static::lazy_static;
 use regex::Regex;
 use std::collections::HashMap;
 use std::rc::Rc;
-use token::{Token, TokenKind, Tokenizer};
 
 const MAX_FUNC_ARGS: usize = 20;
 
@@ -900,7 +901,7 @@ impl<'a> Parser<'a> {
                 return Err(ParseError {
                     msg: "E581: :else without :if".to_string(),
                     pos: ea.cmdpos,
-                })
+                });
             }
         };
         self.push_context(Node::Else {
@@ -921,7 +922,7 @@ impl<'a> Parser<'a> {
                 return Err(ParseError {
                     msg: "E582: :elseif without :if".to_string(),
                     pos: ea.cmdpos,
-                })
+                });
             }
         };
         let node = Node::ElseIf {
@@ -983,7 +984,7 @@ impl<'a> Parser<'a> {
                 return Err(ParseError {
                     msg: "E580: :endif without :if".to_string(),
                     pos: ea.cmdpos,
-                })
+                });
             }
         };
         if let Node::If { ref mut end, .. } = self.current_context_mut() {
@@ -1004,7 +1005,7 @@ impl<'a> Parser<'a> {
                 return Err(ParseError {
                     msg: "E580: :endtry without :try".to_string(),
                     pos: ea.cmdpos,
-                })
+                });
             }
         };
         if let Node::Try { ref mut end, .. } = self.current_context_mut() {
@@ -1042,7 +1043,7 @@ impl<'a> Parser<'a> {
                 return Err(ParseError {
                     msg: "E606: :finally without :try".to_string(),
                     pos: ea.cmdpos,
-                })
+                });
             }
         };
         self.push_context(Node::Finally {

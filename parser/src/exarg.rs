@@ -1,6 +1,6 @@
 use super::Position;
-use command::{Command, ParserKind};
-use modifier::Modifier;
+use crate::command::{Command, ParserKind};
+use crate::modifier::Modifier;
 use std::rc::Rc;
 
 #[derive(Debug, PartialEq, Clone)]
