@@ -2,6 +2,7 @@
 name = "viml-parser"
 version = "0.1.0"
 authors = ["Zandr Martin <git@zandr.me>"]
+edition = "2018"
 
 [dependencies]
 regex = "1.0.5"

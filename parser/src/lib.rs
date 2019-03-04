@@ -1,10 +1,6 @@
-#[macro_use]
-extern crate maplit;
-#[macro_use]
-extern crate lazy_static;
-extern crate regex;
+use lazy_static::lazy_static;
 
-pub use node::Node;
+pub use crate::node::Node;
 use regex::Regex;
 use std::fmt;
 

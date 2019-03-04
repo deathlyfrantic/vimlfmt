@@ -1,5 +1,5 @@
 use super::{CharClassification, ParseError, Position, EOF, EOL};
-use reader::Reader;
+use crate::reader::Reader;
 use std::collections::HashMap;
 
 #[derive(Debug, PartialEq, Clone)]
