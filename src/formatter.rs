@@ -106,15 +106,13 @@ impl<'a> Formatter<'a> {
             self.last_line_was_blank = false;
         }
         self.output.push(current_line);
-        let indent = self.indent();
-        self.line.push_str(&indent);
+        self.line.push_str(&self.indent());
     }
 
     fn continue_line(&mut self) {
         self.output
             .push(self.line.split_off(0).trim_end().to_string());
-        let indent = self.indent();
-        self.line.push_str(&indent);
+        self.line.push_str(&self.indent());
         self.line
             .push_str(&self.indent_style.repeat(self.continuation));
         self.line.push_str("\\ ");
