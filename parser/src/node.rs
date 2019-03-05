@@ -5,18 +5,9 @@ use std::fmt;
 const INDENT: &str = "  ";
 
 fn escape(s: &str) -> String {
-    let mut rv = String::new();
-    for c in s.chars() {
-        if c == '\r' {
-            rv.push_str("\\r");
-        } else {
-            if c == '\\' || c == '"' {
-                rv.push('\\');
-            }
-            rv.push(c);
-        }
-    }
-    rv
+    s.replace('\\', "\\\\")
+        .replace('"', "\\\"")
+        .replace('\r', "\\r")
 }
 
 fn display_left<T: fmt::Display>(name: &str, left: T) -> String {
