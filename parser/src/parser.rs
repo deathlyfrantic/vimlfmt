@@ -479,16 +479,13 @@ impl<'a> Parser<'a> {
             }
             return Ok(());
         }
-        match self.find_command() {
-            Some(c) => {
-                ea.cmd = c;
-            }
-            None => {
-                return self.err(&format!(
-                    "E492: Not an editor command: {}",
-                    self.reader.peek_line()
-                ));
-            }
+        if let Some(c) = self.find_command() {
+            ea.cmd = c;
+        } else {
+            return self.err(&format!(
+                "E492: Not an editor command: {}",
+                self.reader.peek_line()
+            ));
         }
         if self.reader.peek() == '!'
             && !["substitute", "smagic", "snomagic"].contains(&ea.cmd.name.as_str())
@@ -2120,14 +2117,11 @@ impl<'a> ExprParser<'a> {
                 let node = Node::Call { pos, name, args };
                 left = node;
             } else if !c.is_white() && token.kind == TokenKind::Dot {
-                match self.parse_dot(token, left.clone()) {
-                    Some(node) => {
-                        left = node;
-                    }
-                    None => {
-                        self.reader.seek_set(cursor);
-                        break;
-                    }
+                if let Some(node) = self.parse_dot(token, left.clone()) {
+                    left = node;
+                } else {
+                    self.reader.seek_set(cursor);
+                    break;
                 }
             } else {
                 self.reader.seek_set(cursor);
@@ -2535,14 +2529,11 @@ impl<'a> ExprParser<'a> {
             if !c.is_white() && token.kind == TokenKind::SqOpen {
                 left = self.parse_slice(left, token.pos)?;
             } else if !c.is_white() && token.kind == TokenKind::Dot {
-                match self.parse_dot(token, left.clone()) {
-                    Some(n) => {
-                        left = n;
-                    }
-                    None => {
-                        self.reader.seek_set(cursor);
-                        break;
-                    }
+                if let Some(n) = self.parse_dot(token, left.clone()) {
+                    left = n;
+                } else {
+                    self.reader.seek_set(cursor);
+                    break;
                 }
             } else {
                 self.reader.seek_set(cursor);
