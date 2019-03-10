@@ -10,9 +10,13 @@ fn main() {
         .version("0.1.0")
         .arg(
             Arg::with_name("ast")
-                .short("A")
                 .long("ast")
                 .help("Output AST instead of formatted code"),
+        )
+        .arg(
+            Arg::with_name("debug")
+                .long("debug")
+                .help("Output formatted Rust debug output (using '{:#?}')"),
         )
         .arg(
             Arg::with_name("indent")
@@ -68,6 +72,8 @@ fn main() {
         Ok(output) => {
             if matches.is_present("ast") {
                 println!("{}", output);
+            } else if matches.is_present("debug") {
+                println!("{:#?}", output);
             } else {
                 println!("{}", formatter.format(&output));
             }
