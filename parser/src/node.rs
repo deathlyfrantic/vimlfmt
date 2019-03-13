@@ -29,45 +29,85 @@ fn display_with_list<T: fmt::Display>(name: &str, list: &[T]) -> String {
     )
 }
 
+/// The operation kind in a Node::BinaryOp node.
 #[derive(Debug, PartialEq, Clone)]
 pub enum BinaryOpKind {
+    /// Addition (`+`)
     Add,
+    /// And (`&&`)
     And,
+    /// Concatentation (`.` - Note that this parser cannot 100% distinguish between dictionary
+    /// access and concatenation as VimL uses the dot token for both.)
     Concat,
+    /// Division (`/`)
     Divide,
+    /// Equals (`==`)
     EqEq,
+    /// Case-insensitive equals (`==?`)
     EqEqCI,
+    /// Case-sensitive equals (`==#`)
     EqEqCS,
+    /// Greater-than (`>`)
     GT,
+    /// Case-insensitive greater-than (`>?`)
     GTCI,
+    /// Case-sensitive greater-than (`>#`)
     GTCS,
+    /// Greater-than or equals (`>=`)
     GTEq,
+    /// Case-insensitive greater-than or equals (`>=?`)
     GTEqCI,
+    /// Case-sensitive greater-than or equals (`>=#`)
     GTEqCS,
+    /// Is (same instance) (`is`)
     Is,
+    /// Case-instance is (same instance) (`is?`)
     IsCI,
+    /// Case-sensitive is (same instance) (`is#`)
     IsCS,
+    /// Is not (same instance) (`isnot`)
     IsNot,
+    /// Case-insensitive is not (same instance) (`isnot?`)
     IsNotCI,
+    /// Case-sensitive is not (same instance) (`isnot#`)
     IsNotCS,
+    /// Less-than (`<`)
     LT,
+    /// Case-insensitive less-than (`<?`)
     LTCI,
+    /// Case-sensitive less-than (`<#`)
     LTCS,
+    /// Less-than or equals (`<=`)
     LTEq,
+    /// Case-insensitive less-than or equals (`<=?`)
     LTEqCI,
+    /// Case-sensitive less-than or equals (`<=#`)
     LTEqCS,
+    /// Regexp matches (`=~`)
     Match,
+    /// Case-insensitive regexp matches (`=~?`)
     MatchCI,
+    /// Case-sensitive regexp matches (`=~#`)
     MatchCS,
+    /// Multiplication (`*`)
     Multiply,
+    /// Regexp does not match (`!~`)
     NoMatch,
+    /// Case-insensitive regexp does not match (`!~?`)
     NoMatchCI,
+    /// Case-sensitive regexp does not match (`!~#`)
     NoMatchCS,
+    /// Does not equal (`!=`)
     NotEq,
+    /// Case-insensitive does not equal (`!=?`)
     NotEqCI,
+    /// Case-sensitive does not equal (`!=#`)
     NotEqCS,
+    /// Or (`||`)
     Or,
+    /// Modulo (`%`)
     Remainder,
+    /// Subtraction (`-`)
     Subtract,
 }
 
@@ -120,10 +160,14 @@ impl fmt::Display for BinaryOpKind {
     }
 }
 
+/// The operation kind in a Node::UnaryOp node.
 #[derive(Debug, PartialEq, Clone)]
 pub enum UnaryOpKind {
+    /// Minus (`-`)
     Minus,
+    /// Bang (`!`)
     Not,
+    /// Plus (`+`)
     Plus,
 }
 
@@ -141,266 +185,482 @@ impl fmt::Display for UnaryOpKind {
     }
 }
 
+/// A single AST node. All variants have an inner struct containing data specific to the node.
+/// Every variant has a `pos` member (a [Position](struct.Position.html) struct) that represents
+/// the position of the node in the original source. Many variants have an `ea` member (an ExArg
+/// struct) that includes additional information about the specific node's command.
 #[derive(Debug, PartialEq, Clone)]
 pub enum Node {
+    /// An autocommand group
     Augroup {
         pos: Position,
+        /// The name of the group. Vim allows almost anything in this (including spaces!).
         name: String,
     },
+    /// An autocommand
     Autocmd {
         pos: Position,
         ea: ExArg,
+        /// The group of this autocommand, if it is specified in the command. If it is not
+        /// specified in the command, this is an empty string (`""`). For example:
+        ///
+        /// In
+        /// ```text
+        /// autocmd my-group BufEnter * echo "foo"
+        /// ```
+        /// this is `"my-group"`.
+        ///
+        /// In
+        /// ```text
+        /// augroup my-group
+        ///   autocmd BufEnter * echo "foo"
+        /// augroup END
+        /// ```
+        /// this is `""`.
         group: String,
+        /// A vector of the events that will cause this command to be executed. Only valid events
+        /// will be included (invalid events cause [ParseError](struct.ParseError.html)s). In
+        /// ```text
+        /// autocmd BufNewFile,BufReadPost * echo "foo"
+        /// ```
+        /// this is `["BufNewFile", "BufReadPost"]`.
         events: Vec<String>,
+        /// A vector of patterns that must match for this command to be executed. In
+        /// ```text
+        /// autocmd BufReadPost *.foo,*.bar echo "foo"
+        /// ```
+        /// this is `["*.foo", "*.bar"]`.
         patterns: Vec<String>,
+        /// Whether the command to be executed should cause other autocommands to be fired. In
+        /// ```text
+        /// autocmd FileChangedShell *.c nested e!
+        /// ```
+        /// this is `true`.
         nested: bool,
+        /// The commands that will be executed when one of the events occurs and one of the
+        /// patterns is matched.
         body: Vec<Box<Node>>,
     },
+    /// An operation with two atoms
     BinaryOp {
         pos: Position,
+        /// The kind of operation (see [BinaryOpKind](enum.BinaryOpKind.html)).
         op: BinaryOpKind,
+        /// The node on the left side of the operation.
         left: Box<Node>,
+        /// The node on the right side of the operation.
         right: Box<Node>,
     },
-    BlankLine {
-        pos: Position,
-    },
+    /// An empty line. This kind of node can be ignored - it only exists for the VimL formatter
+    /// which is the parent project of this parser.
+    BlankLine { pos: Position },
+    /// A function call. Not to be confused with [ExCall](#variant.ExCall).
     Call {
         pos: Position,
+        /// The name of the function being called. This is _probably_ a single atom node (like an
+        /// [Identifier](#variant.Identifier)), but doesn't have to be.
         name: Box<Node>,
+        /// The arguments passed to the function.
         args: Vec<Box<Node>>,
     },
+    /// A catch clause - will only show up in the `catches` member of a [Try](#variant.Try) node.
     Catch {
         ea: ExArg,
         pos: Position,
+        /// A pattern, if one exists - e.g. `/^Vim\%((\a\+)\)\=:E123/`.
         pattern: Option<String>,
+        /// The commands in the body of the clause.
         body: Vec<Box<Node>>,
     },
+    /// A comment
     Comment {
         pos: Position,
+        /// The content of the comment. Includes a leading space, so in this case:
+        /// ```text
+        /// " this is a comment
+        /// ```
+        /// it is `" this is a comment"`.
         value: String,
+        /// If `true`, this comment was at the end of a line with another command on it.
+        /// ```text
+        /// " this is not a trailing comment
+        /// let foo = 1 " this is a trailing comment
+        /// ```
         trailing: bool,
     },
+    /// An overall container for a "curly braces name" variable.
     CurlyName {
         pos: Position,
+        /// The pieces that form the variable. These will be either
+        /// [CurlyNameExpr](#variant.CurlyNameExpr) nodes or
+        /// [CurlyNamePart](#variant.CurlyNamePart) nodes.
         pieces: Vec<Box<Node>>,
     },
+    /// An expression in curly braces in a "curly braces name" variable.
     CurlyNameExpr {
         pos: Position,
+        /// The expression within the braces. In `foo_{bar}_baz` this is `baz`.
         expr: Box<Node>,
     },
+    /// A string piece of a "curly brances name" variable.
     CurlyNamePart {
         pos: Position,
+        /// The string. In `foo_{bar}_baz`, `foo_` is one CurlyNamePart, `_baz` is another.
         value: String,
     },
+    /// A delfunction command
     DelFunction {
         ea: ExArg,
         pos: Position,
+        /// The argument to the delfunction command. This is probably an
+        /// [Identifier](#variant.Identifier), but doesn't have to be.
         left: Box<Node>,
     },
+    /// A dictionary
     Dict {
         pos: Position,
+        /// The items in the dictionary, as `(key, value)` tuples. The keys have to be either
+        /// [String](#variant.String)s or [Number](#variant.Number)s. (Vim allows either, though
+        /// numbers will be coerced into strings.)
         items: Vec<(Box<Node>, Box<Node>)>,
     },
+    /// A dot operation - usually accessing an item in a dictionary. (Note that this parser cannot
+    /// 100% distinguish between dictionary access and concatenation as VimL uses the dot token for
+    /// both.)
     Dot {
         pos: Position,
+        /// The node on the left side of the dot.
         left: Box<Node>,
+        /// The node on the right side of the dot.
         right: Box<Node>,
     },
+    /// An echo command
     Echo {
         ea: ExArg,
         pos: Position,
-        cmd: String, // echo, echoerr, echomsg, echon
+        /// The particular command - either `echo`, `echoerr`, `echomsg`, or `echon`.
+        cmd: String,
+        /// The arguments passed to the echo command.
         list: Vec<Box<Node>>,
     },
+    /// An echohl command
     EchoHl {
         ea: ExArg,
         pos: Position,
+        /// The name of the highlight group passed to the echohl command.
         value: String,
     },
+    /// An else clause - will only show up in the `else_` member of an [If](#variant.If) node.
     Else {
         ea: ExArg,
         pos: Position,
+        /// The commands in the body of the clause.
         body: Vec<Box<Node>>,
     },
+    /// An elseif clause - will only show up in the `elseifs` member of an [If](#variant.If) node.
     ElseIf {
         ea: ExArg,
         pos: Position,
+        /// The condition of the elseif.
         cond: Box<Node>,
+        /// The commands in the body of the clause.
         body: Vec<Box<Node>>,
     },
-    End {
-        ea: ExArg,
-        pos: Position,
-    },
+    /// The end of a clause that requires and end statement. This will either be an `endif`,
+    /// `endfor`, `endfunction`, `endtry`, or `endwhile`. This will only exist in the `end` member
+    /// of an associated [If](#variant.If), [For](#variant.For), [Function](#variant.Function),
+    /// [Try](#variant.Try), or [While](#variant.While) node.
+    End { ea: ExArg, pos: Position },
+    /// An environment variable e.g. `$FOO`
     Env {
         pos: Position,
+        /// The variable. The `$` is included.
         value: String,
     },
+    /// The `call` command. Not to be confused with [Call](#variant.Call).
     ExCall {
         ea: ExArg,
         pos: Position,
+        /// The argument passed to the call command (probably a [Call](#variant.Call)).
         left: Box<Node>,
     },
+    /// A general command which does not have a specific variant associated with it. This variant
+    /// is kind of a "catch-all" for any commands that are not parsed specifically.
     ExCmd {
         ea: ExArg,
         pos: Position,
+        /// The literal text of the command - just the entire line from the original source.
         value: String,
     },
+    /// An execute command
     Execute {
         ea: ExArg,
         pos: Position,
+        /// The arguments passed to the execute command.
         list: Vec<Box<Node>>,
     },
+    /// A finally clause - will only show up in the `finally` member of a [Try](#variant.Try) node.
     Finally {
         ea: ExArg,
         pos: Position,
+        /// The commands in the body of the clause.
         body: Vec<Box<Node>>,
     },
+    /// A for loop
     For {
         ea: ExArg,
         pos: Position,
-        var: Option<Box<Node>>,  // this is the x in "for x in something"
-        list: Vec<Box<Node>>,    // this is the a, b in "for [a, b] in something"
-        rest: Option<Box<Node>>, // this is the z in "for [a, b; z] in something" <- REAL SYNTAX :(
-        right: Box<Node>,        // this is the something in "for x in something"
+        /// The variable in the for statement, e.g. in `for x in something`, this is `x`.
+        var: Option<Box<Node>>,
+        /// If there are multiple variables in the for statement, this is a list of those
+        /// variables, e.g. in `for [a, b] in something`, this list contains `a` and `b`.
+        list: Vec<Box<Node>>,
+        /// If there is a `{lastname}` variable in the for statement, this is that variable, e.g.
+        /// in `for [a, b; z] in something`, this is `z`.
+        rest: Option<Box<Node>>,
+        /// The collection being iterated, e.g. in `for x in something`, this is `something`.
+        right: Box<Node>,
+        /// The commands in the body of the loop.
         body: Vec<Box<Node>>,
+        /// The `endfor` - an [End](#variant.End) Node. Note that while this is an Option, it is a
+        /// parse error for there not to be one - it's only an Option so the parser can parse the
+        /// body of the clause before the `endfor` is found.
         end: Option<Box<Node>>,
     },
+    /// A function definition
     Function {
         ea: ExArg,
         pos: Position,
+        /// The name of the function - probably an [Identifier](#variant.Identifier).
         name: Box<Node>,
+        /// The parameters of the function.
         args: Vec<Box<Node>>,
+        /// The commands in the body of the function.
         body: Vec<Box<Node>>,
+        /// A list of attributes of the function - can contain any of "range", "abort", "dict", or
+        /// "closure".
         attrs: Vec<String>,
+        /// The `endfunction` - an [End](#variant.End) Node. Note that while this is an Option, it
+        /// is a parse error for there not to be one - it's only an Option so the parser can parse
+        /// the body of the function before the `endfunction` is found.
         end: Option<Box<Node>>,
     },
+    /// An identifier (a variable, function name, etc)
     Identifier {
         pos: Position,
+        /// The identifier
         value: String,
     },
+    /// An if statement
     If {
         ea: ExArg,
         pos: Position,
+        /// The condition of the if.
         cond: Box<Node>,
+        /// The elseif causes of the if.
         elseifs: Vec<Box<Node>>,
+        /// The else clause of the if.
         else_: Option<Box<Node>>,
+        /// The commands in the body of the if.
         body: Vec<Box<Node>>,
+        /// The `endif` - an [End](#variant.End) Node. Note that while this is an Option, it is a
+        /// parse error for there not to be one - it's only an Option so the parser can parse the
+        /// body of the if before the `endif` is found.
         end: Option<Box<Node>>,
     },
+    // A lambda function
     Lambda {
         pos: Position,
+        /// The arguments of the lambda.
         args: Vec<Box<Node>>,
+        /// The expression that is evaluated (equivalent to the body of a regular function).
         expr: Box<Node>,
     },
+    /// A variable declaration
     Let {
         ea: ExArg,
         pos: Position,
-        var: Option<Box<Node>>,  // this is the x in "let x = something"
-        list: Vec<Box<Node>>,    // this is the a, b in "let [a, b] = something"
-        rest: Option<Box<Node>>, // this is the z in "let [a, b; z] = something" <- REAL SYNTAX :(
-        right: Box<Node>,        // this is the something in "let x = something"
+        /// The variable being defined, e.g. in `let x = something`, this is `x`.
+        var: Option<Box<Node>>,
+        /// If there are multiple variables in the let statement, this is a list of those
+        /// variables, e.g. in `let [a, b] = something`, this list contains `a` and `b`.
+        list: Vec<Box<Node>>,
+        /// If there is a `{lastname}` variable in the let statement, this is that variable, e.g.
+        /// in `let [a, b; z] = something`, this is `z`.
+        rest: Option<Box<Node>>,
+        /// The expression being assigned to the variables, e.g. in `let x = something`, this is
+        /// `something`.
+        right: Box<Node>,
+        /// The operation of the let statement, e.g. in `let x += 1`, this is `+=`.
         op: String,
     },
+    /// A list
     List {
         pos: Position,
+        /// The items in the list.
         items: Vec<Box<Node>>,
     },
+    /// A lockvar or unlockvar command
     LockVar {
         ea: ExArg,
         pos: Position,
-        cmd: String, // lockvar or unlockvar
+        /// The specific command - either `lockvar` or `unlockvar`
+        cmd: String,
+        /// The depth argument of the command, if there is one.
         depth: Option<usize>,
+        /// The variables to lock or unlock.
         list: Vec<Box<Node>>,
     },
+    /// A key mapping command
     Mapping {
         pos: Position,
         ea: ExArg,
+        /// The specific mapping command used, e.g. `nnoremap` or `xmap`.
         command: String,
+        /// The left-hand side of the mapping (i.e. the key(s) to be mapped).
         left: String,
+        /// The right-hand side of the mapping, if it is not an expression mapping.
         right: String,
+        /// The right-hand side of the mapping, if it is an expression mapping.
         right_expr: Option<Box<Node>>,
+        /// Any attributes of the mapping - could include "buffer", "nowait", "silent", "script",
+        /// "unique" and/or "expr". (If it contains "expr", `right_expr` should be `Some`.
         attrs: Vec<String>,
     },
+    /// A number
     Number {
         pos: Position,
+        /// The number in its originally-parsed representation (which is why it's a string), e.g.
+        /// if it started as `1e3`, this will be "1e3", not "1000".
         value: String,
     },
+    /// An option variable, e.g. `&foo`
     Option {
         pos: Position,
+        /// The variable. The `&` is included.
         value: String,
     },
+    /// A parenthesized expression
     ParenExpr {
         pos: Position,
+        /// The expression
         expr: Box<Node>,
     },
+    /// A register variable, e.g. `@x`
     Reg {
         pos: Position,
+        /// The register. The `@` is included.
         value: String,
     },
+    /// A return statement
     Return {
         ea: ExArg,
         pos: Position,
+        /// The value to return, if there is one.
         left: Option<Box<Node>>,
     },
+    /// A shebang (`#!`). Not common in VimL (it's a holdover from the Python library from which
+    /// this parser was translated).
     Shebang {
         pos: Position,
+        /// The literal text of the shebang. Does not include the `#!`, e.g. in `#!/bin/sh`, this
+        /// is `"/bin/sh"`.
         value: String,
     },
+    /// A slice
     Slice {
         pos: Position,
+        /// The expression being sliced - generally an [Identifier](#variant.Identifier), but
+        /// it doesn't have to be.
         name: Box<Node>,
+        /// The left part of the slice, if it has one.
         left: Option<Box<Node>>,
+        /// The right part of the slice, if it has one.
         right: Option<Box<Node>>,
     },
+    /// A string - either single- or double-quoted
     String {
         pos: Position,
+        /// The string. It includes the surrounding quotes.
         value: String,
     },
+    /// A subscripted expression (e.g. `foo[1]`)
     Subscript {
         pos: Position,
+        /// The expression being subscripted - generally an [Identifier](#variant.Identifier), but
+        /// it doesn't have to be.
         name: Box<Node>,
+        /// The subscript expression - generally a [Number](#variant.Number), but it doesn't have
+        /// to be.
         index: Box<Node>,
     },
+    /// A ternary expression (e.g. `condition ? foo : bar`)
     Ternary {
         pos: Position,
+        /// The condition
         cond: Box<Node>,
+        /// The expression evaluated if the condition is true.
         left: Box<Node>,
+        /// The expression evaluated if the condition is false.
         right: Box<Node>,
     },
+    /// A throw statement
     Throw {
         ea: ExArg,
         pos: Position,
+        /// The argument provided to the throw statement - generally a [String](#variant.String),
+        /// but it doesn't have to be.
         err: Box<Node>,
     },
+    /// The top level node returned from the [parse_file](fn.parse_file.html) and
+    /// [parse_lines](fn.parse_lines.html) functions. There will only be one of these and its only
+    /// purpose is to serve as a container for all of the statements in the VimL input.
     TopLevel {
         pos: Position,
+        /// The statements of the input.
         body: Vec<Box<Node>>,
     },
+    /// A try statement
     Try {
         ea: ExArg,
         pos: Position,
+        /// The commands in the body of the try.
         body: Vec<Box<Node>>,
+        /// Any catch statements within the try. These will be [Catch](#variant.Catch)es.
         catches: Vec<Box<Node>>,
+        /// A finally statement, if there is one. This will be a [FInally](#variant.Finally).
         finally: Option<Box<Node>>,
+        /// The `endtry` - an [End](#variant.End) Node. Note that while this is an Option, it is a
+        /// parse error for there not to be one - it's only an Option so the parser can parse the
+        /// body of the try before the `endtry` is found.
         end: Option<Box<Node>>,
     },
+    /// A unary operation
     UnaryOp {
         pos: Position,
+        /// The operation kind
         op: UnaryOpKind,
+        /// The expression being operated upon.
         right: Box<Node>,
     },
+    /// An unlet statement
     Unlet {
         ea: ExArg,
         pos: Position,
+        /// The variables to be unlet.
         list: Vec<Box<Node>>,
     },
+    /// A while loop
     While {
         ea: ExArg,
         pos: Position,
+        /// The commands in the body of the loop.
         body: Vec<Box<Node>>,
+        /// The condition of the loop.
         cond: Box<Node>,
+        /// The `endwhile` - an [End](#variant.End) Node. Note that while this is an Option, it is
+        /// a parse error for there not to be one - it's only an Option so the parser can parse the
+        /// body of the loop before the `endwhile` is found.
         end: Option<Box<Node>>,
     },
 }
