@@ -1,4 +1,4 @@
-pub use crate::node::Node;
+pub use crate::node::{BinaryOpKind, Node, UnaryOpKind};
 use lazy_static::lazy_static;
 use regex::Regex;
 use std::fmt;
@@ -14,12 +14,16 @@ mod token;
 pub(crate) const EOF: char = '\x04';
 pub(crate) const EOL: char = '\n';
 
+/// Parse a list of lines, returning a Node upon success, or a [ParseError](struct.ParseError.html)
+/// upon failure. The node will be a [TopLevel](enum.Node.html#variant.TopLevel) variant.
 pub fn parse_lines(lines: &[&str]) -> Result<node::Node, ParseError> {
     let reader = reader::Reader::from_lines(lines);
     let mut parser = parser::Parser::new(&reader);
     parser.parse()
 }
 
+/// Parse a file, returning a Node upon success, or a [ParseError](struct.ParseError.html)
+/// upon failure. The node will be a [TopLevel](enum.Node.html#variant.TopLevel) variant.
 pub fn parse_file(path: &str) -> Result<node::Node, ParseError> {
     let reader = reader::Reader::from_file(path)?;
     let mut parser = parser::Parser::new(&reader);
@@ -34,23 +38,36 @@ pub struct Position {
 }
 
 impl Position {
-    pub fn new(cursor: usize, line: usize, col: usize) -> Position {
+    #[cfg(test)]
+    pub(crate) fn new(cursor: usize, line: usize, col: usize) -> Position {
         Position { cursor, line, col }
     }
 
-    pub fn empty() -> Position {
+    pub(crate) fn empty() -> Position {
         Position {
             cursor: 0,
             line: 0,
             col: 0,
         }
     }
+
+    /// The column of a given position.
+    pub fn column(&self) -> usize {
+        self.col
+    }
+
+    /// The line of a given position.
+    pub fn line(&self) -> usize {
+        self.line
+    }
 }
 
+/// Any error encountered when parsing VimL.
 #[derive(Debug, PartialEq)]
 pub struct ParseError {
     msg: String,
-    pos: Position,
+    /// The position of the error.
+    pub pos: Position,
 }
 
 impl fmt::Display for ParseError {
