@@ -1,6 +1,6 @@
 use super::Position;
 use crate::{
-    command::{Command, ParserKind},
+    command::{Command, Flag, ParserKind},
     modifier::Modifier,
 };
 use std::rc::Rc;
@@ -28,7 +28,7 @@ impl ExArg {
             cmd: Rc::new(Command {
                 name: "Dummy".to_string(),
                 minlen: 0,
-                flags: vec![],
+                flags: Flag::empty(),
                 parser: ParserKind::UserCmd,
             }),
             modifiers: vec![],

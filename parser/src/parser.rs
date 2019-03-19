@@ -493,8 +493,7 @@ impl<'a> Parser<'a> {
             self.reader.get();
             ea.bang = true;
         }
-        if !ea.cmd.flags.contains(&Flag::Bang) && ea.bang && !ea.cmd.flags.contains(&Flag::UserCmd)
-        {
+        if !ea.cmd.flags.contains(Flag::BANG) && ea.bang && !ea.cmd.flags.contains(Flag::USERCMD) {
             return Err(ParseError {
                 msg: "E477: No ! allowed".to_string(),
                 pos: ea.cmdpos,
@@ -504,7 +503,7 @@ impl<'a> Parser<'a> {
             self.reader.skip_white();
         }
         ea.argpos = self.reader.getpos();
-        if ea.cmd.flags.contains(&Flag::ArgOpt) {
+        if ea.cmd.flags.contains(Flag::ARGOPT) {
             self.parse_argopt()?;
         }
         if ea.cmd.name == "write" || ea.cmd.name == "update" {
@@ -534,7 +533,7 @@ impl<'a> Parser<'a> {
             }
             self.reader.skip_white();
         }
-        if ea.cmd.flags.contains(&Flag::EditCmd) && !ea.use_filter {
+        if ea.cmd.flags.contains(Flag::EDITCMD) && !ea.use_filter {
             self.parse_argcmd();
         }
         self._parse_command(ea)
@@ -809,7 +808,7 @@ impl<'a> Parser<'a> {
 
     fn parse_cmd_common(&mut self, ea: ExArg) -> Result<(), ParseError> {
         let mut end;
-        if ea.cmd.flags.contains(&Flag::TrlBar) && !ea.use_filter {
+        if ea.cmd.flags.contains(Flag::TRLBAR) && !ea.use_filter {
             end = self.separate_nextcmd(&ea)?;
         } else {
             loop {
@@ -1656,9 +1655,9 @@ impl<'a> Parser<'a> {
                 }
                 self.reader.get();
             } else if self.reader.peekn(2) == "`="
-                && (ea.cmd.flags.contains(&Flag::Xfile)
-                    || ea.cmd.flags.contains(&Flag::Files)
-                    || ea.cmd.flags.contains(&Flag::File1))
+                && (ea.cmd.flags.contains(Flag::XFILE)
+                    || ea.cmd.flags.contains(Flag::FILES)
+                    || ea.cmd.flags.contains(Flag::FILE1))
             {
                 self.reader.getn(2);
                 self.parse_expr()?;
@@ -1673,13 +1672,13 @@ impl<'a> Parser<'a> {
                     gotten.chars().nth(0).unwrap()
                 };
             } else if ['|', EOL, '"'].contains(&c)
-                && !ea.cmd.flags.contains(&Flag::NoTrlCom)
+                && !ea.cmd.flags.contains(Flag::NOTRLCOM)
                 && (ea.cmd.name != "@" && ea.cmd.name != "*" || self.reader.getpos() != ea.argpos)
                 && (ea.cmd.name != "redir"
                     || self.reader.getpos().cursor != ea.argpos.cursor + 1
                     || pc != '@')
             {
-                if !ea.cmd.flags.contains(&Flag::UseCtrlV) && pc == '\\' {
+                if !ea.cmd.flags.contains(Flag::USECTRLV) && pc == '\\' {
                     self.reader.get();
                 } else {
                     break;
@@ -1689,7 +1688,7 @@ impl<'a> Parser<'a> {
             }
             pc = c
         }
-        if !ea.cmd.flags.contains(&Flag::NoTrlCom) {
+        if !ea.cmd.flags.contains(Flag::NOTRLCOM) {
             end = nospend;
         }
         Ok(end)
@@ -1817,7 +1816,7 @@ impl<'a> Parser<'a> {
             let cmd = Rc::new(Command {
                 name: name.clone(),
                 minlen: 0,
-                flags: vec![Flag::UserCmd, Flag::TrlBar],
+                flags: Flag::USERCMD | Flag::TRLBAR,
                 parser: ParserKind::UserCmd,
             });
             self.commands.insert(name, Rc::clone(&cmd));
