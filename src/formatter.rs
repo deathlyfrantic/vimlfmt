@@ -680,7 +680,7 @@ impl<'a> Formatter<'a> {
 
 #[cfg(test)]
 mod tests {
-    use super::super::viml_parser::parse_lines;
+    use super::super::parse_lines;
     use super::*;
 
     fn create_node(s: &str) -> Node {
