@@ -551,11 +551,8 @@ impl<'a> Parser<'a> {
             ParserKind::Common | ParserKind::UserCmd => self.parse_cmd_common(ea),
             ParserKind::Continue => self.parse_cmd_continue(ea),
             ParserKind::DelFunction => self.parse_cmd_delfunction(ea),
-            ParserKind::Echo => self.parse_cmd_echo(ea, "echo"),
-            ParserKind::EchoErr => self.parse_cmd_echo(ea, "echoerr"),
+            ParserKind::Echo => self.parse_cmd_echo(ea),
             ParserKind::EchoHl => self.parse_cmd_echohl(ea),
-            ParserKind::EchoMsg => self.parse_cmd_echo(ea, "echomsg"),
-            ParserKind::EchoN => self.parse_cmd_echo(ea, "echon"),
             ParserKind::Else => self.parse_cmd_else(ea),
             ParserKind::ElseIf => self.parse_cmd_elseif(ea),
             ParserKind::EndFor => self.parse_cmd_endfor(ea),
@@ -855,11 +852,11 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    fn parse_cmd_echo(&mut self, ea: ExArg, cmd: &str) -> Result<(), ParseError> {
+    fn parse_cmd_echo(&mut self, ea: ExArg) -> Result<(), ParseError> {
         let node = Node::Echo {
             pos: ea.cmdpos,
+            cmd: ea.cmd.name.clone(),
             ea,
-            cmd: cmd.to_string(),
             list: self.parse_exprlist()?,
         };
         self.add_node(node);
