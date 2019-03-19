@@ -1655,9 +1655,10 @@ impl<'a> Parser<'a> {
                 }
                 self.reader.get();
             } else if self.reader.peekn(2) == "`="
-                && (ea.cmd.flags.contains(Flag::XFILE)
-                    || ea.cmd.flags.contains(Flag::FILES)
-                    || ea.cmd.flags.contains(Flag::FILE1))
+                && (ea
+                    .cmd
+                    .flags
+                    .intersects(Flag::XFILE | Flag::FILES | Flag::FILE1))
             {
                 self.reader.getn(2);
                 self.parse_expr()?;
