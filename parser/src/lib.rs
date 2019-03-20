@@ -1,7 +1,6 @@
 pub use crate::node::{BinaryOpKind, Node, UnaryOpKind};
 use lazy_static::lazy_static;
 use regex::Regex;
-use std::fmt;
 
 mod command;
 mod exarg;
@@ -70,8 +69,18 @@ pub struct ParseError {
     pub pos: Position,
 }
 
-impl fmt::Display for ParseError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+impl std::error::Error for ParseError {
+    fn description(&self) -> &str {
+        &self.msg
+    }
+
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        None
+    }
+}
+
+impl std::fmt::Display for ParseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(
             f,
             "Parse error at line {}, col {}: {}",
