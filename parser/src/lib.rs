@@ -1,4 +1,7 @@
-pub use crate::node::{BinaryOpKind, Node, UnaryOpKind};
+pub use crate::{
+    modifier::Modifier,
+    node::{BinaryOpKind, Node, UnaryOpKind},
+};
 use lazy_static::lazy_static;
 use regex::Regex;
 
