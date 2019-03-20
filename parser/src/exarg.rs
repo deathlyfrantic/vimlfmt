@@ -6,19 +6,19 @@ use crate::{
 use std::rc::Rc;
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct ExArg {
-    pub bang: bool,
-    pub use_filter: bool,
-    pub linepos: Position,
-    pub cmdpos: Position,
-    pub argpos: Position,
-    pub cmd: Rc<Command>,
-    pub modifiers: Vec<Modifier>,
-    pub range: Vec<String>,
+pub(crate) struct ExArg {
+    pub(crate) bang: bool,
+    pub(crate) use_filter: bool,
+    pub(crate) linepos: Position,
+    pub(crate) cmdpos: Position,
+    pub(crate) argpos: Position,
+    pub(crate) cmd: Rc<Command>,
+    pub(crate) modifiers: Vec<Modifier>,
+    pub(crate) range: Vec<String>,
 }
 
 impl ExArg {
-    pub fn new() -> ExArg {
+    pub(crate) fn new() -> ExArg {
         ExArg {
             bang: false,
             use_filter: false,
