@@ -1147,14 +1147,13 @@ mod tests {
     #[test]
     fn test_node_is_for() {
         let for_node = Node::For {
-            ea: ExArg::new(),
             pos: Position::empty(),
             var: None,
             list: vec![],
             rest: None,
             right: Box::new(Node::ExCmd {
                 pos: Position::empty(),
-                ea: ExArg::new(),
+                bang: false,
                 value: "break".to_string(),
             }),
             body: vec![],
@@ -1162,7 +1161,7 @@ mod tests {
         };
         let not_for_node = Node::ExCmd {
             pos: Position::empty(),
-            ea: ExArg::new(),
+            bang: false,
             value: "break".to_string(),
         };
         assert!(Node::is_for(&for_node));
@@ -1172,11 +1171,11 @@ mod tests {
     #[test]
     fn test_node_is_function() {
         let function_node = Node::Function {
-            ea: ExArg::new(),
             pos: Position::empty(),
+            bang: true,
             name: Box::new(Node::ExCmd {
                 pos: Position::empty(),
-                ea: ExArg::new(),
+                bang: false,
                 value: "break".to_string(),
             }),
             args: vec![],
@@ -1186,7 +1185,7 @@ mod tests {
         };
         let not_function_node = Node::ExCmd {
             pos: Position::empty(),
-            ea: ExArg::new(),
+            bang: false,
             value: "break".to_string(),
         };
         assert!(Node::is_function(&function_node));
@@ -1196,19 +1195,18 @@ mod tests {
     #[test]
     fn test_node_is_while() {
         let while_node = Node::While {
-            ea: ExArg::new(),
             pos: Position::empty(),
             body: vec![],
             cond: Box::new(Node::ExCmd {
                 pos: Position::empty(),
-                ea: ExArg::new(),
+                bang: false,
                 value: "break".to_string(),
             }),
             end: None,
         };
         let not_while_node = Node::ExCmd {
             pos: Position::empty(),
-            ea: ExArg::new(),
+            bang: false,
             value: "break".to_string(),
         };
         assert!(Node::is_while(&while_node));
@@ -1218,19 +1216,18 @@ mod tests {
     #[test]
     fn test_has_body() {
         let while_node = Node::While {
-            ea: ExArg::new(),
             pos: Position::empty(),
             body: vec![],
             cond: Box::new(Node::ExCmd {
                 pos: Position::empty(),
-                ea: ExArg::new(),
+                bang: false,
                 value: "break".to_string(),
             }),
             end: None,
         };
         let break_node = Node::ExCmd {
             pos: Position::empty(),
-            ea: ExArg::new(),
+            bang: false,
             value: "break".to_string(),
         };
         assert!(Node::has_body(&while_node));
