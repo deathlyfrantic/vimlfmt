@@ -666,6 +666,7 @@ pub enum Node {
 }
 
 impl Node {
+    /// Whether a given node is a [For](#variant.For) node.
     pub fn is_for(node: &Node) -> bool {
         match node {
             Node::For { .. } => true,
@@ -673,6 +674,7 @@ impl Node {
         }
     }
 
+    /// Whether a given node is a [Function](#variant.Function) node.
     pub fn is_function(node: &Node) -> bool {
         match node {
             Node::Function { .. } => true,
@@ -680,6 +682,7 @@ impl Node {
         }
     }
 
+    /// Whether a given node is a [While](#variant.While) node.
     pub fn is_while(node: &Node) -> bool {
         match node {
             Node::While { .. } => true,
@@ -687,6 +690,7 @@ impl Node {
         }
     }
 
+    /// Whether a given node has a `body` member.
     pub fn has_body(node: &Node) -> bool {
         match node {
             Node::Catch { .. }
