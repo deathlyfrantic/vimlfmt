@@ -654,6 +654,62 @@ pub enum Node {
 }
 
 impl Node {
+    /// The position of a node. Also accessible directly through the `pos` member of each node's
+    /// inner struct (every node variant has a `pos` member), but this method is provided for
+    /// convenience to avoid having to destructure a variant just to get the position.
+    pub fn pos(&self) -> Position {
+        match self {
+            Node::Augroup { pos, .. }
+            | Node::Autocmd { pos, .. }
+            | Node::BinaryOp { pos, .. }
+            | Node::BlankLine { pos, .. }
+            | Node::Call { pos, .. }
+            | Node::Catch { pos, .. }
+            | Node::Comment { pos, .. }
+            | Node::CurlyName { pos, .. }
+            | Node::CurlyNameExpr { pos, .. }
+            | Node::CurlyNamePart { pos, .. }
+            | Node::DelFunction { pos, .. }
+            | Node::Dict { pos, .. }
+            | Node::Dot { pos, .. }
+            | Node::Echo { pos, .. }
+            | Node::EchoHl { pos, .. }
+            | Node::Else { pos, .. }
+            | Node::ElseIf { pos, .. }
+            | Node::End { pos, .. }
+            | Node::Env { pos, .. }
+            | Node::ExCall { pos, .. }
+            | Node::ExCmd { pos, .. }
+            | Node::Execute { pos, .. }
+            | Node::Finally { pos, .. }
+            | Node::For { pos, .. }
+            | Node::Function { pos, .. }
+            | Node::Identifier { pos, .. }
+            | Node::If { pos, .. }
+            | Node::Lambda { pos, .. }
+            | Node::Let { pos, .. }
+            | Node::List { pos, .. }
+            | Node::LockVar { pos, .. }
+            | Node::Mapping { pos, .. }
+            | Node::Number { pos, .. }
+            | Node::Option { pos, .. }
+            | Node::ParenExpr { pos, .. }
+            | Node::Reg { pos, .. }
+            | Node::Return { pos, .. }
+            | Node::Shebang { pos, .. }
+            | Node::Slice { pos, .. }
+            | Node::String { pos, .. }
+            | Node::Subscript { pos, .. }
+            | Node::Ternary { pos, .. }
+            | Node::Throw { pos, .. }
+            | Node::TopLevel { pos, .. }
+            | Node::Try { pos, .. }
+            | Node::UnaryOp { pos, .. }
+            | Node::Unlet { pos, .. }
+            | Node::While { pos, .. } => *pos,
+        }
+    }
+
     /// Whether a given node is a [For](#variant.For) node.
     pub fn is_for(node: &Node) -> bool {
         match node {
