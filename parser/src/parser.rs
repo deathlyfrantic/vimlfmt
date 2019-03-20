@@ -278,9 +278,9 @@ impl<'a> Parser<'a> {
         let mut modifiers: Vec<Modifier> = vec![];
         loop {
             let pos = self.reader.tell();
-            let mut d = "".to_string();
+            let mut count = "".to_string();
             if self.reader.peek().is_ascii_digit() {
-                d = self.reader.read_digit();
+                count = self.reader.read_digit();
                 self.reader.skip_white();
             }
             let k = self.reader.read_alpha();
@@ -348,7 +348,7 @@ impl<'a> Parser<'a> {
                 }
                 _ if &k == "tab" => {
                     let mut mods = Modifier::new("tab");
-                    if let Ok(n) = d.parse::<usize>() {
+                    if let Ok(n) = count.parse::<usize>() {
                         mods.count = n;
                     }
                     modifiers.push(mods)
@@ -364,10 +364,7 @@ impl<'a> Parser<'a> {
                 }
                 _ if "verbose".starts_with(&k) && k.len() >= 4 => {
                     let mut mods = Modifier::new("verbose");
-                    mods.count = match d.parse::<usize>() {
-                        Ok(n) => n,
-                        Err(_) => 1,
-                    };
+                    mods.count = count.parse::<usize>().unwrap_or(1);
                     modifiers.push(mods)
                 }
                 _ => {
