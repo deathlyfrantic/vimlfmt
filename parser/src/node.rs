@@ -200,6 +200,8 @@ pub enum Node {
     /// An autocommand
     Autocmd {
         pos: Position,
+        /// Whether this command was invoked with a bang (`!`).
+        bang: bool,
         ea: ExArg,
         /// The group of this autocommand, if it is specified in the command. If it is not
         /// specified in the command, this is an empty string (`""`). For example:
@@ -311,6 +313,8 @@ pub enum Node {
     /// A delfunction command
     DelFunction {
         ea: ExArg,
+        /// Whether this command was invoked with a bang (`!`).
+        bang: bool,
         pos: Position,
         /// The argument to the delfunction command. This is probably an
         /// [Identifier](#variant.Identifier), but doesn't have to be.
@@ -388,6 +392,8 @@ pub enum Node {
     /// is kind of a "catch-all" for any commands that are not parsed specifically.
     ExCmd {
         ea: ExArg,
+        /// Whether this command was invoked with a bang (`!`).
+        bang: bool,
         pos: Position,
         /// The literal text of the command - just the entire line from the original source.
         value: String,
@@ -430,6 +436,8 @@ pub enum Node {
     /// A function definition
     Function {
         ea: ExArg,
+        /// Whether this command was invoked with a bang (`!`).
+        bang: bool,
         pos: Position,
         /// The name of the function - probably an [Identifier](#variant.Identifier).
         name: Box<Node>,
@@ -503,6 +511,8 @@ pub enum Node {
     /// A lockvar or unlockvar command
     LockVar {
         ea: ExArg,
+        /// Whether this command was invoked with a bang (`!`).
+        bang: bool,
         pos: Position,
         /// The specific command - either `lockvar` or `unlockvar`
         cmd: String,
@@ -646,6 +656,8 @@ pub enum Node {
     /// An unlet statement
     Unlet {
         ea: ExArg,
+        /// Whether this command was invoked with a bang (`!`).
+        bang: bool,
         pos: Position,
         /// The variables to be unlet.
         list: Vec<Box<Node>>,
@@ -666,20 +678,6 @@ pub enum Node {
 }
 
 impl Node {
-    /// Whether a given node had a bang (`!`) on its associated command. Only can be true for nodes
-    /// that allow a bang, i.e. will always be false for a [While](#variant.While) node.
-    pub fn bang(&self) -> bool {
-        match &self {
-            Node::Autocmd { ea, .. }
-            | Node::DelFunction { ea, .. }
-            | Node::ExCmd { ea, .. }
-            | Node::Function { ea, .. }
-            | Node::LockVar { ea, .. }
-            | Node::Unlet { ea, .. } => ea.bang,
-            _ => false,
-        }
-    }
-
     /// Whether a given node is a [For](#variant.For) node.
     pub fn is_for(node: &Node) -> bool {
         match node {

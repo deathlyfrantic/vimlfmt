@@ -597,6 +597,7 @@ impl<'a> Parser<'a> {
         }
         self.add_node(Node::ExCmd {
             pos: ea.cmdpos,
+            bang: ea.bang,
             ea,
             value: lines.join("\n"),
         });
@@ -630,6 +631,7 @@ impl<'a> Parser<'a> {
             return Ok(self.add_node(Node::Autocmd {
                 pos,
                 ea,
+                bang: ea.bang,
                 group: String::new(),
                 events: vec![],
                 patterns: vec![],
@@ -648,6 +650,7 @@ impl<'a> Parser<'a> {
                 return Ok(self.add_node(Node::Autocmd {
                     pos,
                     ea,
+                    bang: ea.bang,
                     group: maybe_group,
                     events: vec![],
                     patterns: vec![],
@@ -672,6 +675,7 @@ impl<'a> Parser<'a> {
             return Ok(self.add_node(Node::Autocmd {
                 pos,
                 ea,
+                bang: ea.bang,
                 group,
                 events,
                 patterns: vec![],
@@ -690,6 +694,7 @@ impl<'a> Parser<'a> {
             return Ok(self.add_node(Node::Autocmd {
                 pos,
                 ea,
+                bang: ea.bang,
                 group,
                 events,
                 patterns,
@@ -706,6 +711,7 @@ impl<'a> Parser<'a> {
             return Ok(self.add_node(Node::Autocmd {
                 pos,
                 ea,
+                bang: ea.bang,
                 group,
                 events,
                 patterns,
@@ -728,6 +734,7 @@ impl<'a> Parser<'a> {
         self.add_node(Node::Autocmd {
             pos,
             ea,
+            bang: ea.bang,
             group,
             events,
             patterns,
@@ -744,6 +751,7 @@ impl<'a> Parser<'a> {
         self.add_node(Node::ExCmd {
             pos: ea.cmdpos,
             ea,
+            bang: ea.bang,
             value: "break".to_string(),
         });
         Ok(())
@@ -822,6 +830,7 @@ impl<'a> Parser<'a> {
             pos: ea.cmdpos,
             value: self.reader.getstr(ea.linepos, end),
             ea,
+            bang: ea.bang,
         });
         Ok(())
     }
@@ -836,6 +845,7 @@ impl<'a> Parser<'a> {
         self.add_node(Node::ExCmd {
             pos: ea.cmdpos,
             ea,
+            bang: ea.bang,
             value: "continue".to_string(),
         });
         Ok(())
@@ -845,6 +855,7 @@ impl<'a> Parser<'a> {
         let node = Node::DelFunction {
             pos: ea.cmdpos,
             ea,
+            bang: ea.bang,
             left: Box::new(self.parse_lvalue_func()?),
         };
         self.add_node(node);
@@ -1116,6 +1127,7 @@ impl<'a> Parser<'a> {
         self.add_node(Node::ExCmd {
             pos: ea.cmdpos,
             ea,
+            bang: ea.bang,
             value: lines.join("\n"),
         });
         Ok(())
@@ -1170,6 +1182,7 @@ impl<'a> Parser<'a> {
         self.add_node(Node::ExCmd {
             pos: ea.cmdpos,
             ea,
+            bang: ea.bang,
             value: lines.join("\n"),
         });
         Ok(())
@@ -1186,6 +1199,7 @@ impl<'a> Parser<'a> {
             cmd: ea.cmd.name.to_string(),
             pos: ea.cmdpos,
             ea,
+            bang: ea.bang,
             depth,
             list: self.parse_lvaluelist()?,
         };
@@ -1312,6 +1326,7 @@ impl<'a> Parser<'a> {
             pos: ea.cmdpos,
             value: self.reader.getstr(ea.linepos, end),
             ea,
+            bang: ea.bang,
         });
         Ok(())
     }
@@ -1342,6 +1357,7 @@ impl<'a> Parser<'a> {
         let node = Node::Unlet {
             pos: ea.cmdpos,
             ea,
+            bang: ea.bang,
             list: self.parse_lvaluelist()?,
         };
         self.add_node(node);
@@ -1379,6 +1395,7 @@ impl<'a> Parser<'a> {
             pos: ea.cmdpos,
             value: self.reader.getstr(ea.linepos, end),
             ea,
+            bang: ea.bang,
         });
         Ok(())
     }
@@ -1547,6 +1564,7 @@ impl<'a> Parser<'a> {
         let node = Node::Function {
             pos: ea.cmdpos,
             ea,
+            bang: ea.bang,
             name,
             args,
             body: vec![],
@@ -1833,6 +1851,7 @@ impl<'a> Parser<'a> {
             pos: ea.cmdpos,
             value: self.reader.getstr(ea.linepos, pos),
             ea,
+            bang: ea.bang,
         });
     }
 
