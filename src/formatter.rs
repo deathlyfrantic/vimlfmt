@@ -286,7 +286,7 @@ impl<'a> Formatter<'a> {
                 ..
             } => {
                 self.add("autocmd");
-                if bang {
+                if *bang {
                     self.add("!");
                 }
                 if group.len() > 0 {
@@ -448,7 +448,7 @@ impl<'a> Formatter<'a> {
                 ..
             } => {
                 self.add(&cmd);
-                if bang {
+                if *bang {
                     self.add("!");
                 }
                 self.add(" ");
@@ -541,7 +541,7 @@ impl<'a> Formatter<'a> {
             }
             Node::Unlet { bang, list, .. } => {
                 self.add("unlet");
-                if bang {
+                if *bang {
                     self.add("!");
                 }
                 self.add(" ");
@@ -612,7 +612,7 @@ impl<'a> Formatter<'a> {
                     }
                 }
                 self.add("function");
-                if bang {
+                if *bang {
                     self.add("!");
                 }
                 self.add(" ");
