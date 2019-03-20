@@ -1,5 +1,4 @@
 use super::Position;
-use crate::exarg::ExArg;
 use std::fmt;
 
 const INDENT: &str = "  ";
@@ -187,8 +186,7 @@ impl fmt::Display for UnaryOpKind {
 
 /// A single AST node. All variants have an inner struct containing data specific to the node.
 /// Every variant has a `pos` member (a [Position](struct.Position.html) struct) that represents
-/// the position of the node in the original source. Many variants have an `ea` member (an ExArg
-/// struct) that includes additional information about the specific node's command.
+/// the position of the node in the original source.
 #[derive(Debug, PartialEq, Clone)]
 pub enum Node {
     /// An autocommand group
@@ -202,7 +200,6 @@ pub enum Node {
         pos: Position,
         /// Whether this command was invoked with a bang (`!`).
         bang: bool,
-        ea: ExArg,
         /// The group of this autocommand, if it is specified in the command. If it is not
         /// specified in the command, this is an empty string (`""`). For example:
         ///
@@ -267,7 +264,6 @@ pub enum Node {
     },
     /// A catch clause - will only show up in the `catches` member of a [Try](#variant.Try) node.
     Catch {
-        ea: ExArg,
         pos: Position,
         /// A pattern, if one exists - e.g. `/^Vim\%((\a\+)\)\=:E123/`.
         pattern: Option<String>,
@@ -312,7 +308,6 @@ pub enum Node {
     },
     /// A delfunction command
     DelFunction {
-        ea: ExArg,
         /// Whether this command was invoked with a bang (`!`).
         bang: bool,
         pos: Position,
@@ -340,7 +335,6 @@ pub enum Node {
     },
     /// An echo command
     Echo {
-        ea: ExArg,
         pos: Position,
         /// The particular command - either `echo`, `echoerr`, `echomsg`, or `echon`.
         cmd: String,
@@ -349,21 +343,18 @@ pub enum Node {
     },
     /// An echohl command
     EchoHl {
-        ea: ExArg,
         pos: Position,
         /// The name of the highlight group passed to the echohl command.
         value: String,
     },
     /// An else clause - will only show up in the `else_` member of an [If](#variant.If) node.
     Else {
-        ea: ExArg,
         pos: Position,
         /// The commands in the body of the clause.
         body: Vec<Box<Node>>,
     },
     /// An elseif clause - will only show up in the `elseifs` member of an [If](#variant.If) node.
     ElseIf {
-        ea: ExArg,
         pos: Position,
         /// The condition of the elseif.
         cond: Box<Node>,
@@ -374,7 +365,7 @@ pub enum Node {
     /// `endfor`, `endfunction`, `endtry`, or `endwhile`. This will only exist in the `end` member
     /// of an associated [If](#variant.If), [For](#variant.For), [Function](#variant.Function),
     /// [Try](#variant.Try), or [While](#variant.While) node.
-    End { ea: ExArg, pos: Position },
+    End { pos: Position },
     /// An environment variable e.g. `$FOO`
     Env {
         pos: Position,
@@ -383,7 +374,6 @@ pub enum Node {
     },
     /// The `call` command. Not to be confused with [Call](#variant.Call).
     ExCall {
-        ea: ExArg,
         pos: Position,
         /// The argument passed to the call command (probably a [Call](#variant.Call)).
         left: Box<Node>,
@@ -391,7 +381,6 @@ pub enum Node {
     /// A general command which does not have a specific variant associated with it. This variant
     /// is kind of a "catch-all" for any commands that are not parsed specifically.
     ExCmd {
-        ea: ExArg,
         /// Whether this command was invoked with a bang (`!`).
         bang: bool,
         pos: Position,
@@ -400,21 +389,18 @@ pub enum Node {
     },
     /// An execute command
     Execute {
-        ea: ExArg,
         pos: Position,
         /// The arguments passed to the execute command.
         list: Vec<Box<Node>>,
     },
     /// A finally clause - will only show up in the `finally` member of a [Try](#variant.Try) node.
     Finally {
-        ea: ExArg,
         pos: Position,
         /// The commands in the body of the clause.
         body: Vec<Box<Node>>,
     },
     /// A for loop
     For {
-        ea: ExArg,
         pos: Position,
         /// The variable in the for statement, e.g. in `for x in something`, this is `x`.
         var: Option<Box<Node>>,
@@ -435,7 +421,6 @@ pub enum Node {
     },
     /// A function definition
     Function {
-        ea: ExArg,
         /// Whether this command was invoked with a bang (`!`).
         bang: bool,
         pos: Position,
@@ -461,7 +446,6 @@ pub enum Node {
     },
     /// An if statement
     If {
-        ea: ExArg,
         pos: Position,
         /// The condition of the if.
         cond: Box<Node>,
@@ -486,7 +470,6 @@ pub enum Node {
     },
     /// A variable declaration
     Let {
-        ea: ExArg,
         pos: Position,
         /// The variable being defined, e.g. in `let x = something`, this is `x`.
         var: Option<Box<Node>>,
@@ -510,7 +493,6 @@ pub enum Node {
     },
     /// A lockvar or unlockvar command
     LockVar {
-        ea: ExArg,
         /// Whether this command was invoked with a bang (`!`).
         bang: bool,
         pos: Position,
@@ -524,7 +506,6 @@ pub enum Node {
     /// A key mapping command
     Mapping {
         pos: Position,
-        ea: ExArg,
         /// The specific mapping command used, e.g. `nnoremap` or `xmap`.
         command: String,
         /// The left-hand side of the mapping (i.e. the key(s) to be mapped).
@@ -564,7 +545,6 @@ pub enum Node {
     },
     /// A return statement
     Return {
-        ea: ExArg,
         pos: Position,
         /// The value to return, if there is one.
         left: Option<Box<Node>>,
@@ -616,7 +596,6 @@ pub enum Node {
     },
     /// A throw statement
     Throw {
-        ea: ExArg,
         pos: Position,
         /// The argument provided to the throw statement - generally a [String](#variant.String),
         /// but it doesn't have to be.
@@ -632,7 +611,6 @@ pub enum Node {
     },
     /// A try statement
     Try {
-        ea: ExArg,
         pos: Position,
         /// The commands in the body of the try.
         body: Vec<Box<Node>>,
@@ -655,7 +633,6 @@ pub enum Node {
     },
     /// An unlet statement
     Unlet {
-        ea: ExArg,
         /// Whether this command was invoked with a bang (`!`).
         bang: bool,
         pos: Position,
@@ -664,7 +641,6 @@ pub enum Node {
     },
     /// A while loop
     While {
-        ea: ExArg,
         pos: Position,
         /// The commands in the body of the loop.
         body: Vec<Box<Node>>,

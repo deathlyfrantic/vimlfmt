@@ -598,7 +598,6 @@ impl<'a> Parser<'a> {
         self.add_node(Node::ExCmd {
             pos: ea.cmdpos,
             bang: ea.bang,
-            ea,
             value: lines.join("\n"),
         });
     }
@@ -630,7 +629,6 @@ impl<'a> Parser<'a> {
         if self.reader.peekn(1) == "" {
             return Ok(self.add_node(Node::Autocmd {
                 pos,
-                ea,
                 bang: ea.bang,
                 group: String::new(),
                 events: vec![],
@@ -649,7 +647,6 @@ impl<'a> Parser<'a> {
             if self.reader.peekn(1) == "" {
                 return Ok(self.add_node(Node::Autocmd {
                     pos,
-                    ea,
                     bang: ea.bang,
                     group: maybe_group,
                     events: vec![],
@@ -674,7 +671,6 @@ impl<'a> Parser<'a> {
         if self.reader.peekn(1) == "" {
             return Ok(self.add_node(Node::Autocmd {
                 pos,
-                ea,
                 bang: ea.bang,
                 group,
                 events,
@@ -693,7 +689,6 @@ impl<'a> Parser<'a> {
         if self.reader.peekn(1) == "" {
             return Ok(self.add_node(Node::Autocmd {
                 pos,
-                ea,
                 bang: ea.bang,
                 group,
                 events,
@@ -710,7 +705,6 @@ impl<'a> Parser<'a> {
         if self.reader.peekn(1) == "" {
             return Ok(self.add_node(Node::Autocmd {
                 pos,
-                ea,
                 bang: ea.bang,
                 group,
                 events,
@@ -733,7 +727,6 @@ impl<'a> Parser<'a> {
         };
         self.add_node(Node::Autocmd {
             pos,
-            ea,
             bang: ea.bang,
             group,
             events,
@@ -750,7 +743,6 @@ impl<'a> Parser<'a> {
         }
         self.add_node(Node::ExCmd {
             pos: ea.cmdpos,
-            ea,
             bang: ea.bang,
             value: "break".to_string(),
         });
@@ -768,7 +760,6 @@ impl<'a> Parser<'a> {
             Node::Call { .. } => {
                 self.add_node(Node::ExCall {
                     pos,
-                    ea,
                     left: Box::new(left),
                 });
                 Ok(())
@@ -807,7 +798,6 @@ impl<'a> Parser<'a> {
         };
         self.push_context(Node::Catch {
             pos: ea.cmdpos,
-            ea,
             pattern,
             body: vec![],
         });
@@ -829,7 +819,6 @@ impl<'a> Parser<'a> {
         self.add_node(Node::ExCmd {
             pos: ea.cmdpos,
             value: self.reader.getstr(ea.linepos, end),
-            ea,
             bang: ea.bang,
         });
         Ok(())
@@ -844,7 +833,6 @@ impl<'a> Parser<'a> {
         }
         self.add_node(Node::ExCmd {
             pos: ea.cmdpos,
-            ea,
             bang: ea.bang,
             value: "continue".to_string(),
         });
@@ -854,7 +842,6 @@ impl<'a> Parser<'a> {
     fn parse_cmd_delfunction(&mut self, ea: ExArg) -> Result<(), ParseError> {
         let node = Node::DelFunction {
             pos: ea.cmdpos,
-            ea,
             bang: ea.bang,
             left: Box::new(self.parse_lvalue_func()?),
         };
@@ -866,7 +853,6 @@ impl<'a> Parser<'a> {
         let node = Node::Echo {
             pos: ea.cmdpos,
             cmd: ea.cmd.name.clone(),
-            ea,
             list: self.parse_exprlist()?,
         };
         self.add_node(node);
@@ -876,7 +862,6 @@ impl<'a> Parser<'a> {
     fn parse_cmd_execute(&mut self, ea: ExArg) -> Result<(), ParseError> {
         let node = Node::Execute {
             pos: ea.cmdpos,
-            ea,
             list: self.parse_exprlist()?,
         };
         self.add_node(node);
@@ -890,7 +875,6 @@ impl<'a> Parser<'a> {
         }
         self.add_node(Node::EchoHl {
             pos: ea.cmdpos,
-            ea,
             value,
         });
         Ok(())
@@ -911,7 +895,6 @@ impl<'a> Parser<'a> {
         };
         self.push_context(Node::Else {
             pos: ea.cmdpos,
-            ea,
             body: vec![],
         });
         Ok(())
@@ -932,7 +915,6 @@ impl<'a> Parser<'a> {
         };
         let node = Node::ElseIf {
             pos: ea.cmdpos,
-            ea,
             cond: Box::new(self.parse_expr()?),
             body: vec![],
         };
@@ -943,7 +925,7 @@ impl<'a> Parser<'a> {
     fn parse_cmd_endfor(&mut self, ea: ExArg) -> Result<(), ParseError> {
         match self.current_context_mut() {
             Node::For { ref mut end, .. } => {
-                let node = Node::End { pos: ea.cmdpos, ea };
+                let node = Node::End { pos: ea.cmdpos };
                 *end = Some(Box::new(node));
             }
             _ => {
@@ -964,7 +946,7 @@ impl<'a> Parser<'a> {
         self.check_missing_endfor("ENDFUNCTION", ea.cmdpos)?;
         match self.current_context_mut() {
             Node::Function { ref mut end, .. } => {
-                let node = Node::End { pos: ea.cmdpos, ea };
+                let node = Node::End { pos: ea.cmdpos };
                 *end = Some(Box::new(node));
             }
             _ => {
@@ -993,7 +975,7 @@ impl<'a> Parser<'a> {
             }
         };
         if let Node::If { ref mut end, .. } = self.current_context_mut() {
-            let node = Node::End { pos: ea.cmdpos, ea };
+            let node = Node::End { pos: ea.cmdpos };
             *end = Some(Box::new(node));
         }
         self.collapse_context();
@@ -1014,7 +996,7 @@ impl<'a> Parser<'a> {
             }
         };
         if let Node::Try { ref mut end, .. } = self.current_context_mut() {
-            let node = Node::End { pos: ea.cmdpos, ea };
+            let node = Node::End { pos: ea.cmdpos };
             *end = Some(Box::new(node));
         }
         self.collapse_context();
@@ -1024,7 +1006,7 @@ impl<'a> Parser<'a> {
     fn parse_cmd_endwhile(&mut self, ea: ExArg) -> Result<(), ParseError> {
         match self.current_context() {
             Node::While { .. } => {
-                let node = Node::End { pos: ea.cmdpos, ea };
+                let node = Node::End { pos: ea.cmdpos };
                 if let Node::While { ref mut end, .. } = self.current_context_mut() {
                     *end = Some(Box::new(node));
                 }
@@ -1053,7 +1035,6 @@ impl<'a> Parser<'a> {
         };
         self.push_context(Node::Finally {
             pos: ea.cmdpos,
-            ea,
             body: vec![],
         });
         Ok(())
@@ -1072,7 +1053,6 @@ impl<'a> Parser<'a> {
         let right = Box::new(self.parse_expr()?);
         self.push_context(Node::For {
             pos: ea.cmdpos,
-            ea,
             var,
             list,
             rest,
@@ -1086,7 +1066,6 @@ impl<'a> Parser<'a> {
     fn parse_cmd_if(&mut self, ea: ExArg) -> Result<(), ParseError> {
         let node = Node::If {
             pos: ea.cmdpos,
-            ea,
             cond: Box::new(self.parse_expr()?),
             elseifs: vec![],
             else_: None,
@@ -1126,7 +1105,6 @@ impl<'a> Parser<'a> {
         }
         self.add_node(Node::ExCmd {
             pos: ea.cmdpos,
-            ea,
             bang: ea.bang,
             value: lines.join("\n"),
         });
@@ -1159,7 +1137,6 @@ impl<'a> Parser<'a> {
         };
         let node = Node::Let {
             pos: ea.cmdpos,
-            ea,
             var,
             list,
             rest,
@@ -1181,7 +1158,6 @@ impl<'a> Parser<'a> {
         }
         self.add_node(Node::ExCmd {
             pos: ea.cmdpos,
-            ea,
             bang: ea.bang,
             value: lines.join("\n"),
         });
@@ -1198,7 +1174,6 @@ impl<'a> Parser<'a> {
         let node = Node::LockVar {
             cmd: ea.cmd.name.to_string(),
             pos: ea.cmdpos,
-            ea,
             bang: ea.bang,
             depth,
             list: self.parse_lvaluelist()?,
@@ -1247,7 +1222,6 @@ impl<'a> Parser<'a> {
                 right: String::new(),
                 right_expr,
                 pos: ea.cmdpos,
-                ea,
             }));
         };
         self.reader.skip_white();
@@ -1277,7 +1251,6 @@ impl<'a> Parser<'a> {
             right,
             right_expr,
             pos: ea.cmdpos,
-            ea,
         });
         Ok(())
     }
@@ -1298,7 +1271,6 @@ impl<'a> Parser<'a> {
         };
         self.add_node(Node::Return {
             pos: ea.cmdpos,
-            ea,
             left,
         });
         Ok(())
@@ -1325,7 +1297,6 @@ impl<'a> Parser<'a> {
         self.add_node(Node::ExCmd {
             pos: ea.cmdpos,
             value: self.reader.getstr(ea.linepos, end),
-            ea,
             bang: ea.bang,
         });
         Ok(())
@@ -1334,7 +1305,6 @@ impl<'a> Parser<'a> {
     fn parse_cmd_throw(&mut self, ea: ExArg) -> Result<(), ParseError> {
         let node = Node::Throw {
             pos: ea.cmdpos,
-            ea,
             err: Box::new(self.parse_expr()?),
         };
         self.add_node(node);
@@ -1344,7 +1314,6 @@ impl<'a> Parser<'a> {
     fn parse_cmd_try(&mut self, ea: ExArg) -> Result<(), ParseError> {
         self.push_context(Node::Try {
             pos: ea.cmdpos,
-            ea,
             body: vec![],
             catches: vec![],
             finally: None,
@@ -1356,7 +1325,6 @@ impl<'a> Parser<'a> {
     fn parse_cmd_unlet(&mut self, ea: ExArg) -> Result<(), ParseError> {
         let node = Node::Unlet {
             pos: ea.cmdpos,
-            ea,
             bang: ea.bang,
             list: self.parse_lvaluelist()?,
         };
@@ -1367,7 +1335,6 @@ impl<'a> Parser<'a> {
     fn parse_cmd_while(&mut self, ea: ExArg) -> Result<(), ParseError> {
         let node = Node::While {
             pos: ea.cmdpos,
-            ea,
             body: vec![],
             cond: Box::new(self.parse_expr()?),
             end: None,
@@ -1394,7 +1361,6 @@ impl<'a> Parser<'a> {
         self.add_node(Node::ExCmd {
             pos: ea.cmdpos,
             value: self.reader.getstr(ea.linepos, end),
-            ea,
             bang: ea.bang,
         });
         Ok(())
@@ -1563,7 +1529,6 @@ impl<'a> Parser<'a> {
         }
         let node = Node::Function {
             pos: ea.cmdpos,
-            ea,
             bang: ea.bang,
             name,
             args,
@@ -1850,7 +1815,6 @@ impl<'a> Parser<'a> {
         self.add_node(Node::ExCmd {
             pos: ea.cmdpos,
             value: self.reader.getstr(ea.linepos, pos),
-            ea,
             bang: ea.bang,
         });
     }
