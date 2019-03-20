@@ -666,6 +666,20 @@ pub enum Node {
 }
 
 impl Node {
+    /// Whether a given node had a bang (`!`) on its associated command. Only can be true for nodes
+    /// that allow a bang, i.e. will always be false for a [While](#variant.While) node.
+    pub fn bang(&self) -> bool {
+        match &self {
+            Node::Autocmd { ea, .. }
+            | Node::DelFunction { ea, .. }
+            | Node::ExCmd { ea, .. }
+            | Node::Function { ea, .. }
+            | Node::LockVar { ea, .. }
+            | Node::Unlet { ea, .. } => ea.bang,
+            _ => false,
+        }
+    }
+
     /// Whether a given node is a [For](#variant.For) node.
     pub fn is_for(node: &Node) -> bool {
         match node {
