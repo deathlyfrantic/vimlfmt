@@ -277,6 +277,7 @@ impl<'a> Formatter<'a> {
                 }
             }
             Node::Autocmd {
+                bang,
                 group,
                 events,
                 patterns,
@@ -285,7 +286,7 @@ impl<'a> Formatter<'a> {
                 ..
             } => {
                 self.add("autocmd");
-                if node.bang() {
+                if bang {
                     self.add("!");
                 }
                 if group.len() > 0 {
@@ -440,10 +441,14 @@ impl<'a> Formatter<'a> {
             }
             Node::List { items, .. } => self.f_list(items),
             Node::LockVar {
-                cmd, depth, list, ..
+                cmd,
+                bang,
+                depth,
+                list,
+                ..
             } => {
                 self.add(&cmd);
-                if node.bang() {
+                if bang {
                     self.add("!");
                 }
                 self.add(" ");
@@ -534,9 +539,9 @@ impl<'a> Formatter<'a> {
                 self.add(&format!("{}", op));
                 self.f(right);
             }
-            Node::Unlet { list, .. } => {
+            Node::Unlet { bang, list, .. } => {
                 self.add("unlet");
-                if node.bang() {
+                if bang {
                     self.add("!");
                 }
                 self.add(" ");
@@ -593,6 +598,7 @@ impl<'a> Formatter<'a> {
             }
             Node::Function {
                 name,
+                bang,
                 args,
                 attrs,
                 body,
@@ -606,7 +612,7 @@ impl<'a> Formatter<'a> {
                     }
                 }
                 self.add("function");
-                if node.bang() {
+                if bang {
                     self.add("!");
                 }
                 self.add(" ");
