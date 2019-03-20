@@ -594,6 +594,7 @@ impl<'a> Parser<'a> {
         }
         self.add_node(Node::ExCmd {
             pos: ea.cmdpos,
+            mods: ea.modifiers,
             bang: ea.bang,
             value: lines.join("\n"),
         });
@@ -626,6 +627,7 @@ impl<'a> Parser<'a> {
         if self.reader.peekn(1) == "" {
             return Ok(self.add_node(Node::Autocmd {
                 pos,
+                mods: ea.modifiers,
                 bang: ea.bang,
                 group: String::new(),
                 events: vec![],
@@ -644,6 +646,7 @@ impl<'a> Parser<'a> {
             if self.reader.peekn(1) == "" {
                 return Ok(self.add_node(Node::Autocmd {
                     pos,
+                    mods: ea.modifiers,
                     bang: ea.bang,
                     group: maybe_group,
                     events: vec![],
@@ -668,6 +671,7 @@ impl<'a> Parser<'a> {
         if self.reader.peekn(1) == "" {
             return Ok(self.add_node(Node::Autocmd {
                 pos,
+                mods: ea.modifiers,
                 bang: ea.bang,
                 group,
                 events,
@@ -686,6 +690,7 @@ impl<'a> Parser<'a> {
         if self.reader.peekn(1) == "" {
             return Ok(self.add_node(Node::Autocmd {
                 pos,
+                mods: ea.modifiers,
                 bang: ea.bang,
                 group,
                 events,
@@ -702,6 +707,7 @@ impl<'a> Parser<'a> {
         if self.reader.peekn(1) == "" {
             return Ok(self.add_node(Node::Autocmd {
                 pos,
+                mods: ea.modifiers,
                 bang: ea.bang,
                 group,
                 events,
@@ -724,6 +730,7 @@ impl<'a> Parser<'a> {
         };
         self.add_node(Node::Autocmd {
             pos,
+            mods: ea.modifiers,
             bang: ea.bang,
             group,
             events,
@@ -740,6 +747,7 @@ impl<'a> Parser<'a> {
         }
         self.add_node(Node::ExCmd {
             pos: ea.cmdpos,
+            mods: ea.modifiers,
             bang: ea.bang,
             value: "break".to_string(),
         });
@@ -757,6 +765,7 @@ impl<'a> Parser<'a> {
             Node::Call { .. } => {
                 self.add_node(Node::ExCall {
                     pos,
+                    mods: ea.modifiers,
                     left: Box::new(left),
                 });
                 Ok(())
@@ -795,6 +804,7 @@ impl<'a> Parser<'a> {
         };
         self.push_context(Node::Catch {
             pos: ea.cmdpos,
+            mods: ea.modifiers,
             pattern,
             body: vec![],
         });
@@ -815,6 +825,7 @@ impl<'a> Parser<'a> {
         }
         self.add_node(Node::ExCmd {
             pos: ea.cmdpos,
+            mods: ea.modifiers,
             value: self.reader.getstr(ea.linepos, end),
             bang: ea.bang,
         });
@@ -830,6 +841,7 @@ impl<'a> Parser<'a> {
         }
         self.add_node(Node::ExCmd {
             pos: ea.cmdpos,
+            mods: ea.modifiers,
             bang: ea.bang,
             value: "continue".to_string(),
         });
@@ -839,6 +851,7 @@ impl<'a> Parser<'a> {
     fn parse_cmd_delfunction(&mut self, ea: ExArg) -> Result<(), ParseError> {
         let node = Node::DelFunction {
             pos: ea.cmdpos,
+            mods: ea.modifiers,
             bang: ea.bang,
             left: Box::new(self.parse_lvalue_func()?),
         };
@@ -849,6 +862,7 @@ impl<'a> Parser<'a> {
     fn parse_cmd_echo(&mut self, ea: ExArg) -> Result<(), ParseError> {
         let node = Node::Echo {
             pos: ea.cmdpos,
+            mods: ea.modifiers,
             cmd: ea.cmd.name.clone(),
             list: self.parse_exprlist()?,
         };
@@ -859,6 +873,7 @@ impl<'a> Parser<'a> {
     fn parse_cmd_execute(&mut self, ea: ExArg) -> Result<(), ParseError> {
         let node = Node::Execute {
             pos: ea.cmdpos,
+            mods: ea.modifiers,
             list: self.parse_exprlist()?,
         };
         self.add_node(node);
@@ -872,6 +887,7 @@ impl<'a> Parser<'a> {
         }
         self.add_node(Node::EchoHl {
             pos: ea.cmdpos,
+            mods: ea.modifiers,
             value,
         });
         Ok(())
@@ -892,6 +908,7 @@ impl<'a> Parser<'a> {
         };
         self.push_context(Node::Else {
             pos: ea.cmdpos,
+            mods: ea.modifiers,
             body: vec![],
         });
         Ok(())
@@ -912,6 +929,7 @@ impl<'a> Parser<'a> {
         };
         let node = Node::ElseIf {
             pos: ea.cmdpos,
+            mods: ea.modifiers,
             cond: Box::new(self.parse_expr()?),
             body: vec![],
         };
@@ -922,7 +940,10 @@ impl<'a> Parser<'a> {
     fn parse_cmd_endfor(&mut self, ea: ExArg) -> Result<(), ParseError> {
         match self.current_context_mut() {
             Node::For { ref mut end, .. } => {
-                let node = Node::End { pos: ea.cmdpos };
+                let node = Node::End {
+                    pos: ea.cmdpos,
+                    mods: ea.modifiers,
+                };
                 *end = Some(Box::new(node));
             }
             _ => {
@@ -943,7 +964,10 @@ impl<'a> Parser<'a> {
         self.check_missing_endfor("ENDFUNCTION", ea.cmdpos)?;
         match self.current_context_mut() {
             Node::Function { ref mut end, .. } => {
-                let node = Node::End { pos: ea.cmdpos };
+                let node = Node::End {
+                    pos: ea.cmdpos,
+                    mods: ea.modifiers,
+                };
                 *end = Some(Box::new(node));
             }
             _ => {
@@ -972,7 +996,10 @@ impl<'a> Parser<'a> {
             }
         };
         if let Node::If { ref mut end, .. } = self.current_context_mut() {
-            let node = Node::End { pos: ea.cmdpos };
+            let node = Node::End {
+                pos: ea.cmdpos,
+                mods: ea.modifiers,
+            };
             *end = Some(Box::new(node));
         }
         self.collapse_context();
@@ -993,7 +1020,10 @@ impl<'a> Parser<'a> {
             }
         };
         if let Node::Try { ref mut end, .. } = self.current_context_mut() {
-            let node = Node::End { pos: ea.cmdpos };
+            let node = Node::End {
+                pos: ea.cmdpos,
+                mods: ea.modifiers,
+            };
             *end = Some(Box::new(node));
         }
         self.collapse_context();
@@ -1003,7 +1033,10 @@ impl<'a> Parser<'a> {
     fn parse_cmd_endwhile(&mut self, ea: ExArg) -> Result<(), ParseError> {
         match self.current_context() {
             Node::While { .. } => {
-                let node = Node::End { pos: ea.cmdpos };
+                let node = Node::End {
+                    pos: ea.cmdpos,
+                    mods: ea.modifiers,
+                };
                 if let Node::While { ref mut end, .. } = self.current_context_mut() {
                     *end = Some(Box::new(node));
                 }
@@ -1032,6 +1065,7 @@ impl<'a> Parser<'a> {
         };
         self.push_context(Node::Finally {
             pos: ea.cmdpos,
+            mods: ea.modifiers,
             body: vec![],
         });
         Ok(())
@@ -1050,6 +1084,7 @@ impl<'a> Parser<'a> {
         let right = Box::new(self.parse_expr()?);
         self.push_context(Node::For {
             pos: ea.cmdpos,
+            mods: ea.modifiers,
             var,
             list,
             rest,
@@ -1063,6 +1098,7 @@ impl<'a> Parser<'a> {
     fn parse_cmd_if(&mut self, ea: ExArg) -> Result<(), ParseError> {
         let node = Node::If {
             pos: ea.cmdpos,
+            mods: ea.modifiers,
             cond: Box::new(self.parse_expr()?),
             elseifs: vec![],
             else_: None,
@@ -1102,6 +1138,7 @@ impl<'a> Parser<'a> {
         }
         self.add_node(Node::ExCmd {
             pos: ea.cmdpos,
+            mods: ea.modifiers,
             bang: ea.bang,
             value: lines.join("\n"),
         });
@@ -1134,6 +1171,7 @@ impl<'a> Parser<'a> {
         };
         let node = Node::Let {
             pos: ea.cmdpos,
+            mods: ea.modifiers,
             var,
             list,
             rest,
@@ -1155,6 +1193,7 @@ impl<'a> Parser<'a> {
         }
         self.add_node(Node::ExCmd {
             pos: ea.cmdpos,
+            mods: ea.modifiers,
             bang: ea.bang,
             value: lines.join("\n"),
         });
@@ -1171,6 +1210,7 @@ impl<'a> Parser<'a> {
         let node = Node::LockVar {
             cmd: ea.cmd.name.to_string(),
             pos: ea.cmdpos,
+            mods: ea.modifiers,
             bang: ea.bang,
             depth,
             list: self.parse_lvaluelist()?,
@@ -1219,6 +1259,7 @@ impl<'a> Parser<'a> {
                 right: String::new(),
                 right_expr,
                 pos: ea.cmdpos,
+                mods: ea.modifiers,
             }));
         };
         self.reader.skip_white();
@@ -1248,6 +1289,7 @@ impl<'a> Parser<'a> {
             right,
             right_expr,
             pos: ea.cmdpos,
+            mods: ea.modifiers,
         });
         Ok(())
     }
@@ -1268,6 +1310,7 @@ impl<'a> Parser<'a> {
         };
         self.add_node(Node::Return {
             pos: ea.cmdpos,
+            mods: ea.modifiers,
             left,
         });
         Ok(())
@@ -1293,6 +1336,7 @@ impl<'a> Parser<'a> {
         }
         self.add_node(Node::ExCmd {
             pos: ea.cmdpos,
+            mods: ea.modifiers,
             value: self.reader.getstr(ea.linepos, end),
             bang: ea.bang,
         });
@@ -1302,6 +1346,7 @@ impl<'a> Parser<'a> {
     fn parse_cmd_throw(&mut self, ea: ExArg) -> Result<(), ParseError> {
         let node = Node::Throw {
             pos: ea.cmdpos,
+            mods: ea.modifiers,
             err: Box::new(self.parse_expr()?),
         };
         self.add_node(node);
@@ -1311,6 +1356,7 @@ impl<'a> Parser<'a> {
     fn parse_cmd_try(&mut self, ea: ExArg) -> Result<(), ParseError> {
         self.push_context(Node::Try {
             pos: ea.cmdpos,
+            mods: ea.modifiers,
             body: vec![],
             catches: vec![],
             finally: None,
@@ -1322,6 +1368,7 @@ impl<'a> Parser<'a> {
     fn parse_cmd_unlet(&mut self, ea: ExArg) -> Result<(), ParseError> {
         let node = Node::Unlet {
             pos: ea.cmdpos,
+            mods: ea.modifiers,
             bang: ea.bang,
             list: self.parse_lvaluelist()?,
         };
@@ -1332,6 +1379,7 @@ impl<'a> Parser<'a> {
     fn parse_cmd_while(&mut self, ea: ExArg) -> Result<(), ParseError> {
         let node = Node::While {
             pos: ea.cmdpos,
+            mods: ea.modifiers,
             body: vec![],
             cond: Box::new(self.parse_expr()?),
             end: None,
@@ -1357,6 +1405,7 @@ impl<'a> Parser<'a> {
         }
         self.add_node(Node::ExCmd {
             pos: ea.cmdpos,
+            mods: ea.modifiers,
             value: self.reader.getstr(ea.linepos, end),
             bang: ea.bang,
         });
@@ -1526,6 +1575,7 @@ impl<'a> Parser<'a> {
         }
         let node = Node::Function {
             pos: ea.cmdpos,
+            mods: ea.modifiers,
             bang: ea.bang,
             name,
             args,
@@ -1811,6 +1861,7 @@ impl<'a> Parser<'a> {
         let pos = self.reader.getpos();
         self.add_node(Node::ExCmd {
             pos: ea.cmdpos,
+            mods: ea.modifiers,
             value: self.reader.getstr(ea.linepos, pos),
             bang: ea.bang,
         });

@@ -1,4 +1,5 @@
 use super::Position;
+use crate::modifier::Modifier;
 use std::fmt;
 
 const INDENT: &str = "  ";
@@ -186,7 +187,8 @@ impl fmt::Display for UnaryOpKind {
 
 /// A single AST node. All variants have an inner struct containing data specific to the node.
 /// Every variant has a `pos` member (a [Position](struct.Position.html) struct) that represents
-/// the position of the node in the original source.
+/// the position of the node in the original source. Many variants have a `mods` vector which
+/// contains zero or more [Modifier](struct.Modifier.html)s.
 #[derive(Debug, PartialEq, Clone)]
 pub enum Node {
     /// An autocommand group
@@ -198,6 +200,7 @@ pub enum Node {
     /// An autocommand
     Autocmd {
         pos: Position,
+        mods: Vec<Modifier>,
         /// Whether this command was invoked with a bang (`!`).
         bang: bool,
         /// The group of this autocommand, if it is specified in the command. If it is not
@@ -265,6 +268,7 @@ pub enum Node {
     /// A catch clause - will only show up in the `catches` member of a [Try](#variant.Try) node.
     Catch {
         pos: Position,
+        mods: Vec<Modifier>,
         /// A pattern, if one exists - e.g. `/^Vim\%((\a\+)\)\=:E123/`.
         pattern: Option<String>,
         /// The commands in the body of the clause.
@@ -308,9 +312,10 @@ pub enum Node {
     },
     /// A delfunction command
     DelFunction {
+        pos: Position,
+        mods: Vec<Modifier>,
         /// Whether this command was invoked with a bang (`!`).
         bang: bool,
-        pos: Position,
         /// The argument to the delfunction command. This is probably an
         /// [Identifier](#variant.Identifier), but doesn't have to be.
         left: Box<Node>,
@@ -336,6 +341,7 @@ pub enum Node {
     /// An echo command
     Echo {
         pos: Position,
+        mods: Vec<Modifier>,
         /// The particular command - either `echo`, `echoerr`, `echomsg`, or `echon`.
         cmd: String,
         /// The arguments passed to the echo command.
@@ -344,18 +350,21 @@ pub enum Node {
     /// An echohl command
     EchoHl {
         pos: Position,
+        mods: Vec<Modifier>,
         /// The name of the highlight group passed to the echohl command.
         value: String,
     },
     /// An else clause - will only show up in the `else_` member of an [If](#variant.If) node.
     Else {
         pos: Position,
+        mods: Vec<Modifier>,
         /// The commands in the body of the clause.
         body: Vec<Box<Node>>,
     },
     /// An elseif clause - will only show up in the `elseifs` member of an [If](#variant.If) node.
     ElseIf {
         pos: Position,
+        mods: Vec<Modifier>,
         /// The condition of the elseif.
         cond: Box<Node>,
         /// The commands in the body of the clause.
@@ -365,7 +374,7 @@ pub enum Node {
     /// `endfor`, `endfunction`, `endtry`, or `endwhile`. This will only exist in the `end` member
     /// of an associated [If](#variant.If), [For](#variant.For), [Function](#variant.Function),
     /// [Try](#variant.Try), or [While](#variant.While) node.
-    End { pos: Position },
+    End { pos: Position, mods: Vec<Modifier> },
     /// An environment variable e.g. `$FOO`
     Env {
         pos: Position,
@@ -375,33 +384,38 @@ pub enum Node {
     /// The `call` command. Not to be confused with [Call](#variant.Call).
     ExCall {
         pos: Position,
+        mods: Vec<Modifier>,
         /// The argument passed to the call command (probably a [Call](#variant.Call)).
         left: Box<Node>,
     },
     /// A general command which does not have a specific variant associated with it. This variant
     /// is kind of a "catch-all" for any commands that are not parsed specifically.
     ExCmd {
+        pos: Position,
+        mods: Vec<Modifier>,
         /// Whether this command was invoked with a bang (`!`).
         bang: bool,
-        pos: Position,
         /// The literal text of the command - just the entire line from the original source.
         value: String,
     },
     /// An execute command
     Execute {
         pos: Position,
+        mods: Vec<Modifier>,
         /// The arguments passed to the execute command.
         list: Vec<Box<Node>>,
     },
     /// A finally clause - will only show up in the `finally` member of a [Try](#variant.Try) node.
     Finally {
         pos: Position,
+        mods: Vec<Modifier>,
         /// The commands in the body of the clause.
         body: Vec<Box<Node>>,
     },
     /// A for loop
     For {
         pos: Position,
+        mods: Vec<Modifier>,
         /// The variable in the for statement, e.g. in `for x in something`, this is `x`.
         var: Option<Box<Node>>,
         /// If there are multiple variables in the for statement, this is a list of those
@@ -421,9 +435,10 @@ pub enum Node {
     },
     /// A function definition
     Function {
+        pos: Position,
+        mods: Vec<Modifier>,
         /// Whether this command was invoked with a bang (`!`).
         bang: bool,
-        pos: Position,
         /// The name of the function - probably an [Identifier](#variant.Identifier).
         name: Box<Node>,
         /// The parameters of the function.
@@ -447,6 +462,7 @@ pub enum Node {
     /// An if statement
     If {
         pos: Position,
+        mods: Vec<Modifier>,
         /// The condition of the if.
         cond: Box<Node>,
         /// The elseif causes of the if.
@@ -471,6 +487,7 @@ pub enum Node {
     /// A variable declaration
     Let {
         pos: Position,
+        mods: Vec<Modifier>,
         /// The variable being defined, e.g. in `let x = something`, this is `x`.
         var: Option<Box<Node>>,
         /// If there are multiple variables in the let statement, this is a list of those
@@ -493,9 +510,10 @@ pub enum Node {
     },
     /// A lockvar or unlockvar command
     LockVar {
+        pos: Position,
+        mods: Vec<Modifier>,
         /// Whether this command was invoked with a bang (`!`).
         bang: bool,
-        pos: Position,
         /// The specific command - either `lockvar` or `unlockvar`
         cmd: String,
         /// The depth argument of the command, if there is one.
@@ -506,6 +524,7 @@ pub enum Node {
     /// A key mapping command
     Mapping {
         pos: Position,
+        mods: Vec<Modifier>,
         /// The specific mapping command used, e.g. `nnoremap` or `xmap`.
         command: String,
         /// The left-hand side of the mapping (i.e. the key(s) to be mapped).
@@ -546,6 +565,7 @@ pub enum Node {
     /// A return statement
     Return {
         pos: Position,
+        mods: Vec<Modifier>,
         /// The value to return, if there is one.
         left: Option<Box<Node>>,
     },
@@ -597,6 +617,7 @@ pub enum Node {
     /// A throw statement
     Throw {
         pos: Position,
+        mods: Vec<Modifier>,
         /// The argument provided to the throw statement - generally a [String](#variant.String),
         /// but it doesn't have to be.
         err: Box<Node>,
@@ -612,6 +633,7 @@ pub enum Node {
     /// A try statement
     Try {
         pos: Position,
+        mods: Vec<Modifier>,
         /// The commands in the body of the try.
         body: Vec<Box<Node>>,
         /// Any catch statements within the try. These will be [Catch](#variant.Catch)es.
@@ -633,15 +655,17 @@ pub enum Node {
     },
     /// An unlet statement
     Unlet {
+        pos: Position,
+        mods: Vec<Modifier>,
         /// Whether this command was invoked with a bang (`!`).
         bang: bool,
-        pos: Position,
         /// The variables to be unlet.
         list: Vec<Box<Node>>,
     },
     /// A while loop
     While {
         pos: Position,
+        mods: Vec<Modifier>,
         /// The commands in the body of the loop.
         body: Vec<Box<Node>>,
         /// The condition of the loop.
@@ -1148,11 +1172,13 @@ mod tests {
     fn test_node_is_for() {
         let for_node = Node::For {
             pos: Position::empty(),
+            mods: vec![],
             var: None,
             list: vec![],
             rest: None,
             right: Box::new(Node::ExCmd {
                 pos: Position::empty(),
+                mods: vec![],
                 bang: false,
                 value: "break".to_string(),
             }),
@@ -1161,6 +1187,7 @@ mod tests {
         };
         let not_for_node = Node::ExCmd {
             pos: Position::empty(),
+            mods: vec![],
             bang: false,
             value: "break".to_string(),
         };
@@ -1172,9 +1199,11 @@ mod tests {
     fn test_node_is_function() {
         let function_node = Node::Function {
             pos: Position::empty(),
+            mods: vec![],
             bang: true,
             name: Box::new(Node::ExCmd {
                 pos: Position::empty(),
+                mods: vec![],
                 bang: false,
                 value: "break".to_string(),
             }),
@@ -1185,6 +1214,7 @@ mod tests {
         };
         let not_function_node = Node::ExCmd {
             pos: Position::empty(),
+            mods: vec![],
             bang: false,
             value: "break".to_string(),
         };
@@ -1196,9 +1226,11 @@ mod tests {
     fn test_node_is_while() {
         let while_node = Node::While {
             pos: Position::empty(),
+            mods: vec![],
             body: vec![],
             cond: Box::new(Node::ExCmd {
                 pos: Position::empty(),
+                mods: vec![],
                 bang: false,
                 value: "break".to_string(),
             }),
@@ -1206,6 +1238,7 @@ mod tests {
         };
         let not_while_node = Node::ExCmd {
             pos: Position::empty(),
+            mods: vec![],
             bang: false,
             value: "break".to_string(),
         };
@@ -1217,9 +1250,11 @@ mod tests {
     fn test_has_body() {
         let while_node = Node::While {
             pos: Position::empty(),
+            mods: vec![],
             body: vec![],
             cond: Box::new(Node::ExCmd {
                 pos: Position::empty(),
+                mods: vec![],
                 bang: false,
                 value: "break".to_string(),
             }),
@@ -1227,6 +1262,7 @@ mod tests {
         };
         let break_node = Node::ExCmd {
             pos: Position::empty(),
+            mods: vec![],
             bang: false,
             value: "break".to_string(),
         };
