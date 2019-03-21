@@ -215,11 +215,11 @@ pub enum ParserKind {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Command {
-    pub name: String,
-    pub minlen: usize,
-    pub flags: Flag,
-    pub parser: ParserKind,
+pub(crate) struct Command {
+    pub(crate) name: String,
+    pub(crate) minlen: usize,
+    pub(crate) flags: Flag,
+    pub(crate) parser: ParserKind,
 }
 
 fn command_vec() -> Vec<Command> {
@@ -4347,6 +4347,6 @@ fn command_hashmap(commands: Vec<Command>) -> HashMap<String, Rc<Command>> {
     map
 }
 
-pub fn commands() -> HashMap<String, Rc<Command>> {
+pub(crate) fn commands() -> HashMap<String, Rc<Command>> {
     command_hashmap(command_vec())
 }
