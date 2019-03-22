@@ -31,9 +31,9 @@ pub struct Modifier {
     /// Whether this modifier was invoked with a bang. This can only be true for `silent` - it will
     /// be false in all other cases.
     pub bang: bool,
-    /// The count argument to this modifier. Defaults to zero. Only `tab` and `silent` can have a
-    /// non-zero value.
-    pub count: usize,
+    /// The count argument to this modifier. Only `tab` and `silent` can have `Some`, all other
+    /// variants will have `None`.
+    pub count: Option<usize>,
 }
 
 impl Modifier {
@@ -41,7 +41,7 @@ impl Modifier {
         Modifier {
             name: name.to_string(),
             bang: false,
-            count: 0,
+            count: None,
         }
     }
 }

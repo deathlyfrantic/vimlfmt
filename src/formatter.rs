@@ -257,8 +257,8 @@ impl<'a> Formatter<'a> {
 
     fn f_mods(&mut self, mods: &[Modifier]) {
         for modifier in mods {
-            if modifier.count > 0 {
-                self.add(&modifier.count.to_string());
+            if let Some(count) = modifier.count {
+                self.add(&count.to_string());
             }
             self.add(&modifier.name);
             if modifier.bang {
