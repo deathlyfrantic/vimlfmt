@@ -1,4 +1,4 @@
-use viml_parser::Node;
+use viml_parser::{Modifier, Node};
 
 fn node_is_atom(node: &Node) -> bool {
     // not building this into the Node struct because this only has meaning in the context of the
@@ -255,6 +255,19 @@ impl<'a> Formatter<'a> {
         }
     }
 
+    fn f_mods(&mut self, mods: &[Modifier]) {
+        for modifier in mods {
+            if modifier.count > 0 {
+                self.add(&modifier.count.to_string());
+            }
+            self.add(&modifier.name);
+            if modifier.bang {
+                self.add("!");
+            }
+            self.add(" ");
+        }
+    }
+
     fn f_node(&mut self, node: &Node) {
         // this method assumes there is not a value (besides the current indent) in self.line
         // already. it will always put at least something onto the end of the current line before
@@ -277,6 +290,7 @@ impl<'a> Formatter<'a> {
                 }
             }
             Node::Autocmd {
+                mods,
                 bang,
                 group,
                 events,
@@ -285,6 +299,7 @@ impl<'a> Formatter<'a> {
                 body,
                 ..
             } => {
+                self.f_mods(mods.as_slice());
                 self.add("autocmd");
                 if *bang {
                     self.add("!");
@@ -384,7 +399,10 @@ impl<'a> Formatter<'a> {
                     self.add(&format!("\"{}", value));
                 }
             }
-            Node::DelFunction { bang, left, .. } => {
+            Node::DelFunction {
+                mods, bang, left, ..
+            } => {
+                self.f_mods(mods.as_slice());
                 self.add("delfunction");
                 if *bang {
                     self.add("!");
@@ -398,25 +416,33 @@ impl<'a> Formatter<'a> {
                 self.add(".");
                 self.f(right);
             }
-            Node::Echo { cmd, list, .. } => {
+            Node::Echo {
+                mods, cmd, list, ..
+            } => {
+                self.f_mods(mods.as_slice());
                 self.add(cmd);
                 self.add(" ");
                 for item in list.iter() {
                     self.f(item);
                 }
             }
-            Node::EchoHl { value, .. } => {
+            Node::EchoHl { mods, value, .. } => {
+                self.f_mods(mods.as_slice());
                 self.add("echohl");
                 self.fit(&value);
             }
-            Node::ExCall { left, .. } => {
+            Node::ExCall { mods, left, .. } => {
+                self.f_mods(mods.as_slice());
                 self.add("call ");
                 self.f(left);
             }
             Node::ExCmd { value, .. } => {
+                // should call f_mods() here but `value` is just the whole line verbatim so not
+                // currently necessary
                 self.add(&value);
             }
-            Node::Execute { list, .. } => {
+            Node::Execute { mods, list, .. } => {
+                self.f_mods(mods.as_slice());
                 self.add("execute ");
                 for item in list.iter() {
                     self.f(item);
@@ -436,7 +462,10 @@ impl<'a> Formatter<'a> {
                 self.f(expr);
                 self.fit("}");
             }
-            Node::Let { right, op, .. } => {
+            Node::Let {
+                mods, right, op, ..
+            } => {
+                self.f_mods(mods.as_slice());
                 let var = letlhs_to_string(node);
                 self.add("let ");
                 self.fit(&var);
@@ -445,12 +474,14 @@ impl<'a> Formatter<'a> {
             }
             Node::List { items, .. } => self.f_list(items),
             Node::LockVar {
+                mods,
                 cmd,
                 bang,
                 depth,
                 list,
                 ..
             } => {
+                self.f_mods(mods.as_slice());
                 self.add(&cmd);
                 if *bang {
                     self.add("!");
@@ -466,6 +497,7 @@ impl<'a> Formatter<'a> {
                 }
             }
             Node::Mapping {
+                mods,
                 command,
                 attrs,
                 left,
@@ -473,6 +505,7 @@ impl<'a> Formatter<'a> {
                 right_expr,
                 ..
             } => {
+                self.f_mods(mods.as_slice());
                 self.add(&command);
                 if attrs.len() > 0 {
                     let mut attrs = attrs.clone();
@@ -498,7 +531,8 @@ impl<'a> Formatter<'a> {
                 self.f(expr);
                 self.fit(")");
             }
-            Node::Return { left, .. } => {
+            Node::Return { mods, left, .. } => {
+                self.f_mods(mods.as_slice());
                 self.add("return");
                 if let Some(l) = left {
                     self.add(" ");
@@ -535,7 +569,8 @@ impl<'a> Formatter<'a> {
                 self.add(" : ");
                 self.f(right);
             }
-            Node::Throw { err, .. } => {
+            Node::Throw { mods, err, .. } => {
+                self.f_mods(mods.as_slice());
                 self.add("throw ");
                 self.f(err);
             }
@@ -543,7 +578,10 @@ impl<'a> Formatter<'a> {
                 self.add(&format!("{}", op));
                 self.f(right);
             }
-            Node::Unlet { bang, list, .. } => {
+            Node::Unlet {
+                mods, bang, list, ..
+            } => {
+                self.f_mods(mods.as_slice());
                 self.add("unlet");
                 if *bang {
                     self.add("!");
@@ -570,7 +608,13 @@ impl<'a> Formatter<'a> {
 
     fn f_body_node(&mut self, node: &Node) {
         match node {
-            Node::Catch { pattern, body, .. } => {
+            Node::Catch {
+                mods,
+                pattern,
+                body,
+                ..
+            } => {
+                self.f_mods(mods.as_slice());
                 self.add("catch");
                 if let Some(p) = pattern {
                     self.add(" ");
@@ -578,20 +622,28 @@ impl<'a> Formatter<'a> {
                 }
                 self.f_body(&body);
             }
-            Node::Else { body, .. } => {
+            Node::Else { mods, body, .. } => {
+                self.f_mods(mods.as_slice());
                 self.add("else");
                 self.f_body(body);
             }
-            Node::ElseIf { cond, body, .. } => {
+            Node::ElseIf {
+                mods, cond, body, ..
+            } => {
+                self.f_mods(mods.as_slice());
                 self.add("elseif ");
                 self.f(cond);
                 self.f_body(body);
             }
-            Node::Finally { body, .. } => {
+            Node::Finally { mods, body, .. } => {
+                self.f_mods(mods.as_slice());
                 self.add("finally");
                 self.f_body(body);
             }
-            Node::For { right, body, .. } => {
+            Node::For {
+                mods, right, body, ..
+            } => {
+                self.f_mods(mods.as_slice());
                 let var = letlhs_to_string(node);
                 self.add("for ");
                 self.fit(&var);
@@ -601,6 +653,7 @@ impl<'a> Formatter<'a> {
                 self.add("endfor");
             }
             Node::Function {
+                mods,
                 name,
                 bang,
                 args,
@@ -615,6 +668,7 @@ impl<'a> Formatter<'a> {
                         self.next_line(); // blank lines between functions
                     }
                 }
+                self.f_mods(mods.as_slice());
                 self.add("function");
                 if *bang {
                     self.add("!");
@@ -638,12 +692,14 @@ impl<'a> Formatter<'a> {
                 self.next_line(); // blank lines between functions
             }
             Node::If {
+                mods,
                 cond,
                 elseifs,
                 else_,
                 body,
                 ..
             } => {
+                self.f_mods(mods.as_slice());
                 self.add("if ");
                 self.f(cond);
                 self.f_body(body);
@@ -656,11 +712,13 @@ impl<'a> Formatter<'a> {
                 self.add("endif");
             }
             Node::Try {
+                mods,
                 body,
                 catches,
                 finally,
                 ..
             } => {
+                self.f_mods(mods.as_slice());
                 self.add("try");
                 self.f_body(body);
                 for catch in catches.iter() {
@@ -671,7 +729,10 @@ impl<'a> Formatter<'a> {
                 }
                 self.add("endtry");
             }
-            Node::While { cond, body, .. } => {
+            Node::While {
+                mods, cond, body, ..
+            } => {
+                self.f_mods(mods.as_slice());
                 self.add("while ");
                 self.f(cond);
                 self.f_body(body);
