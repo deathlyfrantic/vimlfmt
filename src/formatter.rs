@@ -384,8 +384,12 @@ impl<'a> Formatter<'a> {
                     self.add(&format!("\"{}", value));
                 }
             }
-            Node::DelFunction { left, .. } => {
-                self.add("delfunction ");
+            Node::DelFunction { bang, left, .. } => {
+                self.add("delfunction");
+                if *bang {
+                    self.add("!");
+                }
+                self.add(" ");
                 self.f(left);
             }
             Node::Dict { items, .. } => self.f_dict(items),
