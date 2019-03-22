@@ -349,7 +349,7 @@ impl<'a> Parser<'a> {
                 _ if &k == "tab" => {
                     let mut mods = Modifier::new("tab");
                     if let Ok(n) = count.parse::<usize>() {
-                        mods.count = n;
+                        mods.count = Some(n);
                     }
                     modifiers.push(mods)
                 }
@@ -364,7 +364,9 @@ impl<'a> Parser<'a> {
                 }
                 _ if "verbose".starts_with(&k) && k.len() >= 4 => {
                     let mut mods = Modifier::new("verbose");
-                    mods.count = count.parse::<usize>().unwrap_or(1);
+                    if let Ok(n) = count.parse::<usize>() {
+                        mods.count = Some(n);
+                    }
                     modifiers.push(mods)
                 }
                 _ => {
