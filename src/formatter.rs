@@ -18,41 +18,6 @@ fn node_is_atom(node: &Node) -> bool {
     }
 }
 
-fn letlhs_to_string(node: &Node) -> String {
-    let mut rv = String::new();
-    match node {
-        Node::Let {
-            var, list, rest, ..
-        }
-        | Node::For {
-            var, list, rest, ..
-        } => {
-            // we're making an assumption that var, list, and rest are all atomic nodes. any other
-            // kind doesn't make sense, but might be allowed by vim anyway.
-            if let Some(v) = var {
-                // this is the "x" in "let x = something"
-                rv.push_str(&format!("{}", v))
-            } else {
-                // this is the "[a, b]" in "let [a, b] = something" with an optional "rest" param,
-                // e.g. "let [a, b; z] = something". see :h let-unpack
-                rv.push_str(&format!(
-                    "[{}",
-                    list.iter()
-                        .map(|n| format!("{}", n))
-                        .collect::<Vec<String>>()
-                        .join(", ")
-                ));
-                if let Some(r) = rest {
-                    rv.push_str(&format!("; {}", r));
-                }
-                rv.push(']');
-            }
-        }
-        _ => (),
-    }
-    rv
-}
-
 fn str_length_with_tabs(s: &str) -> usize {
     // assume every tab == 8 spaces which isn't necessarily true for mid-line tabs. we just care
     // about leading tabs here, for the heathens that use tabs for indentation.
@@ -177,6 +142,36 @@ impl<'a> Formatter<'a> {
         // formatted node to that value, or continues it on the next line. for these nodes the
         // Display output is what we want.
         self.fit(&format!("{}", node));
+    }
+
+    fn f_letlhs(&mut self, node: &Node) {
+        match node {
+            Node::Let {
+                var, list, rest, ..
+            }
+            | Node::For {
+                var, list, rest, ..
+            } => {
+                if let Some(v) = var {
+                    self.f(v);
+                } else {
+                    self.add("[");
+                    let last = list.len() - 1;
+                    for (i, node) in list.iter().enumerate() {
+                        self.f(node);
+                        if i != last {
+                            self.add(", ");
+                        }
+                    }
+                    if let Some(r) = rest {
+                        self.add("; ");
+                        self.f(r);
+                    }
+                    self.add("]");
+                }
+            }
+            _ => (),
+        }
     }
 
     fn f_list(&mut self, items: &[Box<Node>]) {
@@ -466,9 +461,8 @@ impl<'a> Formatter<'a> {
                 mods, right, op, ..
             } => {
                 self.f_mods(mods.as_slice());
-                let var = letlhs_to_string(node);
                 self.add("let ");
-                self.fit(&var);
+                self.f_letlhs(node);
                 self.fit(&format!(" {} ", op));
                 self.f(right);
             }
@@ -644,9 +638,8 @@ impl<'a> Formatter<'a> {
                 mods, right, body, ..
             } => {
                 self.f_mods(mods.as_slice());
-                let var = letlhs_to_string(node);
                 self.add("for ");
-                self.fit(&var);
+                self.f_letlhs(node);
                 self.add(" in ");
                 self.f(right);
                 self.f_body(body);
