@@ -96,7 +96,7 @@ impl Formatter {
         if let Node::TopLevel { body, .. } = ast {
             for node in body {
                 self.f(node);
-                self.next_line()
+                self.next_line();
             }
             if self.output.len() > 0 {
                 while self.output[0].trim() == "" {
