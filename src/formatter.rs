@@ -21,7 +21,7 @@ fn node_is_atom(node: &Node) -> bool {
 fn str_length_with_tabs(s: &str) -> usize {
     // assume every tab == 8 spaces which isn't necessarily true for mid-line tabs. we just care
     // about leading tabs here, for the heathens that use tabs for indentation.
-    let num_tabs = s.split('\t').collect::<Vec<&str>>().len() - 1;
+    let num_tabs = s.matches('\t').count();
     s.len() + (num_tabs * 7) // 1 space of each tab is already included in s.len()
 }
 
