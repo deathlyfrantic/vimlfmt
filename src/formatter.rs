@@ -67,7 +67,7 @@ impl Formatter {
         } else {
             Err(Error::new(
                 ErrorKind::InvalidData,
-                "provided node is not a TopLevel node".to_string(),
+                "provided node is not a TopLevel node",
             ))
         }
     }
