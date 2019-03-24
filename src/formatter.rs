@@ -1,5 +1,9 @@
 use viml_parser::{Modifier, Node};
 
+const INDENT: &str = "  ";
+const CONTINUATION: usize = 3;
+const MAX_LEN: usize = 80;
+
 fn node_is_atom(node: &Node) -> bool {
     // not building this into the Node struct because this only has meaning in the context of the
     // formatter. in this case "atom" means a node that is a singular, i.e. whose value can only be
@@ -18,33 +22,20 @@ fn node_is_atom(node: &Node) -> bool {
     }
 }
 
-fn str_length_with_tabs(s: &str) -> usize {
-    // assume every tab == 8 spaces which isn't necessarily true for mid-line tabs. we just care
-    // about leading tabs here, for the heathens that use tabs for indentation.
-    let num_tabs = s.matches('\t').count();
-    s.len() + (num_tabs * 7) // 1 space of each tab is already included in s.len()
-}
-
 #[derive(Debug)]
-pub struct Formatter<'a> {
+pub struct Formatter {
     output: Vec<String>,
-    indent_style: &'a str,
     current_indent: usize,
-    max_len: usize,
-    continuation: usize,
     line: String,
     last_line_was_blank: bool,
     current_continuation_indent: usize, // indent beyond the next line backslash
 }
 
-impl<'a> Formatter<'a> {
-    pub fn new(indent_style: &'a str, continuation: usize, max_len: usize) -> Formatter<'a> {
+impl Formatter {
+    pub fn new() -> Formatter {
         Formatter {
             output: vec![],
-            indent_style,
             current_indent: 0,
-            max_len,
-            continuation,
             line: String::new(),
             last_line_was_blank: false,
             current_continuation_indent: 0,
@@ -52,11 +43,11 @@ impl<'a> Formatter<'a> {
     }
 
     fn indent(&self) -> String {
-        self.indent_style.repeat(self.current_indent)
+        INDENT.repeat(self.current_indent)
     }
 
     fn will_fit(&self, item: &str) -> bool {
-        str_length_with_tabs(&self.line) + str_length_with_tabs(item) <= self.max_len
+        self.line.len() + item.len() <= MAX_LEN
     }
 
     fn next_line(&mut self) {
@@ -78,15 +69,11 @@ impl<'a> Formatter<'a> {
         self.output
             .push(self.line.split_off(0).trim_end().to_string());
         self.line.push_str(&self.indent());
-        self.line
-            .push_str(&self.indent_style.repeat(self.continuation));
+        self.line.push_str(&INDENT.repeat(CONTINUATION));
         self.line.push_str("\\ ");
         if self.current_continuation_indent > 1 {
-            self.line.push_str(
-                &self
-                    .indent_style
-                    .repeat(self.current_continuation_indent - 1),
-            )
+            self.line
+                .push_str(&INDENT.repeat(self.current_continuation_indent - 1))
         }
     }
 
@@ -345,7 +332,7 @@ impl<'a> Formatter<'a> {
                         } else {
                             let pieces = raw[i].clone();
                             let last_piece = pieces.len() - 1;
-                            let indent = str_length_with_tabs(&self.indent());
+                            let indent = self.indent().len();
                             for (j, piece) in pieces.iter().enumerate() {
                                 self.continue_line();
                                 if j == 0 {
@@ -738,16 +725,5 @@ impl<'a> Formatter<'a> {
             }
             _ => (),
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_str_length_with_tabs() {
-        assert_eq!(str_length_with_tabs("foobar"), 6);
-        assert_eq!(str_length_with_tabs("foo\tbar"), 14);
     }
 }
