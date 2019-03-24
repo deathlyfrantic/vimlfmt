@@ -29,10 +29,10 @@ fn main() {
             .as_slice(),
     ) {
         Ok(output) => {
-            if matches.is_present("ast") {
-                println!("{}", output);
-            } else if matches.is_present("debug") {
+            if matches.is_present("debug") {
                 println!("{:#?}", output);
+            } else if matches.is_present("ast") {
+                println!("{}", output);
             } else {
                 match formatter.format(&output) {
                     Ok(o) => println!("{}", o),
