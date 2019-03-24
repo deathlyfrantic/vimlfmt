@@ -386,12 +386,17 @@ impl<'a> Formatter<'a> {
             Node::Comment {
                 value, trailing, ..
             } => {
+                let comment = if value.starts_with(char::is_whitespace) {
+                    value.to_string()
+                } else {
+                    format!(" {}", value)
+                };
                 if *trailing {
                     let last = self.output.len() - 1;
                     self.line = self.output.remove(last);
-                    self.add(&format!(" \"{}", value));
+                    self.add(&format!(" \"{}", comment));
                 } else {
-                    self.add(&format!("\"{}", value));
+                    self.add(&format!("\"{}", comment));
                 }
             }
             Node::DelFunction {
