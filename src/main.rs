@@ -34,7 +34,10 @@ fn main() {
             } else if matches.is_present("debug") {
                 println!("{:#?}", output);
             } else {
-                println!("{}", formatter.format(&output));
+                match formatter.format(&output) {
+                    Ok(o) => println!("{}", o),
+                    Err(e) => eprintln!("{}", e),
+                }
             }
         }
         Err(e) => eprintln!("{}", e),

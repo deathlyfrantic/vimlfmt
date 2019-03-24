@@ -1,3 +1,4 @@
+use std::io::{Error, ErrorKind};
 use viml_parser::{Modifier, Node};
 
 const INDENT: &str = "  ";
@@ -39,6 +40,35 @@ impl Formatter {
             line: String::new(),
             last_line_was_blank: false,
             current_continuation_indent: 0,
+        }
+    }
+
+    pub fn format(&mut self, ast: &Node) -> Result<String, Error> {
+        self.current_indent = 0;
+        self.output.clear();
+        self.line.clear();
+        self.last_line_was_blank = false;
+        if let Node::TopLevel { body, .. } = ast {
+            for node in body {
+                self.f(node);
+                self.next_line();
+            }
+            if self.output.len() > 0 {
+                while self.output[0].trim() == "" {
+                    self.output.remove(0);
+                }
+                let mut last = self.output.len() - 1;
+                while last > 0 && self.output[last].trim() == "" {
+                    self.output.remove(last);
+                    last = self.output.len() - 1;
+                }
+            }
+            Ok(self.output.join("\n"))
+        } else {
+            Err(Error::new(
+                ErrorKind::InvalidData,
+                "provided node is not a TopLevel node".to_string(),
+            ))
         }
     }
 
@@ -86,32 +116,6 @@ impl Formatter {
             self.continue_line();
         }
         self.add(s);
-    }
-
-    pub fn format(&mut self, ast: &Node) -> String {
-        self.current_indent = 0;
-        self.output.clear();
-        self.line.clear();
-        self.last_line_was_blank = false;
-        if let Node::TopLevel { body, .. } = ast {
-            for node in body {
-                self.f(node);
-                self.next_line();
-            }
-            if self.output.len() > 0 {
-                while self.output[0].trim() == "" {
-                    self.output.remove(0);
-                }
-                let mut last = self.output.len() - 1;
-                while last > 0 && self.output[last].trim() == "" {
-                    self.output.remove(last);
-                    last = self.output.len() - 1;
-                }
-            }
-            self.output.join("\n")
-        } else {
-            "provided node is not a TopLevel node".to_string()
-        }
     }
 
     fn f(&mut self, node: &Node) {
