@@ -263,8 +263,7 @@ impl Formatter {
                 if name.len() > 0 {
                     if name.to_lowercase() == "end" && self.current_indent > 0 {
                         self.current_indent -= 1;
-                        let indent = self.indent();
-                        self.line = format!("{}augroup ", indent);
+                        self.line = format!("{}augroup ", self.indent());
                         self.fit("END"); // do not allow lowercase "end"
                     } else {
                         self.add("augroup ");
