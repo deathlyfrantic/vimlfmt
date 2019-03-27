@@ -730,3 +730,35 @@ impl Formatter {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::super::parse_lines;
+    use super::*;
+
+    #[test]
+    fn test_list_line_formatting() {
+        let node =
+            parse_lines(&["let foo = ['this list will fit', 'this list will fit']"]).unwrap();
+        let mut formatter = Formatter::new();
+        let result = formatter.format(&node).unwrap();
+        let expected = "let foo = ['this list will fit', 'this list will fit']";
+        assert_eq!(expected, &result);
+    }
+
+    #[test]
+    fn test_list_block_formatting() {
+        let node = parse_lines(
+            &[r#"let foo = ['list is too long', 'list is too long', 'list is too long', 'list is too long']"#]
+        ).unwrap();
+        let mut formatter = Formatter::new();
+        let result = formatter.format(&node).unwrap();
+        let expected = r#"let foo = [
+      \ 'list is too long',
+      \ 'list is too long',
+      \ 'list is too long',
+      \ 'list is too long',
+      \ ]"#;
+        assert_eq!(expected, &result);
+    }
+}
