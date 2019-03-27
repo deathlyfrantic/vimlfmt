@@ -759,4 +759,27 @@ mod tests {
       \ ]"#;
         assert_eq!(expected, &result);
     }
+
+    #[test]
+    fn test_dict_formatting() {
+        // "line formatting" - entire dict fits on a single line
+        let node =
+            parse_lines(&["let foo = {'this': 'dict will fit', 'this dict': 'will fit'}"]).unwrap();
+        let mut formatter = Formatter::new();
+        let result = formatter.format(&node).unwrap();
+        let expected = "let foo = {'this': 'dict will fit', 'this dict': 'will fit'}";
+        assert_eq!(expected, &result);
+        // "block formatting" - dict won't fit on a single line, so format it as a block
+        let node = parse_lines(
+            &[r#"let foo = {'this': 'dict will not fit', 'this dict': 'will not fit', 'this dict will': 'not fit'}"#]
+        ).unwrap();
+        let mut formatter = Formatter::new();
+        let result = formatter.format(&node).unwrap();
+        let expected = r#"let foo = {
+      \ 'this': 'dict will not fit',
+      \ 'this dict': 'will not fit',
+      \ 'this dict will': 'not fit',
+      \ }"#;
+        assert_eq!(expected, &result);
+    }
 }
