@@ -737,17 +737,15 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_list_line_formatting() {
+    fn test_list_formatting() {
+        // "line formatting" - entire list fits on a single line
         let node =
             parse_lines(&["let foo = ['this list will fit', 'this list will fit']"]).unwrap();
         let mut formatter = Formatter::new();
         let result = formatter.format(&node).unwrap();
         let expected = "let foo = ['this list will fit', 'this list will fit']";
         assert_eq!(expected, &result);
-    }
-
-    #[test]
-    fn test_list_block_formatting() {
+        // "block formatting" - list won't fit on a single line, so format it as a block
         let node = parse_lines(
             &[r#"let foo = ['list is too long', 'list is too long', 'list is too long', 'list is too long']"#]
         ).unwrap();
