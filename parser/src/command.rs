@@ -180,6 +180,7 @@ pub enum ParserKind {
     Break,
     Call,
     Catch,
+    Colorscheme,
     Common,
     Continue,
     DelFunction,
@@ -819,7 +820,7 @@ fn command_vec() -> Vec<Command> {
             name: "colorscheme".to_string(),
             minlen: 4,
             flags: Flag::WORD1 | Flag::TRLBAR | Flag::CMDWIN,
-            parser: ParserKind::Common,
+            parser: ParserKind::Colorscheme,
         },
         Command {
             name: "command".to_string(),

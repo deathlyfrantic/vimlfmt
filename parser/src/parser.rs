@@ -546,6 +546,7 @@ impl<'a> Parser<'a> {
             ParserKind::Break => self.parse_cmd_break(ea),
             ParserKind::Call => self.parse_cmd_call(ea),
             ParserKind::Catch => self.parse_cmd_catch(ea),
+            ParserKind::Colorscheme => self.parse_cmd_colorscheme(ea),
             ParserKind::Common | ParserKind::UserCmd => self.parse_cmd_common(ea),
             ParserKind::Continue => self.parse_cmd_continue(ea),
             ParserKind::DelFunction => self.parse_cmd_delfunction(ea),
@@ -811,6 +812,21 @@ impl<'a> Parser<'a> {
             body: vec![],
         });
         Ok(())
+    }
+
+    fn parse_cmd_colorscheme(&mut self, ea: ExArg) -> Result<(), ParseError> {
+        let mut name = String::new();
+        while !ends_excmds(self.reader.peek()) {
+            name.push(self.reader.get());
+        }
+        Ok(self.add_node(Node::Colorscheme {
+            pos: ea.cmdpos,
+            name: if name == "" {
+                None
+            } else {
+                Some(name.trim().to_string())
+            },
+        }))
     }
 
     fn parse_cmd_common(&mut self, ea: ExArg) -> Result<(), ParseError> {
@@ -2846,6 +2862,16 @@ mod tests {
             "  (break)\n",
             "  (continue))"
         );
+        assert_eq!(&format!("{}", parse_lines(&code).unwrap()), expected);
+    }
+
+    #[test]
+    fn test_colorscheme() {
+        let code = ["colorscheme"];
+        let expected = "(colorscheme)";
+        assert_eq!(&format!("{}", parse_lines(&code).unwrap()), expected);
+        let code = ["colorscheme foo bar "];
+        let expected = "(colorscheme foo bar)";
         assert_eq!(&format!("{}", parse_lines(&code).unwrap()), expected);
     }
 }

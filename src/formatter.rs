@@ -373,6 +373,12 @@ impl Formatter {
                 }
                 self.add(")");
             }
+            Node::Colorscheme { name, .. } => {
+                self.add("colorscheme");
+                if let Some(n) = name {
+                    self.fit(&format!(" {}", n));
+                }
+            }
             Node::Comment {
                 value, trailing, ..
             } => {

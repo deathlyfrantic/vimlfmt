@@ -274,6 +274,12 @@ pub enum Node {
         /// The commands in the body of the clause.
         body: Vec<Box<Node>>,
     },
+    /// A colorscheme command
+    Colorscheme {
+        pos: Position,
+        /// The name of the colorscheme, if one was provided.
+        name: Option<String>,
+    },
     /// A comment
     Comment {
         pos: Position,
@@ -689,6 +695,7 @@ impl Node {
             | Node::BlankLine { pos, .. }
             | Node::Call { pos, .. }
             | Node::Catch { pos, .. }
+            | Node::Colorscheme { pos, .. }
             | Node::Comment { pos, .. }
             | Node::CurlyName { pos, .. }
             | Node::CurlyNameExpr { pos, .. }
@@ -863,6 +870,13 @@ impl fmt::Display for Node {
                         )
                     } else {
                         format!("({})", name)
+                    }
+                }
+                Node::Colorscheme { name, .. } => {
+                    if let Some(n) = name {
+                        format!("(colorscheme {})", n)
+                    } else {
+                        "(colorscheme)".to_string()
                     }
                 }
                 Node::Comment { value, .. } => format!(";{}", value),
