@@ -788,4 +788,17 @@ mod tests {
       \ }"#;
         assert_eq!(expected, &result);
     }
+
+    #[test]
+    fn test_colorscheme_formatting() {
+        let mut formatter = Formatter::new();
+        let node = parse_lines(&["colorscheme"]).unwrap();
+        let result = formatter.format(&node).unwrap();
+        let expected = "colorscheme";
+        assert_eq!(expected, &result);
+        let node = parse_lines(&["colorscheme default"]).unwrap();
+        let result = formatter.format(&node).unwrap();
+        let expected = "colorscheme default";
+        assert_eq!(expected, &result);
+    }
 }
