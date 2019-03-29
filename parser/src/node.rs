@@ -459,6 +459,33 @@ pub enum Node {
         /// the body of the function before the `endfunction` is found.
         end: Option<Box<Node>>,
     },
+    /// A highlight command, including highlight-link variants
+    Highlight {
+        pos: Position,
+        mods: Vec<Modifier>,
+        /// Whether this command was invoked with a bang (`!`). While this might be true for any
+        /// highlight node, it only matters for highlight-link commands.
+        bang: bool,
+        /// Whether "clear" was the first argument to the highlight command. Note that this will
+        /// not be true for `highlight {group-name} NONE`, although the effect is the same as
+        /// `highlight clear {group-name}`.
+        clear: bool,
+        /// Whether "default" was the first argument to the highlight command.
+        default: bool,
+        /// Whether this is a highlight-link command
+        link: bool,
+        /// The group name, if one is specified. If this is a highlight-link command, this is the
+        /// {from-group}.
+        group: Option<String>,
+        /// Whether "NONE" was used to clear the group or to clear the link
+        none: bool,
+        /// If this is a highlight-link command, this is the {to-group}, if "NONE" was not used to
+        /// clear the link.
+        to_group: Option<String>,
+        /// The attributes provided to the highlight command, in `(key, value)` form, e.g.
+        /// `("guibg", "#abcdef")`.
+        attrs: Vec<(String, String)>,
+    },
     /// An identifier (a variable, function name, etc)
     Identifier {
         pos: Position,
@@ -715,6 +742,7 @@ impl Node {
             | Node::Finally { pos, .. }
             | Node::For { pos, .. }
             | Node::Function { pos, .. }
+            | Node::Highlight { pos, .. }
             | Node::Identifier { pos, .. }
             | Node::If { pos, .. }
             | Node::Lambda { pos, .. }
@@ -964,6 +992,47 @@ impl fmt::Display for Node {
                     rv.push_str(")");
                     rv.push_str(&format_body(body.as_slice()));
                     rv.push_str(")");
+                    rv
+                }
+                Node::Highlight {
+                    clear,
+                    default,
+                    link,
+                    group,
+                    none,
+                    to_group,
+                    attrs,
+                    ..
+                } => {
+                    let mut rv = "(highlight".to_string();
+                    if *clear {
+                        rv.push_str(" clear");
+                    } else if *default {
+                        rv.push_str(" default");
+                    }
+                    if *link {
+                        rv.push_str(" link");
+                    }
+                    if let Some(g) = group {
+                        rv.push_str(&format!(" {}", g));
+                    }
+                    if *none {
+                        rv.push_str(" NONE");
+                    }
+                    if let Some(t) = to_group {
+                        rv.push_str(&format!(" {}", t));
+                    }
+                    if attrs.len() > 0 {
+                        rv.push(' ');
+                    }
+                    rv.push_str(
+                        &attrs
+                            .iter()
+                            .map(|(k, v)| format!("{}={}", k, v))
+                            .collect::<Vec<String>>()
+                            .join(" "),
+                    );
+                    rv.push(')');
                     rv
                 }
                 Node::If {

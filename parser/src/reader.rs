@@ -221,6 +221,10 @@ impl Reader {
         self.read_base(|c| !c.is_white())
     }
 
+    pub fn read_nonwhitespace(&self) -> String {
+        self.read_base(|c| !c.is_whitespace())
+    }
+
     pub fn read_name(&self) -> String {
         self.read_base(|c| c.is_name())
     }
@@ -385,6 +389,23 @@ mod tests {
         assert_eq!(reader.tell(), 0);
         assert_eq!(&reader.read_nonwhite(), "abc");
         assert_eq!(reader.tell(), 3);
+    }
+
+    #[test]
+    fn test_read_nonwhitespace() {
+        let reader = Reader::from_lines(&["abc ", "def", "ghi"]);
+        assert_eq!(reader.tell(), 0);
+        assert_eq!(&reader.read_nonwhitespace(), "abc");
+        assert_eq!(reader.tell(), 3);
+        reader.read_white();
+        assert_eq!(&reader.read_nonwhitespace(), "");
+        assert_eq!(reader.tell(), 4);
+        reader.get();
+        assert_eq!(&reader.read_nonwhitespace(), "def");
+        assert_eq!(reader.tell(), 8);
+        reader.get();
+        assert_eq!(&reader.read_nonwhitespace(), "ghi");
+        assert_eq!(reader.tell(), 12);
     }
 
     #[test]
