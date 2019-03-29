@@ -564,6 +564,7 @@ impl<'a> Parser<'a> {
             ParserKind::Finish => self.parse_cmd_common(ea),
             ParserKind::For => self.parse_cmd_for(ea),
             ParserKind::Function => self.parse_cmd_function(ea),
+            ParserKind::Highlight => self.parse_cmd_highlight(ea),
             ParserKind::If => self.parse_cmd_if(ea),
             ParserKind::Lang => self.parse_cmd_lang(ea),
             ParserKind::Let => self.parse_cmd_let(ea),
@@ -1603,6 +1604,159 @@ impl<'a> Parser<'a> {
         };
         self.push_context(node);
         Ok(())
+    }
+
+    fn parse_cmd_highlight(&mut self, ea: ExArg) -> Result<(), ParseError> {
+        let (pos, mods, bang) = (ea.cmdpos, ea.modifiers, ea.bang);
+        let mut attrs = vec![];
+        let mut token = self.reader.read_nonwhitespace();
+        if token == "" {
+            return Ok(self.add_node(Node::Highlight {
+                pos,
+                mods,
+                bang,
+                clear: false,
+                default: false,
+                link: false,
+                group: None,
+                none: false,
+                to_group: None,
+                attrs,
+            }));
+        }
+        if token.to_lowercase() == "clear" {
+            self.reader.skip_white();
+            token = self.reader.read_nonwhitespace();
+            return Ok(self.add_node(Node::Highlight {
+                pos,
+                mods,
+                bang,
+                clear: true,
+                default: false,
+                link: false,
+                none: false,
+                to_group: None,
+                attrs,
+                group: if token == "" { None } else { Some(token) },
+            }));
+        }
+        let default = token.to_lowercase() == "default";
+        if default {
+            self.reader.skip_white();
+            token = self.reader.read_nonwhitespace();
+            if token == "" {
+                return Ok(self.add_node(Node::Highlight {
+                    pos,
+                    mods,
+                    bang,
+                    clear: false,
+                    default: true,
+                    link: false,
+                    none: false,
+                    to_group: None,
+                    attrs,
+                    group: None,
+                }));
+            }
+        }
+        let link = token.to_lowercase() == "link";
+        if link {
+            self.reader.skip_white();
+            token = self.reader.read_nonwhitespace();
+            if token == "" {
+                return Err(ParseError {
+                    msg: "E412: Not enough arguments: \":highlight link \"".to_string(),
+                    pos,
+                });
+            }
+        }
+        let group = Some(token);
+        self.reader.skip_white();
+        token = self.reader.read_nonwhitespace();
+        if token.to_lowercase() == "none" {
+            return Ok(self.add_node(Node::Highlight {
+                pos,
+                mods,
+                bang,
+                clear: false,
+                default,
+                link,
+                none: true,
+                to_group: None,
+                attrs,
+                group,
+            }));
+        } else if link {
+            return if token == "" {
+                Err(ParseError {
+                    msg: format!(
+                        "E412: Not enough arguments: \":highlight link {}\"",
+                        group.unwrap()
+                    ),
+                    pos,
+                })
+            } else {
+                Ok(self.add_node(Node::Highlight {
+                    pos,
+                    mods,
+                    bang,
+                    clear: false,
+                    default,
+                    link,
+                    none: false,
+                    to_group: Some(token),
+                    attrs,
+                    group,
+                }))
+            };
+        }
+        lazy_static! {
+            static ref VALID_HL_KEYS: &'static [&'static str] = &[
+                "cterm", "ctermbg", "ctermfg", "font", "gui", "guibg", "guifg", "guisp", "start",
+                "stop", "term",
+            ];
+        }
+        while token != "" {
+            if !token.contains('=') {
+                return self.err(&format!("E416: missing equal sign: {}", token));
+            }
+            if token.contains("='") {
+                // have to account for e.g. `:highlight String font='Monospace 10'`
+                loop {
+                    let c = self.reader.get();
+                    if c == EOL || c == EOF {
+                        return self.err(&format!("E475: Invalid argument: {}", token));
+                    }
+                    token.push(c);
+                    if c == '\'' {
+                        break;
+                    }
+                }
+            }
+            let splits = token.splitn(2, '=').collect::<Vec<&str>>();
+            let (key, value) = (splits[0], splits[1]);
+            if !VALID_HL_KEYS.contains(&key.to_lowercase().as_str()) {
+                return Err(ParseError {
+                    msg: format!("E423: Illegal argument: {}", token),
+                    pos,
+                });
+            }
+            attrs.push((key.to_lowercase(), value.to_string()));
+            self.reader.skip_white();
+            token = self.reader.read_nonwhitespace();
+        }
+        Ok(self.add_node(Node::Highlight {
+            pos,
+            mods,
+            bang,
+            clear: false,
+            default,
+            link,
+            none: false,
+            to_group: None,
+            attrs,
+            group,
+        }))
     }
 
     fn parse_exprlist(&mut self) -> Result<Vec<Box<Node>>, ParseError> {
@@ -2873,5 +3027,45 @@ mod tests {
         let code = ["colorscheme foo bar "];
         let expected = "(colorscheme foo bar)";
         assert_eq!(&format!("{}", parse_lines(&code).unwrap()), expected);
+    }
+
+    #[test]
+    fn test_highlight() {
+        let tests = [
+            ("highlight", "(highlight)"),
+            ("highlight String", "(highlight String)"),
+            ("highlight clear", "(highlight clear)"),
+            ("highlight clear String", "(highlight clear String)"),
+            ("highlight String NONE", "(highlight String NONE)"),
+            ("highlight default String", "(highlight default String)"),
+            ("highlight link String NONE", "(highlight link String NONE)"),
+            (
+                "highlight default link String NONE",
+                "(highlight default link String NONE)",
+            ),
+            (
+                "highlight link String Comment",
+                "(highlight link String Comment)",
+            ),
+            (
+                "highlight String guifg=#123456 font='Monospace 10'",
+                "(highlight String guifg=#123456 font='Monospace 10')",
+            ),
+        ];
+        for (code, expected) in tests.iter() {
+            assert_eq!(&format!("{}", parse_lines(&[code]).unwrap()), expected);
+        }
+        let err_tests = [
+            ("highlight link", "E412"),
+            ("highlight link String", "E412"),
+            ("highlight String guifg", "E416"),
+            ("highlight String font='Monospace 10", "E475"),
+            ("highlight String foobar=123", "E423"),
+        ];
+        for (code, err) in err_tests.iter() {
+            let result = parse_lines(&[code]);
+            assert!(result.is_err());
+            assert!(result.unwrap_err().msg.contains(err));
+        }
     }
 }

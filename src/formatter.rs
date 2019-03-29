@@ -445,6 +445,50 @@ impl Formatter {
                     self.add(" ");
                 }
             }
+            Node::Highlight {
+                mods,
+                clear,
+                bang,
+                default,
+                link,
+                group,
+                none,
+                to_group,
+                attrs,
+                ..
+            } => {
+                self.f_mods(mods.as_slice());
+                self.add("highlight");
+                if *bang && *link {
+                    self.add("!");
+                }
+                self.add(" ");
+                if *clear {
+                    self.fit("clear ");
+                } else if *default {
+                    self.fit("default ");
+                }
+                if *link {
+                    self.fit("link ");
+                }
+                if let Some(g) = group {
+                    self.fit(&format!("{} ", g));
+                }
+                if *none {
+                    self.fit("NONE ");
+                }
+                if let Some(t) = to_group {
+                    self.fit(&format!("{} ", t));
+                }
+                let mut attrs = attrs
+                    .iter()
+                    .map(|(k, v)| format!("{}={} ", k, v))
+                    .collect::<Vec<String>>();
+                attrs.sort_unstable();
+                for attr in attrs.iter() {
+                    self.fit(attr);
+                }
+            }
             Node::Lambda { args, expr, .. } => {
                 self.add("{");
                 for (i, arg) in args.iter().enumerate() {
@@ -800,5 +844,36 @@ mod tests {
         let result = formatter.format(&node).unwrap();
         let expected = "colorscheme default";
         assert_eq!(expected, &result);
+    }
+
+    #[test]
+    fn test_highlight_formatting() {
+        let mut formatter = Formatter::new();
+        let tests = [
+            ("highlight!", "highlight"),
+            ("highlight String", "highlight String"),
+            ("highlight clear", "highlight clear"),
+            ("highlight clear String", "highlight clear String"),
+            ("highlight String NONE", "highlight String NONE"),
+            ("highlight default String", "highlight default String"),
+            ("highlight link String NONE", "highlight link String NONE"),
+            (
+                "highlight! default link String NONE",
+                "highlight! default link String NONE",
+            ),
+            (
+                "highlight link String Comment",
+                "highlight link String Comment",
+            ),
+            (
+                "highlight String guifg=#123456 font='Monospace 10'",
+                "highlight String font='Monospace 10' guifg=#123456",
+            ),
+        ];
+        for (input, expected) in tests.iter() {
+            let node = parse_lines(&[input]).unwrap();
+            let result = formatter.format(&node).unwrap();
+            assert_eq!(expected, &result);
+        }
     }
 }

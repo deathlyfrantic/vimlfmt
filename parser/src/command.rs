@@ -198,6 +198,7 @@ pub enum ParserKind {
     Finish,
     For,
     Function,
+    Highlight,
     If,
     Insert,
     Lang,
@@ -1420,7 +1421,7 @@ fn command_vec() -> Vec<Command> {
             name: "highlight".to_string(),
             minlen: 2,
             flags: Flag::BANG | Flag::EXTRA | Flag::TRLBAR | Flag::SBOXOK | Flag::CMDWIN,
-            parser: ParserKind::Common,
+            parser: ParserKind::Highlight,
         },
         Command {
             name: "hide".to_string(),
