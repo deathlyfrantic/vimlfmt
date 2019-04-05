@@ -18,8 +18,8 @@ pub(crate) struct ExArg {
 }
 
 impl ExArg {
-    pub(crate) fn new() -> ExArg {
-        ExArg {
+    pub(crate) fn new() -> Self {
+        Self {
             bang: false,
             use_filter: false,
             linepos: Position::empty(),

@@ -38,8 +38,8 @@ pub struct Parser<'a> {
 }
 
 impl<'a> Parser<'a> {
-    pub fn new(reader: &'a Reader) -> Parser {
-        Parser {
+    pub fn new(reader: &'a Reader) -> Self {
+        Self {
             reader,
             context: vec![],
             commands: commands(),
@@ -2065,8 +2065,8 @@ pub struct ExprParser<'a> {
 }
 
 impl<'a> ExprParser<'a> {
-    pub fn new(reader: &'a Reader) -> ExprParser {
-        ExprParser {
+    pub fn new(reader: &'a Reader) -> Self {
+        Self {
             reader,
             tokenizer: Tokenizer::new(reader),
         }
