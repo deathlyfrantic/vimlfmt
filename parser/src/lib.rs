@@ -41,12 +41,12 @@ pub struct Position {
 
 impl Position {
     #[cfg(test)]
-    pub(crate) fn new(cursor: usize, line: usize, col: usize) -> Position {
-        Position { cursor, line, col }
+    pub(crate) fn new(cursor: usize, line: usize, col: usize) -> Self {
+        Self { cursor, line, col }
     }
 
-    pub(crate) fn empty() -> Position {
-        Position {
+    pub(crate) fn empty() -> Self {
+        Self {
             cursor: 0,
             line: 0,
             col: 0,
@@ -94,7 +94,7 @@ impl std::fmt::Display for ParseError {
 
 impl From<std::io::Error> for ParseError {
     fn from(err: std::io::Error) -> Self {
-        ParseError {
+        Self {
             msg: format!("{}", err),
             pos: Position::empty(),
         }

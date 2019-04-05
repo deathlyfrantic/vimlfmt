@@ -9,8 +9,8 @@ pub struct Reader {
 }
 
 impl Reader {
-    pub fn new() -> Reader {
-        Reader {
+    pub fn new() -> Self {
+        Self {
             buf: vec![],
             pos: vec![],
             cursor: RefCell::new(0),
@@ -21,13 +21,13 @@ impl Reader {
         *self.cursor.borrow()
     }
 
-    pub fn from_lines(lines: &[&str]) -> Reader {
+    pub fn from_lines(lines: &[&str]) -> Self {
         let mut reader = Reader::new();
         reader.set_lines(lines);
         reader
     }
 
-    pub fn from_file(path: &str) -> std::io::Result<Reader> {
+    pub fn from_file(path: &str) -> std::io::Result<Self> {
         let mut reader = Reader::new();
         reader.read_file(path)?;
         Ok(reader)

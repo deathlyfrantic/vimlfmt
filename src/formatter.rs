@@ -33,8 +33,8 @@ pub struct Formatter {
 }
 
 impl Formatter {
-    pub fn new() -> Formatter {
-        Formatter {
+    pub fn new() -> Self {
+        Self {
             output: vec![],
             current_indent: 0,
             line: String::new(),

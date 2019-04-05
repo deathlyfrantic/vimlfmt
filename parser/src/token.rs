@@ -79,8 +79,8 @@ pub struct Token {
 }
 
 impl Token {
-    pub fn new(kind: TokenKind, value: String, pos: Position) -> Token {
-        Token { kind, value, pos }
+    pub fn new(kind: TokenKind, value: String, pos: Position) -> Self {
+        Self { kind, value, pos }
     }
 }
 
@@ -91,8 +91,8 @@ pub struct Tokenizer<'a> {
 }
 
 impl<'a> Tokenizer<'a> {
-    pub fn new(reader: &'a Reader) -> Tokenizer {
-        Tokenizer {
+    pub fn new(reader: &'a Reader) -> Self {
+        Self {
             reader,
             cache: HashMap::new(),
         }

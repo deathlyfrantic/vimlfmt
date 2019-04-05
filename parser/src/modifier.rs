@@ -37,8 +37,8 @@ pub struct Modifier {
 }
 
 impl Modifier {
-    pub(crate) fn new(name: &str) -> Modifier {
-        Modifier {
+    pub(crate) fn new(name: &str) -> Self {
+        Self {
             name: name.to_string(),
             bang: false,
             count: None,
