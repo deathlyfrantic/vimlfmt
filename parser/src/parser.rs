@@ -1535,8 +1535,9 @@ impl<'a> Parser<'a> {
                         value: token.value,
                     }));
                     if self.reader.peek().is_white() && tokenizer.peek()?.kind == TokenKind::Comma {
-                        return self
-                            .err("E475: Invalid argument: White space is not allowed before comma");
+                        return self.err(
+                            "E475: Invalid argument: White space is not allowed before comma",
+                        );
                     }
                     token = tokenizer.get()?;
                     if token.kind == TokenKind::Comma {
