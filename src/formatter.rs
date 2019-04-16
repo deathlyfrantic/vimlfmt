@@ -373,12 +373,6 @@ impl Formatter {
                 }
                 self.add(")");
             }
-            Node::Colorscheme { name, .. } => {
-                self.add("colorscheme");
-                if let Some(n) = name {
-                    self.fit(&format!(" {}", n));
-                }
-            }
             Node::Comment {
                 value, trailing, ..
             } => {
@@ -840,19 +834,6 @@ mod tests {
       \ 'this dict': 'will not fit',
       \ 'this dict will': 'not fit',
       \ }"#;
-        assert_eq!(expected, &result);
-    }
-
-    #[test]
-    fn test_colorscheme_formatting() {
-        let mut formatter = Formatter::new();
-        let node = parse_lines(&["colorscheme"]).unwrap();
-        let result = formatter.format(&node).unwrap();
-        let expected = "colorscheme";
-        assert_eq!(expected, &result);
-        let node = parse_lines(&["colorscheme default"]).unwrap();
-        let result = formatter.format(&node).unwrap();
-        let expected = "colorscheme default";
         assert_eq!(expected, &result);
     }
 
