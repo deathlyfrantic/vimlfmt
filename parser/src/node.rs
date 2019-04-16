@@ -399,10 +399,21 @@ pub enum Node {
     ExCmd {
         pos: Position,
         mods: Vec<Modifier>,
+        /// The command.
+        command: String,
         /// Whether this command was invoked with a bang (`!`).
         bang: bool,
-        /// The literal text of the command - just the entire line from the original source.
-        value: String,
+        /// The arguments to the command, as a plain string. Because this variant is used for many
+        /// commands, and VimL's command syntax is context-dependent, there is no way to parse
+        /// these properly for all cases. Examples:
+        ///
+        /// - `set backspace=indent,eol,start` -> args will be `"backspace=indent,eol,start"`
+        /// - `highlight default Normal guifg=#123456 guibg=#ABCDEF` -> args will be `"default
+        /// Normal guifg=#123456 guibg=#ABCDEF"`
+        ///
+        /// The above two examples should also help explain why command arguments cannot be parsed
+        /// any further. Doing so would require introducing new Node variants for each command.
+        args: String,
     },
     /// An execute command
     Execute {
@@ -940,10 +951,14 @@ impl fmt::Display for Node {
                 Node::Echo { cmd, list, .. } => display_with_list(&cmd, &list),
                 Node::EchoHl { value, .. } => format!("(echohl \"{}\")", escape(value)),
                 Node::ExCall { left, .. } => display_left("call", left),
-                Node::ExCmd { value, .. } => match value.as_str() {
-                    "break" | "continue" => format!("({})", value),
-                    _ => format!("(excmd \"{}\")", escape(value)),
-                },
+                Node::ExCmd { command, args, .. } => {
+                    let mut rv = format!("(excmd \"{}", command);
+                    if args.len() > 0 {
+                        rv.push_str(&format!(" {}", args));
+                    }
+                    rv.push_str("\")");
+                    rv
+                }
                 Node::Execute { list, .. } => display_with_list("execute", &list),
                 Node::For {
                     var,
@@ -1263,7 +1278,8 @@ mod tests {
                 pos: Position::empty(),
                 mods: vec![],
                 bang: false,
-                value: "break".to_string(),
+                command: "break".to_string(),
+                args: "".to_string(),
             }),
             body: vec![],
             end: None,
@@ -1272,7 +1288,8 @@ mod tests {
             pos: Position::empty(),
             mods: vec![],
             bang: false,
-            value: "break".to_string(),
+            command: "break".to_string(),
+            args: "".to_string(),
         };
         assert!(Node::is_for(&for_node));
         assert!(!Node::is_for(&not_for_node));
@@ -1288,7 +1305,8 @@ mod tests {
                 pos: Position::empty(),
                 mods: vec![],
                 bang: false,
-                value: "break".to_string(),
+                command: "break".to_string(),
+                args: "".to_string(),
             }),
             args: vec![],
             body: vec![],
@@ -1299,7 +1317,8 @@ mod tests {
             pos: Position::empty(),
             mods: vec![],
             bang: false,
-            value: "break".to_string(),
+            command: "break".to_string(),
+            args: "".to_string(),
         };
         assert!(Node::is_function(&function_node));
         assert!(!Node::is_function(&not_function_node));
@@ -1315,7 +1334,8 @@ mod tests {
                 pos: Position::empty(),
                 mods: vec![],
                 bang: false,
-                value: "break".to_string(),
+                command: "break".to_string(),
+                args: "".to_string(),
             }),
             end: None,
         };
@@ -1323,7 +1343,8 @@ mod tests {
             pos: Position::empty(),
             mods: vec![],
             bang: false,
-            value: "break".to_string(),
+            command: "break".to_string(),
+            args: "".to_string(),
         };
         assert!(Node::is_while(&while_node));
         assert!(!Node::is_while(&not_while_node));
@@ -1339,7 +1360,8 @@ mod tests {
                 pos: Position::empty(),
                 mods: vec![],
                 bang: false,
-                value: "break".to_string(),
+                command: "break".to_string(),
+                args: "".to_string(),
             }),
             end: None,
         };
@@ -1347,7 +1369,8 @@ mod tests {
             pos: Position::empty(),
             mods: vec![],
             bang: false,
-            value: "break".to_string(),
+            command: "break".to_string(),
+            args: "".to_string(),
         };
         assert!(Node::has_body(&while_node));
         assert!(!Node::has_body(&break_node));
