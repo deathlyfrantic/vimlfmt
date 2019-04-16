@@ -583,9 +583,9 @@ impl<'a> Parser<'a> {
 
     fn parse_cmd_append(&mut self, ea: ExArg) {
         self.reader.setpos(ea.linepos);
-        let cmdline = self.reader.get_line();
+        self.reader.get_line(); // throw away the command line, it will end with "append"
         self.reader.get();
-        let mut lines = vec![cmdline];
+        let mut lines = vec![];
         loop {
             if self.reader.peek() == EOF {
                 break;
@@ -599,8 +599,13 @@ impl<'a> Parser<'a> {
         self.add_node(Node::ExCmd {
             pos: ea.cmdpos,
             mods: ea.modifiers,
+            command: ea.cmd.name.clone(),
             bang: ea.bang,
-            value: lines.join("\n"),
+            args: if lines.len() > 0 {
+                format!("\n{}", lines.join("\n"))
+            } else {
+                String::new()
+            },
         });
     }
 
@@ -753,7 +758,8 @@ impl<'a> Parser<'a> {
             pos: ea.cmdpos,
             mods: ea.modifiers,
             bang: ea.bang,
-            value: "break".to_string(),
+            command: "break".to_string(),
+            args: String::new(),
         });
         Ok(())
     }
@@ -845,7 +851,8 @@ impl<'a> Parser<'a> {
         self.add_node(Node::ExCmd {
             pos: ea.cmdpos,
             mods: ea.modifiers,
-            value: self.reader.getstr(ea.linepos, end),
+            command: ea.cmd.name.clone(),
+            args: self.reader.getstr(ea.argpos, end),
             bang: ea.bang,
         });
         Ok(())
@@ -862,7 +869,8 @@ impl<'a> Parser<'a> {
             pos: ea.cmdpos,
             mods: ea.modifiers,
             bang: ea.bang,
-            value: "continue".to_string(),
+            command: "continue".to_string(),
+            args: String::new(),
         });
         Ok(())
     }
@@ -1138,7 +1146,7 @@ impl<'a> Parser<'a> {
             if m == "" {
                 m = ".".to_string();
             }
-            self.reader.setpos(ea.linepos);
+            self.reader.setpos(ea.argpos);
             lines.push(self.reader.get_line());
             self.reader.get();
             loop {
@@ -1152,14 +1160,15 @@ impl<'a> Parser<'a> {
                 self.reader.get();
             }
         } else {
-            self.reader.setpos(ea.linepos);
+            self.reader.setpos(ea.argpos);
             lines.push(self.reader.get_line());
         }
         self.add_node(Node::ExCmd {
             pos: ea.cmdpos,
             mods: ea.modifiers,
             bang: ea.bang,
-            value: lines.join("\n"),
+            command: ea.cmd.name.clone(),
+            args: lines.join("\n"),
         });
         Ok(())
     }
@@ -1203,18 +1212,25 @@ impl<'a> Parser<'a> {
 
     fn parse_cmd_loadkeymap(&mut self, ea: ExArg) -> Result<(), ParseError> {
         self.reader.setpos(ea.linepos);
-        let mut lines = vec![self.reader.get_line()];
+        self.reader.get_line();
+        let mut lines = vec![];
         loop {
             if self.reader.peek() == EOF {
                 break;
             }
             lines.push(self.reader.get_line());
+            self.reader.get();
         }
         self.add_node(Node::ExCmd {
             pos: ea.cmdpos,
             mods: ea.modifiers,
             bang: ea.bang,
-            value: lines.join("\n"),
+            command: ea.cmd.name.clone(),
+            args: if lines.len() > 0 {
+                format!("\n{}", lines.join("\n"))
+            } else {
+                String::new()
+            },
         });
         Ok(())
     }
@@ -1356,7 +1372,8 @@ impl<'a> Parser<'a> {
         self.add_node(Node::ExCmd {
             pos: ea.cmdpos,
             mods: ea.modifiers,
-            value: self.reader.getstr(ea.linepos, end),
+            command: ea.cmd.name.clone(),
+            args: self.reader.getstr(ea.argpos, end),
             bang: ea.bang,
         });
         Ok(())
@@ -1425,7 +1442,8 @@ impl<'a> Parser<'a> {
         self.add_node(Node::ExCmd {
             pos: ea.cmdpos,
             mods: ea.modifiers,
-            value: self.reader.getstr(ea.linepos, end),
+            command: ea.cmd.name.clone(),
+            args: self.reader.getstr(ea.argpos, end),
             bang: ea.bang,
         });
         Ok(())
@@ -2035,7 +2053,8 @@ impl<'a> Parser<'a> {
         self.add_node(Node::ExCmd {
             pos: ea.cmdpos,
             mods: ea.modifiers,
-            value: self.reader.getstr(ea.linepos, pos),
+            command: ea.cmd.name.clone(),
+            args: self.reader.getstr(ea.argpos, pos),
             bang: ea.bang,
         });
     }
@@ -2798,6 +2817,30 @@ mod tests {
     }
 
     // tests below test parsing and fmt::Display formatting
+
+    #[test]
+    fn test_append() {
+        let code = ["append", "foo", "bar", "."];
+        let expected = "(excmd \"append \nfoo\nbar\n.\")";
+        assert_eq!(&format!("{}", parse_lines(&code).unwrap()), expected);
+    }
+
+    #[test]
+    fn test_lang() {
+        let code = ["python3 print('foo')"];
+        let expected = "(excmd \"python3 print('foo')\")";
+        assert_eq!(&format!("{}", parse_lines(&code).unwrap()), expected);
+        let code = ["python3 <<EOF", "print('foo')", "print('bar')", "EOF"];
+        let expected = "(excmd \"python3 <<EOF\nprint('foo')\nprint('bar')\nEOF\")";
+        assert_eq!(&format!("{}", parse_lines(&code).unwrap()), expected);
+    }
+
+    #[test]
+    fn test_loadkeymap() {
+        let code = ["loadkeymap", "a A", "b B comment"];
+        let expected = "(excmd \"loadkeymap \na A\nb B comment\")";
+        assert_eq!(&format!("{}", parse_lines(&code).unwrap()), expected);
+    }
 
     #[test]
     fn test_augroup_and_autocmds() {

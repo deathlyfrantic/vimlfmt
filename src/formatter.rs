@@ -432,10 +432,20 @@ impl Formatter {
                 self.add("call ");
                 self.f(left);
             }
-            Node::ExCmd { value, .. } => {
-                // should call f_mods() here but `value` is just the whole line verbatim so not
-                // currently necessary
-                self.add(&value);
+            Node::ExCmd {
+                mods,
+                command,
+                bang,
+                args,
+                ..
+            } => {
+                self.f_mods(mods.as_slice());
+                self.add(&command);
+                if *bang {
+                    self.add("!");
+                }
+                self.add(" ");
+                self.fit(&args);
             }
             Node::Execute { mods, list, .. } => {
                 self.f_mods(mods.as_slice());
