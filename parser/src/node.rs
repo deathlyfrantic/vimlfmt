@@ -1226,6 +1226,16 @@ impl fmt::Display for Node {
 mod tests {
     use super::*;
 
+    fn dummy_node() -> Node {
+        Node::ExCmd {
+            pos: Position::empty(),
+            mods: vec![],
+            bang: false,
+            command: "break".to_string(),
+            args: "".to_string(),
+        }
+    }
+
     #[test]
     fn test_escape() {
         assert_eq!(&escape("foo"), "foo");
@@ -1260,23 +1270,11 @@ mod tests {
             var: None,
             list: vec![],
             rest: None,
-            right: Box::new(Node::ExCmd {
-                pos: Position::empty(),
-                mods: vec![],
-                bang: false,
-                command: "break".to_string(),
-                args: "".to_string(),
-            }),
+            right: Box::new(dummy_node()),
             body: vec![],
             end: None,
         };
-        let not_for_node = Node::ExCmd {
-            pos: Position::empty(),
-            mods: vec![],
-            bang: false,
-            command: "break".to_string(),
-            args: "".to_string(),
-        };
+        let not_for_node = dummy_node();
         assert!(Node::is_for(&for_node));
         assert!(!Node::is_for(&not_for_node));
     }
@@ -1287,25 +1285,13 @@ mod tests {
             pos: Position::empty(),
             mods: vec![],
             bang: true,
-            name: Box::new(Node::ExCmd {
-                pos: Position::empty(),
-                mods: vec![],
-                bang: false,
-                command: "break".to_string(),
-                args: "".to_string(),
-            }),
+            name: Box::new(dummy_node()),
             args: vec![],
             body: vec![],
             attrs: vec![],
             end: None,
         };
-        let not_function_node = Node::ExCmd {
-            pos: Position::empty(),
-            mods: vec![],
-            bang: false,
-            command: "break".to_string(),
-            args: "".to_string(),
-        };
+        let not_function_node = dummy_node();
         assert!(Node::is_function(&function_node));
         assert!(!Node::is_function(&not_function_node));
     }
@@ -1316,22 +1302,10 @@ mod tests {
             pos: Position::empty(),
             mods: vec![],
             body: vec![],
-            cond: Box::new(Node::ExCmd {
-                pos: Position::empty(),
-                mods: vec![],
-                bang: false,
-                command: "break".to_string(),
-                args: "".to_string(),
-            }),
+            cond: Box::new(dummy_node()),
             end: None,
         };
-        let not_while_node = Node::ExCmd {
-            pos: Position::empty(),
-            mods: vec![],
-            bang: false,
-            command: "break".to_string(),
-            args: "".to_string(),
-        };
+        let not_while_node = dummy_node();
         assert!(Node::is_while(&while_node));
         assert!(!Node::is_while(&not_while_node));
     }
@@ -1342,22 +1316,10 @@ mod tests {
             pos: Position::empty(),
             mods: vec![],
             body: vec![],
-            cond: Box::new(Node::ExCmd {
-                pos: Position::empty(),
-                mods: vec![],
-                bang: false,
-                command: "break".to_string(),
-                args: "".to_string(),
-            }),
+            cond: Box::new(dummy_node()),
             end: None,
         };
-        let break_node = Node::ExCmd {
-            pos: Position::empty(),
-            mods: vec![],
-            bang: false,
-            command: "break".to_string(),
-            args: "".to_string(),
-        };
+        let break_node = dummy_node();
         assert!(Node::has_body(&while_node));
         assert!(!Node::has_body(&break_node));
     }
