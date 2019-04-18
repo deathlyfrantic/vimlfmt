@@ -1,3 +1,4 @@
+use crate::parser::Result;
 pub use crate::{
     modifier::Modifier,
     node::{BinaryOpKind, Node, UnaryOpKind},
@@ -18,7 +19,7 @@ pub(crate) const EOL: char = '\n';
 
 /// Parse a list of lines, returning a Node upon success, or a [ParseError](struct.ParseError.html)
 /// upon failure. The node will be a [TopLevel](enum.Node.html#variant.TopLevel) variant.
-pub fn parse_lines(lines: &[&str]) -> Result<node::Node, ParseError> {
+pub fn parse_lines(lines: &[&str]) -> Result<node::Node> {
     let reader = reader::Reader::from_lines(lines);
     let mut parser = parser::Parser::new(&reader);
     parser.parse()
@@ -26,7 +27,7 @@ pub fn parse_lines(lines: &[&str]) -> Result<node::Node, ParseError> {
 
 /// Parse a file, returning a Node upon success, or a [ParseError](struct.ParseError.html)
 /// upon failure. The node will be a [TopLevel](enum.Node.html#variant.TopLevel) variant.
-pub fn parse_file(path: &str) -> Result<node::Node, ParseError> {
+pub fn parse_file(path: &str) -> Result<node::Node> {
     let reader = reader::Reader::from_file(path)?;
     let mut parser = parser::Parser::new(&reader);
     parser.parse()

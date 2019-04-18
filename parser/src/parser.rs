@@ -17,7 +17,9 @@ fn ends_excmds(c: char) -> bool {
     ['|', '"', EOF, EOL].contains(&c)
 }
 
-fn parse_piped_expressions(s: &str) -> Result<Vec<Box<Node>>, ParseError> {
+pub(crate) type Result<T> = std::result::Result<T, ParseError>;
+
+fn parse_piped_expressions(s: &str) -> Result<Vec<Box<Node>>> {
     let reader = Reader::from_lines(&[s]);
     let mut parser = Parser::new(&reader);
     if let Node::TopLevel { body, .. } = parser.parse()? {
@@ -142,7 +144,7 @@ impl<'a> Parser<'a> {
         };
     }
 
-    fn check_missing_endfunction(&self, end: &str, pos: Position) -> Result<(), ParseError> {
+    fn check_missing_endfunction(&self, end: &str, pos: Position) -> Result<()> {
         if let Node::Function { .. } = self.current_context() {
             Err(ParseError {
                 msg: format!("E126: Missing :endfunction:    {}", end),
@@ -153,7 +155,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn check_missing_endif(&self, end: &str, pos: Position) -> Result<(), ParseError> {
+    fn check_missing_endif(&self, end: &str, pos: Position) -> Result<()> {
         match self.current_context() {
             Node::If { .. } | Node::ElseIf { .. } | Node::Else { .. } => Err(ParseError {
                 msg: format!("E126: Missing :endif:    {}", end),
@@ -163,7 +165,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn check_missing_endtry(&self, end: &str, pos: Position) -> Result<(), ParseError> {
+    fn check_missing_endtry(&self, end: &str, pos: Position) -> Result<()> {
         match self.current_context() {
             Node::Try { .. } | Node::Catch { .. } | Node::Finally { .. } => Err(ParseError {
                 msg: format!("E126: Missing :endtry:    {}", end),
@@ -173,7 +175,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn check_missing_endwhile(&self, end: &str, pos: Position) -> Result<(), ParseError> {
+    fn check_missing_endwhile(&self, end: &str, pos: Position) -> Result<()> {
         if let Node::While { .. } = self.current_context() {
             Err(ParseError {
                 msg: format!("E126: Missing :endwhile:    {}", end),
@@ -184,7 +186,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn check_missing_endfor(&self, end: &str, pos: Position) -> Result<(), ParseError> {
+    fn check_missing_endfor(&self, end: &str, pos: Position) -> Result<()> {
         if let Node::For { .. } = self.current_context() {
             Err(ParseError {
                 msg: format!("E126: Missing :endfor:    {}", end),
@@ -195,14 +197,14 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn err<T>(&self, msg: &str) -> Result<T, ParseError> {
+    fn err<T>(&self, msg: &str) -> Result<T> {
         Err(ParseError {
             msg: msg.to_string(),
             pos: self.reader.getpos(),
         })
     }
 
-    pub fn parse(&mut self) -> Result<Node, ParseError> {
+    pub fn parse(&mut self) -> Result<Node> {
         let pos = self.reader.getpos();
         self.push_context(Node::TopLevel { pos, body: vec![] });
         while self.reader.peek() != EOF {
@@ -216,11 +218,11 @@ impl<'a> Parser<'a> {
         Ok(self.pop_context())
     }
 
-    fn parse_expr(&mut self) -> Result<Node, ParseError> {
+    fn parse_expr(&mut self) -> Result<Node> {
         ExprParser::new(self.reader).parse()
     }
 
-    fn parse_one_cmd(&mut self) -> Result<(), ParseError> {
+    fn parse_one_cmd(&mut self) -> Result<()> {
         if self.reader.peekn(2) == "#!" {
             self.parse_shebang()?;
             return Ok(());
@@ -248,7 +250,7 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    fn parse_shebang(&mut self) -> Result<(), ParseError> {
+    fn parse_shebang(&mut self) -> Result<()> {
         let sb = self.reader.getn(2);
         if sb != "#!" {
             return self.err(&format!("unexpected characters: {}", sb));
@@ -259,7 +261,7 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    fn parse_comment(&mut self, trailing: bool) -> Result<(), ParseError> {
+    fn parse_comment(&mut self, trailing: bool) -> Result<()> {
         let pos = self.reader.getpos();
         let c = self.reader.get();
         if c != '"' {
@@ -276,7 +278,7 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    fn parse_command_modifiers(&mut self) -> Result<Vec<Modifier>, ParseError> {
+    fn parse_command_modifiers(&mut self) -> Result<Vec<Modifier>> {
         let mut modifiers: Vec<Modifier> = vec![];
         loop {
             let pos = self.reader.tell();
@@ -380,7 +382,7 @@ impl<'a> Parser<'a> {
         Ok(modifiers)
     }
 
-    fn parse_range(&mut self) -> Result<Vec<String>, ParseError> {
+    fn parse_range(&mut self) -> Result<Vec<String>> {
         let mut tokens: Vec<String> = vec![];
         loop {
             loop {
@@ -441,7 +443,7 @@ impl<'a> Parser<'a> {
         Ok(tokens)
     }
 
-    fn parse_pattern(&mut self, delimiter: &str) -> Result<(String, String), ParseError> {
+    fn parse_pattern(&mut self, delimiter: &str) -> Result<(String, String)> {
         let mut pattern = String::new();
         let mut endc = String::new();
         let mut in_bracket = 0;
@@ -471,7 +473,7 @@ impl<'a> Parser<'a> {
         Ok((pattern, endc))
     }
 
-    fn parse_command(&mut self, mut ea: ExArg) -> Result<(), ParseError> {
+    fn parse_command(&mut self, mut ea: ExArg) -> Result<()> {
         self.reader.skip_white_and_colon();
         ea.cmdpos = self.reader.getpos();
         if [EOL, '"', EOF].contains(&self.reader.peek()) {
@@ -540,7 +542,7 @@ impl<'a> Parser<'a> {
         self._parse_command(ea)
     }
 
-    fn _parse_command(&mut self, ea: ExArg) -> Result<(), ParseError> {
+    fn _parse_command(&mut self, ea: ExArg) -> Result<()> {
         match ea.cmd.parser {
             ParserKind::Append | ParserKind::Insert => Ok(self.parse_cmd_append(ea)),
             ParserKind::Augroup => Ok(self.parse_cmd_augroup(ea)),
@@ -630,7 +632,7 @@ impl<'a> Parser<'a> {
         self.add_node(Node::Augroup { pos, name });
     }
 
-    fn parse_cmd_autocmd(&mut self, ea: ExArg) -> Result<(), ParseError> {
+    fn parse_cmd_autocmd(&mut self, ea: ExArg) -> Result<()> {
         // this is a mess because autocmd syntax is bonkers - almost everything is optional
         let pos = ea.cmdpos;
         self.reader.skip_white();
@@ -751,7 +753,7 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    fn parse_cmd_break(&mut self, ea: ExArg) -> Result<(), ParseError> {
+    fn parse_cmd_break(&mut self, ea: ExArg) -> Result<()> {
         if !self.find_context(Node::is_while) && !self.find_context(Node::is_for) {
             return self.err("E587: :break without :while or :for");
         }
@@ -765,7 +767,7 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    fn parse_cmd_call(&mut self, ea: ExArg) -> Result<(), ParseError> {
+    fn parse_cmd_call(&mut self, ea: ExArg) -> Result<()> {
         let pos = ea.cmdpos;
         self.reader.skip_white();
         if ends_excmds(self.reader.peek()) {
@@ -788,7 +790,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse_cmd_catch(&mut self, ea: ExArg) -> Result<(), ParseError> {
+    fn parse_cmd_catch(&mut self, ea: ExArg) -> Result<()> {
         match self.current_context() {
             Node::Try { .. } => (),
             Node::Catch { .. } => {
@@ -822,7 +824,7 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    fn parse_cmd_common(&mut self, ea: ExArg) -> Result<(), ParseError> {
+    fn parse_cmd_common(&mut self, ea: ExArg) -> Result<()> {
         let mut end;
         if ea.cmd.flags.contains(Flag::TRLBAR) && !ea.use_filter {
             end = self.separate_nextcmd(&ea)?;
@@ -844,7 +846,7 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    fn parse_cmd_continue(&mut self, ea: ExArg) -> Result<(), ParseError> {
+    fn parse_cmd_continue(&mut self, ea: ExArg) -> Result<()> {
         if !self.find_context(Node::is_while) && !self.find_context(Node::is_for) {
             return Err(ParseError {
                 msg: "E586: :continue without :while or :for".to_string(),
@@ -861,7 +863,7 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    fn parse_cmd_delfunction(&mut self, ea: ExArg) -> Result<(), ParseError> {
+    fn parse_cmd_delfunction(&mut self, ea: ExArg) -> Result<()> {
         let node = Node::DelFunction {
             pos: ea.cmdpos,
             mods: ea.modifiers,
@@ -872,7 +874,7 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    fn parse_cmd_echo(&mut self, ea: ExArg) -> Result<(), ParseError> {
+    fn parse_cmd_echo(&mut self, ea: ExArg) -> Result<()> {
         let node = Node::Echo {
             pos: ea.cmdpos,
             mods: ea.modifiers,
@@ -883,7 +885,7 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    fn parse_cmd_execute(&mut self, ea: ExArg) -> Result<(), ParseError> {
+    fn parse_cmd_execute(&mut self, ea: ExArg) -> Result<()> {
         let node = Node::Execute {
             pos: ea.cmdpos,
             mods: ea.modifiers,
@@ -893,7 +895,7 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    fn parse_cmd_echohl(&mut self, ea: ExArg) -> Result<(), ParseError> {
+    fn parse_cmd_echohl(&mut self, ea: ExArg) -> Result<()> {
         let mut value = String::new();
         while !ends_excmds(self.reader.peek()) {
             value.push(self.reader.get());
@@ -906,7 +908,7 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    fn parse_cmd_else(&mut self, ea: ExArg) -> Result<(), ParseError> {
+    fn parse_cmd_else(&mut self, ea: ExArg) -> Result<()> {
         match self.current_context() {
             Node::If { .. } => (),
             Node::ElseIf { .. } => {
@@ -927,7 +929,7 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    fn parse_cmd_elseif(&mut self, ea: ExArg) -> Result<(), ParseError> {
+    fn parse_cmd_elseif(&mut self, ea: ExArg) -> Result<()> {
         match self.current_context() {
             Node::If { .. } => (),
             Node::ElseIf { .. } => {
@@ -950,7 +952,7 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    fn parse_cmd_endfor(&mut self, ea: ExArg) -> Result<(), ParseError> {
+    fn parse_cmd_endfor(&mut self, ea: ExArg) -> Result<()> {
         match self.current_context_mut() {
             Node::For { ref mut end, .. } => {
                 let node = Node::End {
@@ -970,7 +972,7 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    fn parse_cmd_endfunction(&mut self, ea: ExArg) -> Result<(), ParseError> {
+    fn parse_cmd_endfunction(&mut self, ea: ExArg) -> Result<()> {
         self.check_missing_endif("ENDFUNCTION", ea.cmdpos)?;
         self.check_missing_endtry("ENDFUNCTION", ea.cmdpos)?;
         self.check_missing_endwhile("ENDFUNCTION", ea.cmdpos)?;
@@ -995,7 +997,7 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    fn parse_cmd_endif(&mut self, ea: ExArg) -> Result<(), ParseError> {
+    fn parse_cmd_endif(&mut self, ea: ExArg) -> Result<()> {
         match self.current_context() {
             Node::If { .. } => (),
             Node::ElseIf { .. } | Node::Else { .. } => {
@@ -1019,7 +1021,7 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    fn parse_cmd_endtry(&mut self, ea: ExArg) -> Result<(), ParseError> {
+    fn parse_cmd_endtry(&mut self, ea: ExArg) -> Result<()> {
         match self.current_context() {
             Node::Try { .. } => (),
             Node::Catch { .. } | Node::Finally { .. } => {
@@ -1043,7 +1045,7 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    fn parse_cmd_endwhile(&mut self, ea: ExArg) -> Result<(), ParseError> {
+    fn parse_cmd_endwhile(&mut self, ea: ExArg) -> Result<()> {
         match self.current_context() {
             Node::While { .. } => {
                 let node = Node::End {
@@ -1063,7 +1065,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse_cmd_finally(&mut self, ea: ExArg) -> Result<(), ParseError> {
+    fn parse_cmd_finally(&mut self, ea: ExArg) -> Result<()> {
         match self.current_context() {
             Node::Try { .. } => (),
             Node::Catch { .. } => {
@@ -1084,7 +1086,7 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    fn parse_cmd_for(&mut self, ea: ExArg) -> Result<(), ParseError> {
+    fn parse_cmd_for(&mut self, ea: ExArg) -> Result<()> {
         let (var, list, rest) = self.parse_letlhs()?;
         self.reader.skip_white();
         let epos = self.reader.getpos();
@@ -1108,7 +1110,7 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    fn parse_cmd_if(&mut self, ea: ExArg) -> Result<(), ParseError> {
+    fn parse_cmd_if(&mut self, ea: ExArg) -> Result<()> {
         let node = Node::If {
             pos: ea.cmdpos,
             mods: ea.modifiers,
@@ -1122,7 +1124,7 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    fn parse_cmd_lang(&mut self, ea: ExArg) -> Result<(), ParseError> {
+    fn parse_cmd_lang(&mut self, ea: ExArg) -> Result<()> {
         let mut lines = vec![];
         self.reader.skip_white();
         if self.reader.peekn(2) == "<<" {
@@ -1159,7 +1161,7 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    fn parse_cmd_let(&mut self, ea: ExArg) -> Result<(), ParseError> {
+    fn parse_cmd_let(&mut self, ea: ExArg) -> Result<()> {
         let pos = self.reader.tell();
         self.reader.skip_white();
         if ends_excmds(self.reader.peek()) {
@@ -1196,7 +1198,7 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    fn parse_cmd_loadkeymap(&mut self, ea: ExArg) -> Result<(), ParseError> {
+    fn parse_cmd_loadkeymap(&mut self, ea: ExArg) -> Result<()> {
         self.reader.setpos(ea.linepos);
         self.reader.get_line();
         let mut lines = vec![];
@@ -1221,7 +1223,7 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    fn parse_cmd_lockvar(&mut self, ea: ExArg) -> Result<(), ParseError> {
+    fn parse_cmd_lockvar(&mut self, ea: ExArg) -> Result<()> {
         self.reader.skip_white();
         let depth = if self.reader.peek().is_ascii_digit() {
             Some(self.reader.read_digit().parse::<usize>().unwrap())
@@ -1240,7 +1242,7 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    fn parse_cmd_mapping(&mut self, ea: ExArg) -> Result<(), ParseError> {
+    fn parse_cmd_mapping(&mut self, ea: ExArg) -> Result<()> {
         let command = ea.cmd.name.clone();
         let mut attrs = vec![];
         let mut right_expr = None;
@@ -1315,7 +1317,7 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    fn parse_cmd_return(&mut self, ea: ExArg) -> Result<(), ParseError> {
+    fn parse_cmd_return(&mut self, ea: ExArg) -> Result<()> {
         if !self.find_context(Node::is_function) {
             return Err(ParseError {
                 msg: "E133: :return not inside a function".to_string(),
@@ -1337,7 +1339,7 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    fn parse_cmd_syntax(&mut self, ea: ExArg) -> Result<(), ParseError> {
+    fn parse_cmd_syntax(&mut self, ea: ExArg) -> Result<()> {
         let mut end;
         loop {
             end = self.reader.getpos();
@@ -1365,7 +1367,7 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    fn parse_cmd_throw(&mut self, ea: ExArg) -> Result<(), ParseError> {
+    fn parse_cmd_throw(&mut self, ea: ExArg) -> Result<()> {
         let node = Node::Throw {
             pos: ea.cmdpos,
             mods: ea.modifiers,
@@ -1375,7 +1377,7 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    fn parse_cmd_try(&mut self, ea: ExArg) -> Result<(), ParseError> {
+    fn parse_cmd_try(&mut self, ea: ExArg) -> Result<()> {
         self.push_context(Node::Try {
             pos: ea.cmdpos,
             mods: ea.modifiers,
@@ -1387,7 +1389,7 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    fn parse_cmd_unlet(&mut self, ea: ExArg) -> Result<(), ParseError> {
+    fn parse_cmd_unlet(&mut self, ea: ExArg) -> Result<()> {
         let node = Node::Unlet {
             pos: ea.cmdpos,
             mods: ea.modifiers,
@@ -1398,7 +1400,7 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    fn parse_cmd_while(&mut self, ea: ExArg) -> Result<(), ParseError> {
+    fn parse_cmd_while(&mut self, ea: ExArg) -> Result<()> {
         let node = Node::While {
             pos: ea.cmdpos,
             mods: ea.modifiers,
@@ -1410,7 +1412,7 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    fn parse_cmd_wincmd(&mut self, ea: ExArg) -> Result<(), ParseError> {
+    fn parse_cmd_wincmd(&mut self, ea: ExArg) -> Result<()> {
         let c = self.reader.getn(1);
         if c == "" {
             return self.err("E471: Argument required");
@@ -1435,9 +1437,7 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    fn parse_letlhs(
-        &mut self,
-    ) -> Result<(Option<Box<Node>>, Vec<Box<Node>>, Option<Box<Node>>), ParseError> {
+    fn parse_letlhs(&mut self) -> Result<(Option<Box<Node>>, Vec<Box<Node>>, Option<Box<Node>>)> {
         let mut tokenizer = Tokenizer::new(self.reader);
         let mut nodes = vec![];
         let mut left = None;
@@ -1480,7 +1480,7 @@ impl<'a> Parser<'a> {
         Ok((left, nodes, rest))
     }
 
-    fn parse_cmd_function(&mut self, ea: ExArg) -> Result<(), ParseError> {
+    fn parse_cmd_function(&mut self, ea: ExArg) -> Result<()> {
         let pos = self.reader.tell();
         self.reader.skip_white();
         if ends_excmds(self.reader.peek()) || self.reader.peek() == '/' {
@@ -1611,7 +1611,7 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    fn parse_cmd_highlight(&mut self, ea: ExArg) -> Result<(), ParseError> {
+    fn parse_cmd_highlight(&mut self, ea: ExArg) -> Result<()> {
         let (pos, mods, bang) = (ea.cmdpos, ea.modifiers, ea.bang);
         let mut attrs = vec![];
         let mut token = self.reader.read_nonwhitespace();
@@ -1764,7 +1764,7 @@ impl<'a> Parser<'a> {
         }))
     }
 
-    fn parse_exprlist(&mut self) -> Result<Vec<Box<Node>>, ParseError> {
+    fn parse_exprlist(&mut self) -> Result<Vec<Box<Node>>> {
         let mut nodes = vec![];
         loop {
             self.reader.skip_white();
@@ -1778,7 +1778,7 @@ impl<'a> Parser<'a> {
         Ok(nodes)
     }
 
-    fn parse_lvalue(&mut self) -> Result<Node, ParseError> {
+    fn parse_lvalue(&mut self) -> Result<Node> {
         let mut parser = ExprParser::new(self.reader);
         let node = parser.parse_lv()?;
         match node {
@@ -1806,7 +1806,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse_lvaluelist(&mut self) -> Result<Vec<Box<Node>>, ParseError> {
+    fn parse_lvaluelist(&mut self) -> Result<Vec<Box<Node>>> {
         let mut nodes = vec![];
         nodes.push(Box::new(self.parse_expr()?));
         loop {
@@ -1819,7 +1819,7 @@ impl<'a> Parser<'a> {
         Ok(nodes)
     }
 
-    fn parse_lvalue_func(&mut self) -> Result<Node, ParseError> {
+    fn parse_lvalue_func(&mut self) -> Result<Node> {
         let mut parser = ExprParser::new(self.reader);
         let node = parser.parse_lv()?;
         match node {
@@ -1837,7 +1837,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn separate_nextcmd(&mut self, ea: &ExArg) -> Result<Position, ParseError> {
+    fn separate_nextcmd(&mut self, ea: &ExArg) -> Result<Position> {
         if ["vimgrep", "vimgrepadd", "lvimgrep", "lvimgrepadd"].contains(&ea.cmd.name.as_str()) {
             self.skip_vimgrep_pat()?;
         }
@@ -1902,7 +1902,7 @@ impl<'a> Parser<'a> {
         Ok(end)
     }
 
-    fn skip_vimgrep_pat(&mut self) -> Result<(), ParseError> {
+    fn skip_vimgrep_pat(&mut self) -> Result<()> {
         let c = self.reader.peek();
         if c == EOL {
         } else if c.is_word() {
@@ -1942,7 +1942,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse_argopt(&mut self) -> Result<(), ParseError> {
+    fn parse_argopt(&mut self) -> Result<()> {
         lazy_static! {
             static ref BIN_RE: Regex = Regex::new("^\\+\\+bin\\b").unwrap();
             static ref NOBIN_RE: Regex = Regex::new("^\\+\\+nobin\\b").unwrap();
@@ -2045,7 +2045,7 @@ impl<'a> Parser<'a> {
         });
     }
 
-    fn parse_trail(&mut self) -> Result<(), ParseError> {
+    fn parse_trail(&mut self) -> Result<()> {
         self.reader.skip_white();
         let c = self.reader.peek();
         match c {
@@ -2078,18 +2078,18 @@ impl<'a> ExprParser<'a> {
         }
     }
 
-    fn token_err<T>(&self, token: Token) -> Result<T, ParseError> {
+    fn token_err<T>(&self, token: Token) -> Result<T> {
         Err(ParseError {
             msg: format!("unexpected token: {}", token.value),
             pos: token.pos,
         })
     }
 
-    pub fn parse(&mut self) -> Result<Node, ParseError> {
+    pub fn parse(&mut self) -> Result<Node> {
         self.parse_expr1()
     }
 
-    fn parse_expr1(&mut self) -> Result<Node, ParseError> {
+    fn parse_expr1(&mut self) -> Result<Node> {
         let mut left = self.parse_expr2()?;
         let pos = self.reader.tell();
         let mut token = self.tokenizer.get()?;
@@ -2115,7 +2115,7 @@ impl<'a> ExprParser<'a> {
         Ok(left)
     }
 
-    fn parse_expr2(&mut self) -> Result<Node, ParseError> {
+    fn parse_expr2(&mut self) -> Result<Node> {
         let mut left = self.parse_expr3()?;
         loop {
             let pos = self.reader.tell();
@@ -2136,7 +2136,7 @@ impl<'a> ExprParser<'a> {
         Ok(left)
     }
 
-    fn parse_expr3(&mut self) -> Result<Node, ParseError> {
+    fn parse_expr3(&mut self) -> Result<Node> {
         let mut left = self.parse_expr4()?;
         loop {
             let pos = self.reader.tell();
@@ -2157,7 +2157,7 @@ impl<'a> ExprParser<'a> {
         Ok(left)
     }
 
-    fn parse_expr4(&mut self) -> Result<Node, ParseError> {
+    fn parse_expr4(&mut self) -> Result<Node> {
         let mut left = self.parse_expr5()?;
         let cursor = self.reader.tell();
         let token = self.tokenizer.get()?;
@@ -2209,7 +2209,7 @@ impl<'a> ExprParser<'a> {
         Ok(left)
     }
 
-    fn parse_expr5(&mut self) -> Result<Node, ParseError> {
+    fn parse_expr5(&mut self) -> Result<Node> {
         let mut left = self.parse_expr6()?;
         loop {
             let cursor = self.reader.tell();
@@ -2236,7 +2236,7 @@ impl<'a> ExprParser<'a> {
         Ok(left)
     }
 
-    fn parse_expr6(&mut self) -> Result<Node, ParseError> {
+    fn parse_expr6(&mut self) -> Result<Node> {
         let mut left = self.parse_expr7()?;
         loop {
             let cursor = self.reader.tell();
@@ -2263,7 +2263,7 @@ impl<'a> ExprParser<'a> {
         Ok(left)
     }
 
-    fn parse_expr7(&mut self) -> Result<Node, ParseError> {
+    fn parse_expr7(&mut self) -> Result<Node> {
         let cursor = self.reader.tell();
         let token = self.tokenizer.get()?;
         let pos = token.pos;
@@ -2284,7 +2284,7 @@ impl<'a> ExprParser<'a> {
         Ok(node)
     }
 
-    fn parse_expr8(&mut self) -> Result<Node, ParseError> {
+    fn parse_expr8(&mut self) -> Result<Node> {
         let mut left = self.parse_expr9()?;
         loop {
             let cursor = self.reader.tell();
@@ -2337,7 +2337,7 @@ impl<'a> ExprParser<'a> {
         Ok(left)
     }
 
-    fn parse_expr9(&mut self) -> Result<Node, ParseError> {
+    fn parse_expr9(&mut self) -> Result<Node> {
         let cursor = self.reader.tell();
         let token = self.tokenizer.get()?;
         let pos = token.pos;
@@ -2483,11 +2483,7 @@ impl<'a> ExprParser<'a> {
         })
     }
 
-    fn parse_lambda(
-        &mut self,
-        mut token: Token,
-        pos: Position,
-    ) -> Result<Option<Node>, ParseError> {
+    fn parse_lambda(&mut self, mut token: Token, pos: Position) -> Result<Option<Node>> {
         let mut fallback = false;
         let mut args = vec![];
         let mut named: Vec<String> = vec![];
@@ -2575,7 +2571,7 @@ impl<'a> ExprParser<'a> {
         Ok(None)
     }
 
-    fn parse_identifier(&mut self) -> Result<Node, ParseError> {
+    fn parse_identifier(&mut self) -> Result<Node> {
         self.reader.skip_white();
         let pos = self.reader.getpos();
         let mut curly_parts = self.parse_curly_parts()?;
@@ -2600,7 +2596,7 @@ impl<'a> ExprParser<'a> {
         Ok(node.unwrap())
     }
 
-    fn parse_curly_parts(&mut self) -> Result<Vec<Node>, ParseError> {
+    fn parse_curly_parts(&mut self) -> Result<Vec<Node>> {
         let mut curly_parts = vec![];
         let c = self.reader.peek();
         let pos = self.reader.getpos();
@@ -2663,7 +2659,7 @@ impl<'a> ExprParser<'a> {
         })
     }
 
-    fn parse_slice(&mut self, name: Node, pos: Position) -> Result<Node, ParseError> {
+    fn parse_slice(&mut self, name: Node, pos: Position) -> Result<Node> {
         let name = Box::new(name);
         if self.tokenizer.peek()?.kind == TokenKind::Colon {
             self.tokenizer.get()?;
@@ -2722,7 +2718,7 @@ impl<'a> ExprParser<'a> {
         }
     }
 
-    pub fn parse_lv(&mut self) -> Result<Node, ParseError> {
+    pub fn parse_lv(&mut self) -> Result<Node> {
         // this differs from parse_expr8() insofar as it will not parse function calls. this method
         // is used for parsing the lhs of a `for` or `let` command, e.g. `let foo = bar`. in this
         // case a function call is not valid, e.g. `let foo() = bar` is not valid syntax, so we
@@ -2749,7 +2745,7 @@ impl<'a> ExprParser<'a> {
         Ok(left)
     }
 
-    fn parse_lv9(&mut self) -> Result<Node, ParseError> {
+    fn parse_lv9(&mut self) -> Result<Node> {
         let cursor = self.reader.tell();
         let token = self.tokenizer.get()?;
         let pos = token.pos;
