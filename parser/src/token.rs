@@ -1,5 +1,5 @@
 use super::{CharClassification, ParseError, Position, EOF, EOL};
-use crate::reader::Reader;
+use crate::{parser::Result, reader::Reader};
 use std::collections::HashMap;
 
 #[derive(Debug, PartialEq, Clone)]
@@ -98,14 +98,14 @@ impl<'a> Tokenizer<'a> {
         }
     }
 
-    pub fn peek(&mut self) -> Result<Token, ParseError> {
+    pub fn peek(&mut self) -> Result<Token> {
         let pos = self.reader.tell();
         let token = self.get();
         self.reader.seek_set(pos);
         token
     }
 
-    pub fn get(&mut self) -> Result<Token, ParseError> {
+    pub fn get(&mut self) -> Result<Token> {
         let pos = self.reader.getpos();
         if let Some((token, new_pos)) = self.cache.get(&pos) {
             self.reader.setpos(*new_pos);
@@ -120,7 +120,7 @@ impl<'a> Tokenizer<'a> {
         token
     }
 
-    fn _get(&mut self) -> Result<Token, ParseError> {
+    fn _get(&mut self) -> Result<Token> {
         let c = self.reader.peek();
         let pos = self.reader.getpos();
         if c == EOF {
@@ -390,7 +390,7 @@ impl<'a> Tokenizer<'a> {
         }
     }
 
-    pub fn get_sstring(&mut self) -> Result<String, ParseError> {
+    pub fn get_sstring(&mut self) -> Result<String> {
         self.reader.skip_white();
         let c = self.reader.peek();
         if c != '\'' {
@@ -424,7 +424,7 @@ impl<'a> Tokenizer<'a> {
         Ok(value)
     }
 
-    pub fn get_dstring(&mut self) -> Result<String, ParseError> {
+    pub fn get_dstring(&mut self) -> Result<String> {
         self.reader.skip_white();
         let c = self.reader.peek();
         if c != '"' {
