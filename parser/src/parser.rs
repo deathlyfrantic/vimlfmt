@@ -221,7 +221,6 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_one_cmd(&mut self) -> Result<(), ParseError> {
-        let mut ea = ExArg::new();
         if self.reader.peekn(2) == "#!" {
             self.parse_shebang()?;
             return Ok(());
@@ -238,9 +237,12 @@ impl<'a> Parser<'a> {
             self.reader.get();
             return Ok(());
         }
-        ea.linepos = self.reader.getpos();
-        ea.modifiers = self.parse_command_modifiers()?;
-        ea.range = self.parse_range()?;
+        let ea = ExArg {
+            linepos: self.reader.getpos(),
+            modifiers: self.parse_command_modifiers()?,
+            range: self.parse_range()?,
+            ..Default::default()
+        };
         self.parse_command(ea)?;
         self.parse_trail()?;
         Ok(())

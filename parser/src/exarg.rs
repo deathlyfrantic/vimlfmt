@@ -17,8 +17,8 @@ pub(crate) struct ExArg {
     pub(crate) range: Vec<String>,
 }
 
-impl ExArg {
-    pub(crate) fn new() -> Self {
+impl Default for ExArg {
+    fn default() -> Self {
         Self {
             bang: false,
             use_filter: false,
