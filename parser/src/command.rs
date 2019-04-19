@@ -175,7 +175,6 @@ bitflags! {
 #[derive(Debug, Clone, PartialEq)]
 pub enum ParserKind {
     Append,
-    Augroup,
     Autocmd,
     Break,
     Call,
@@ -370,7 +369,7 @@ fn command_vec() -> Vec<Command> {
             name: "augroup".to_string(),
             minlen: 3,
             flags: Flag::BANG | Flag::WORD1 | Flag::TRLBAR | Flag::CMDWIN,
-            parser: ParserKind::Augroup,
+            parser: ParserKind::Common,
         },
         Command {
             name: "aunmenu".to_string(),

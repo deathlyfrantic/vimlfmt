@@ -191,12 +191,6 @@ impl fmt::Display for UnaryOpKind {
 /// contains zero or more [Modifier](struct.Modifier.html)s.
 #[derive(Debug, PartialEq, Clone)]
 pub enum Node {
-    /// An autocommand group
-    Augroup {
-        pos: Position,
-        /// The name of the group. Vim allows almost anything in this (including spaces!).
-        name: String,
-    },
     /// An autocommand
     Autocmd {
         pos: Position,
@@ -721,8 +715,7 @@ impl Node {
     /// convenience to avoid having to destructure a variant just to get the position.
     pub fn pos(&self) -> Position {
         match self {
-            Node::Augroup { pos, .. }
-            | Node::Autocmd { pos, .. }
+            Node::Autocmd { pos, .. }
             | Node::BinaryOp { pos, .. }
             | Node::BlankLine { pos, .. }
             | Node::Call { pos, .. }
@@ -834,16 +827,6 @@ impl fmt::Display for Node {
             f,
             "{}",
             match &self {
-                Node::Augroup { name, .. } => {
-                    if name.len() == 0 {
-                        "(augroup)".to_string()
-                    } else {
-                        format!(
-                            "(augroup {})",
-                            name.replace("|", "\\|").replace("\"", "\\\"")
-                        )
-                    }
-                }
                 Node::Autocmd {
                     group,
                     events,

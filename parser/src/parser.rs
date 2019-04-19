@@ -545,7 +545,6 @@ impl<'a> Parser<'a> {
     fn _parse_command(&mut self, ea: ExArg) -> Result<()> {
         match ea.cmd.parser {
             ParserKind::Append | ParserKind::Insert => Ok(self.parse_cmd_append(ea)),
-            ParserKind::Augroup => Ok(self.parse_cmd_augroup(ea)),
             ParserKind::Autocmd => self.parse_cmd_autocmd(ea),
             ParserKind::Break => self.parse_cmd_break(ea),
             ParserKind::Call => self.parse_cmd_call(ea),
@@ -610,26 +609,6 @@ impl<'a> Parser<'a> {
                 String::new()
             },
         });
-    }
-
-    fn parse_cmd_augroup(&mut self, ea: ExArg) {
-        let pos = ea.cmdpos;
-        self.reader.skip_white();
-        let mut name = String::new();
-        loop {
-            let c = self.reader.peek();
-            let c2 = self.reader.peek_ahead(1);
-            if c == '\\' && (c2 == '|' || c2 == '"') {
-                self.reader.get();
-                name.push(self.reader.get());
-            } else if ends_excmds(c) {
-                break;
-            } else {
-                name.push(self.reader.get());
-            }
-        }
-        let name = name.trim_end().to_string();
-        self.add_node(Node::Augroup { pos, name });
     }
 
     fn parse_cmd_autocmd(&mut self, ea: ExArg) -> Result<()> {
@@ -2828,9 +2807,9 @@ mod tests {
     fn test_augroup_and_autocmds() {
         let code = ["augroup foo", "autocmd VimEnter * Command", "augroup END"];
         let expected = concat!(
-            "(augroup foo)\n",
+            "(excmd \"augroup foo\")\n",
             "(autocmd VimEnter * (excmd \"Command\"))\n",
-            "(augroup END)"
+            "(excmd \"augroup END\")"
         );
         assert_eq!(&format!("{}", parse_lines(&code).unwrap()), expected);
     }
