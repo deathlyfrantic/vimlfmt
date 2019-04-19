@@ -254,26 +254,28 @@ impl Formatter {
         }
     }
 
+    fn f_augroup(&mut self, name: &str) {
+        let trimmed = name.trim();
+        if trimmed.len() > 0 {
+            if trimmed.to_lowercase() == "end" && self.current_indent > 0 {
+                self.current_indent -= 1;
+                self.line = format!("{}augroup ", self.indent());
+                self.fit("END"); // do not allow lowercase "end"
+            } else {
+                self.add("augroup ");
+                self.fit(&name.trim_start());
+                self.current_indent += 1;
+            }
+        } else {
+            self.add("augroup");
+        }
+    }
+
     fn f_node(&mut self, node: &Node) {
         // this method assumes there is not a value (besides the current indent) in self.line
         // already. it will always put at least something onto the end of the current line before
         // it checks length and possibly continues onto the next line.
         match node {
-            Node::Augroup { name, .. } => {
-                if name.len() > 0 {
-                    if name.to_lowercase() == "end" && self.current_indent > 0 {
-                        self.current_indent -= 1;
-                        self.line = format!("{}augroup ", self.indent());
-                        self.fit("END"); // do not allow lowercase "end"
-                    } else {
-                        self.add("augroup ");
-                        self.fit(&name.replace("|", "\\|").replace("\"", "\\\""));
-                        self.current_indent += 1;
-                    }
-                } else {
-                    self.add("augroup");
-                }
-            }
             Node::Autocmd {
                 mods,
                 bang,
@@ -432,15 +434,18 @@ impl Formatter {
                 bang,
                 args,
                 ..
-            } => {
-                self.f_mods(mods.as_slice());
-                self.add(&command);
-                if *bang {
-                    self.add("!");
+            } => match command.as_str() {
+                "augroup" => self.f_augroup(args),
+                _ => {
+                    self.f_mods(mods.as_slice());
+                    self.add(&command);
+                    if *bang {
+                        self.add("!");
+                    }
+                    self.add(" ");
+                    self.fit(&args);
                 }
-                self.add(" ");
-                self.fit(&args);
-            }
+            },
             Node::Execute { mods, list, .. } => {
                 self.f_mods(mods.as_slice());
                 self.add("execute ");
