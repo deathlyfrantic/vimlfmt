@@ -791,6 +791,20 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_augroup() {
+        let node =
+            parse_lines(&["augroup foo", "autocmd User Foo echo 'foo'", "augroup END"]).unwrap();
+        let mut formatter = Formatter::new();
+        let result = formatter.format(&node).unwrap();
+        let expected = concat!(
+            "augroup foo\n",
+            "  autocmd User Foo echo 'foo'\n",
+            "augroup END"
+        );
+        assert_eq!(expected, &result);
+    }
+
+    #[test]
     fn test_list_formatting() {
         // "line formatting" - entire list fits on a single line
         let node =
