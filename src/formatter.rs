@@ -418,11 +418,6 @@ impl Formatter {
                     self.f(item);
                 }
             }
-            Node::EchoHl { mods, value, .. } => {
-                self.f_mods(mods.as_slice());
-                self.add("echohl");
-                self.fit(&value);
-            }
             Node::ExCall { mods, left, .. } => {
                 self.f_mods(mods.as_slice());
                 self.add("call ");
