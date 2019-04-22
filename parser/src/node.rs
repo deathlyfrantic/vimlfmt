@@ -341,13 +341,6 @@ pub enum Node {
         /// The arguments passed to the echo command.
         list: Vec<Box<Node>>,
     },
-    /// An echohl command
-    EchoHl {
-        pos: Position,
-        mods: Vec<Modifier>,
-        /// The name of the highlight group passed to the echohl command.
-        value: String,
-    },
     /// An else clause - will only show up in the `else_` member of an [If](#variant.If) node.
     Else {
         pos: Position,
@@ -728,7 +721,6 @@ impl Node {
             | Node::Dict { pos, .. }
             | Node::Dot { pos, .. }
             | Node::Echo { pos, .. }
-            | Node::EchoHl { pos, .. }
             | Node::Else { pos, .. }
             | Node::ElseIf { pos, .. }
             | Node::End { pos, .. }
@@ -918,7 +910,6 @@ impl fmt::Display for Node {
                 }
                 Node::Dot { left, right, .. } => display_lr("dot", left, right),
                 Node::Echo { cmd, list, .. } => display_with_list(&cmd, &list),
-                Node::EchoHl { value, .. } => format!("(echohl \"{}\")", escape(value)),
                 Node::ExCall { left, .. } => display_left("call", left),
                 Node::ExCmd { command, args, .. } => {
                     let mut rv = format!("(excmd \"{}", command);

@@ -553,7 +553,6 @@ impl<'a> Parser<'a> {
             ParserKind::Continue => self.parse_cmd_continue(ea),
             ParserKind::DelFunction => self.parse_cmd_delfunction(ea),
             ParserKind::Echo => self.parse_cmd_echo(ea),
-            ParserKind::EchoHl => self.parse_cmd_echohl(ea),
             ParserKind::Else => self.parse_cmd_else(ea),
             ParserKind::ElseIf => self.parse_cmd_elseif(ea),
             ParserKind::EndFor => self.parse_cmd_endfor(ea),
@@ -871,19 +870,6 @@ impl<'a> Parser<'a> {
             list: self.parse_exprlist()?,
         };
         self.add_node(node);
-        Ok(())
-    }
-
-    fn parse_cmd_echohl(&mut self, ea: ExArg) -> Result<()> {
-        let mut value = String::new();
-        while !ends_excmds(self.reader.peek()) {
-            value.push(self.reader.get());
-        }
-        self.add_node(Node::EchoHl {
-            pos: ea.cmdpos,
-            mods: ea.modifiers,
-            value,
-        });
         Ok(())
     }
 

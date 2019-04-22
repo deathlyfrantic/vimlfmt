@@ -183,7 +183,6 @@ pub enum ParserKind {
     Continue,
     DelFunction,
     Echo,
-    EchoHl,
     Else,
     ElseIf,
     EndFor,
@@ -1093,7 +1092,7 @@ fn command_vec() -> Vec<Command> {
             name: "echohl".to_string(),
             minlen: 5,
             flags: Flag::EXTRA | Flag::TRLBAR | Flag::SBOXOK | Flag::CMDWIN,
-            parser: ParserKind::EchoHl,
+            parser: ParserKind::Common,
         },
         Command {
             name: "echomsg".to_string(),
