@@ -391,17 +391,6 @@ impl Formatter {
                     self.add(&format!("\"{}", comment));
                 }
             }
-            Node::DelFunction {
-                mods, bang, left, ..
-            } => {
-                self.f_mods(mods.as_slice());
-                self.add("delfunction");
-                if *bang {
-                    self.add("!");
-                }
-                self.add(" ");
-                self.f(left);
-            }
             Node::Dict { items, .. } => self.f_dict(items),
             Node::Dot { left, right, .. } => {
                 self.f(left);
@@ -438,7 +427,7 @@ impl Formatter {
                         self.add("!");
                     }
                     self.add(" ");
-                    self.fit(&args);
+                    self.fit(&args.trim_end());
                 }
             },
             Node::Execute { mods, list, .. } => {

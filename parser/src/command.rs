@@ -181,7 +181,6 @@ pub enum ParserKind {
     Catch,
     Common,
     Continue,
-    DelFunction,
     Echo,
     Else,
     ElseIf,
@@ -956,7 +955,7 @@ fn command_vec() -> Vec<Command> {
             name: "delfunction".to_string(),
             minlen: 4,
             flags: Flag::BANG | Flag::NEEDARG | Flag::WORD1 | Flag::CMDWIN,
-            parser: ParserKind::DelFunction,
+            parser: ParserKind::Common,
         },
         Command {
             name: "diffupdate".to_string(),

@@ -304,16 +304,6 @@ pub enum Node {
         /// The string. In `foo_{bar}_baz`, `foo_` is one CurlyNamePart, `_baz` is another.
         value: String,
     },
-    /// A delfunction command
-    DelFunction {
-        pos: Position,
-        mods: Vec<Modifier>,
-        /// Whether this command was invoked with a bang (`!`).
-        bang: bool,
-        /// The argument to the delfunction command. This is probably an
-        /// [Identifier](#variant.Identifier), but doesn't have to be.
-        left: Box<Node>,
-    },
     /// A dictionary
     Dict {
         pos: Position,
@@ -717,7 +707,6 @@ impl Node {
             | Node::CurlyName { pos, .. }
             | Node::CurlyNameExpr { pos, .. }
             | Node::CurlyNamePart { pos, .. }
-            | Node::DelFunction { pos, .. }
             | Node::Dict { pos, .. }
             | Node::Dot { pos, .. }
             | Node::Echo { pos, .. }
@@ -893,7 +882,6 @@ impl fmt::Display for Node {
                 | Node::Option { value, .. }
                 | Node::Reg { value, .. }
                 | Node::String { value, .. } => value.clone(),
-                Node::DelFunction { left, .. } => display_left("delfunction", left),
                 Node::Dict { items, .. } => {
                     if items.len() > 0 {
                         format!(
