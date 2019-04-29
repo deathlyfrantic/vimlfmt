@@ -551,7 +551,6 @@ impl<'a> Parser<'a> {
             ParserKind::Catch => self.parse_cmd_catch(ea),
             ParserKind::Common | ParserKind::UserCmd => self.parse_cmd_common(ea),
             ParserKind::Continue => self.parse_cmd_continue(ea),
-            ParserKind::DelFunction => self.parse_cmd_delfunction(ea),
             ParserKind::Echo => self.parse_cmd_echo(ea),
             ParserKind::Else => self.parse_cmd_else(ea),
             ParserKind::ElseIf => self.parse_cmd_elseif(ea),
@@ -838,17 +837,6 @@ impl<'a> Parser<'a> {
             command: "continue".to_string(),
             args: String::new(),
         });
-        Ok(())
-    }
-
-    fn parse_cmd_delfunction(&mut self, ea: ExArg) -> Result<()> {
-        let node = Node::DelFunction {
-            pos: ea.cmdpos,
-            mods: ea.modifiers,
-            bang: ea.bang,
-            left: Box::new(self.parse_lvalue_func()?),
-        };
-        self.add_node(node);
         Ok(())
     }
 
@@ -2944,7 +2932,7 @@ mod tests {
         let expected = concat!(
             "(function (s:foo)\n",
             "  (return (map (list 1 2 3) (lambda (i v) (+ (* v 2) i)))))\n",
-            "(delfunction s:foo)"
+            "(excmd \"delfunction s:foo\")"
         );
         assert_eq!(&format!("{}", parse_lines(&code).unwrap()), expected);
     }
