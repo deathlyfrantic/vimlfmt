@@ -2785,7 +2785,7 @@ mod tests {
     #[test]
     fn test_loadkeymap() {
         let code = ["loadkeymap", "a A", "b B comment"];
-        let expected = "(excmd \"loadkeymap \na A\nb B comment\")";
+        let expected = "(excmd \"loadkeymap \n\na A\nb B comment\")";
         assert_eq!(&format!("{}", parse_lines(&code).unwrap()), expected);
     }
 
