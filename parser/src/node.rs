@@ -912,12 +912,16 @@ impl fmt::Display for Node {
                 Node::Echo { cmd, list, .. } => display_with_list(&cmd, &list),
                 Node::ExCall { left, .. } => display_left("call", left),
                 Node::ExCmd { command, args, .. } => {
-                    let mut rv = format!("(excmd \"{}", command);
-                    if args.len() > 0 {
-                        rv.push_str(&format!(" {}", args));
+                    if command == "break" || command == "continue" {
+                        format!("({})", command)
+                    } else {
+                        let mut rv = format!("(excmd \"{}", command);
+                        if args.len() > 0 {
+                            rv.push_str(&format!(" {}", args));
+                        }
+                        rv.push_str("\")");
+                        rv
                     }
-                    rv.push_str("\")");
-                    rv
                 }
                 Node::Execute { list, .. } => display_with_list("execute", &list),
                 Node::For {
