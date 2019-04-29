@@ -3011,16 +3011,6 @@ mod tests {
     }
 
     #[test]
-    fn test_colorscheme() {
-        let code = ["colorscheme"];
-        let expected = "(colorscheme)";
-        assert_eq!(&format!("{}", parse_lines(&code).unwrap()), expected);
-        let code = ["colorscheme foo bar "];
-        let expected = "(colorscheme foo bar)";
-        assert_eq!(&format!("{}", parse_lines(&code).unwrap()), expected);
-    }
-
-    #[test]
     fn test_highlight() {
         let tests = [
             ("highlight", "(highlight)"),
