@@ -1,13 +1,15 @@
 mod formatter;
 
 use crate::formatter::Formatter;
-use clap::{App, Arg};
+use clap::{crate_authors, crate_description, crate_name, crate_version, App, Arg};
 use std::io::{self, BufRead};
 use viml_parser::parse_lines;
 
 fn main() {
-    let matches = App::new("vimlfmt")
-        .version("0.1.0")
+    let matches = App::new(crate_name!())
+        .version(crate_version!())
+        .author(crate_authors!())
+        .about(crate_description!())
         .arg(
             Arg::with_name("ast")
                 .long("ast")
