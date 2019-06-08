@@ -6,7 +6,7 @@ use std::io::{self, BufRead};
 use viml_parser::parse_lines;
 
 fn main() {
-    let matches = App::new("vimfmt")
+    let matches = App::new("vimlfmt")
         .version("0.1.0")
         .arg(
             Arg::with_name("ast")

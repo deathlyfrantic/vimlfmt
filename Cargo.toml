@@ -1,5 +1,5 @@
 [package]
-name = "vimfmt"
+name = "vimlfmt"
 version = "0.1.0"
 authors = ["Zandr Martin <zandrmartin@gmail.com>"]
 edition = "2018"
