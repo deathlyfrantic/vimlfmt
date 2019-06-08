@@ -2,6 +2,7 @@
 name = "vimlfmt"
 version = "0.1.0"
 authors = ["Zandr Martin <zandrmartin@gmail.com>"]
+description = "A formatter for VimL code"
 edition = "2018"
 
 [dependencies]
