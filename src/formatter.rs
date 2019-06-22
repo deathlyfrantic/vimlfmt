@@ -165,7 +165,7 @@ impl Formatter {
         }
     }
 
-    fn f_list(&mut self, items: &[Box<Node>]) {
+    fn f_list(&mut self, items: &[Node]) {
         if items.is_empty() {
             self.fit("[]");
         } else {
@@ -504,7 +504,7 @@ impl Formatter {
                 self.fit(&format!(" {} ", op));
                 self.f(right);
             }
-            Node::List { items, .. } => self.f_list(items),
+            Node::List { items, .. } => self.f_list(&items.as_slice()),
             Node::LockVar {
                 mods,
                 cmd,
@@ -628,7 +628,7 @@ impl Formatter {
         };
     }
 
-    fn f_body(&mut self, body: &[Box<Node>]) {
+    fn f_body(&mut self, body: &[Node]) {
         self.current_indent += 1;
         for node in body.iter() {
             self.next_line();
@@ -652,7 +652,7 @@ impl Formatter {
                     self.add(" ");
                     self.fit(&p);
                 }
-                self.f_body(&body);
+                self.f_body(body.as_slice());
             }
             Node::Else { mods, body, .. } => {
                 self.f_mods(mods.as_slice());
