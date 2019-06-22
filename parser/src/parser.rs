@@ -617,7 +617,7 @@ impl<'a> Parser<'a> {
         let pos = ea.cmdpos;
         self.reader.skip_white();
         if self.reader.peekn(1) == "" {
-            return Ok(self.add_node(Node::Autocmd {
+            self.add_node(Node::Autocmd {
                 pos,
                 mods: ea.modifiers,
                 bang: ea.bang,
@@ -626,7 +626,8 @@ impl<'a> Parser<'a> {
                 patterns: vec![],
                 nested: false,
                 body: vec![],
-            }));
+            });
+            return Ok(());
         }
         let maybe_group = self.reader.read_nonwhite();
         let (events_str, group) = if maybe_group
@@ -636,7 +637,7 @@ impl<'a> Parser<'a> {
             // maybe_group contains no autocmd names so assume it's a group
             self.reader.skip_white();
             if self.reader.peekn(1) == "" {
-                return Ok(self.add_node(Node::Autocmd {
+                self.add_node(Node::Autocmd {
                     pos,
                     mods: ea.modifiers,
                     bang: ea.bang,
@@ -645,7 +646,8 @@ impl<'a> Parser<'a> {
                     patterns: vec![],
                     nested: false,
                     body: vec![],
-                }));
+                });
+                return Ok(());
             }
             (self.reader.read_nonwhite(), maybe_group)
         } else {
@@ -661,7 +663,7 @@ impl<'a> Parser<'a> {
         }
         self.reader.skip_white();
         if self.reader.peekn(1) == "" {
-            return Ok(self.add_node(Node::Autocmd {
+            self.add_node(Node::Autocmd {
                 pos,
                 mods: ea.modifiers,
                 bang: ea.bang,
@@ -670,7 +672,8 @@ impl<'a> Parser<'a> {
                 patterns: vec![],
                 nested: false,
                 body: vec![],
-            }));
+            });
+            return Ok(());
         }
         let patterns = self
             .reader
@@ -680,7 +683,7 @@ impl<'a> Parser<'a> {
             .collect::<Vec<String>>();
         self.reader.skip_white();
         if self.reader.peekn(1) == "" {
-            return Ok(self.add_node(Node::Autocmd {
+            self.add_node(Node::Autocmd {
                 pos,
                 mods: ea.modifiers,
                 bang: ea.bang,
@@ -689,7 +692,8 @@ impl<'a> Parser<'a> {
                 patterns,
                 nested: false,
                 body: vec![],
-            }));
+            });
+            return Ok(());
         }
         let nested = self.reader.peekn(6).to_lowercase() == "nested";
         if nested {
@@ -697,7 +701,7 @@ impl<'a> Parser<'a> {
             self.reader.skip_white();
         }
         if self.reader.peekn(1) == "" {
-            return Ok(self.add_node(Node::Autocmd {
+            self.add_node(Node::Autocmd {
                 pos,
                 mods: ea.modifiers,
                 bang: ea.bang,
@@ -706,7 +710,8 @@ impl<'a> Parser<'a> {
                 patterns,
                 nested,
                 body: vec![],
-            }));
+            });
+            return Ok(());
         }
         let offset = self.reader.tell();
         let result = parse_piped_expressions(&self.reader.get_line());
@@ -1231,7 +1236,7 @@ impl<'a> Parser<'a> {
         let left = if !["|", "", "\n", &EOF.to_string()].contains(&self.reader.peekn(1).as_str()) {
             self.reader.read_nonwhite()
         } else {
-            return Ok(self.add_node(Node::Mapping {
+            self.add_node(Node::Mapping {
                 command,
                 attrs,
                 left: String::new(),
@@ -1239,7 +1244,8 @@ impl<'a> Parser<'a> {
                 right_expr,
                 pos: ea.cmdpos,
                 mods: ea.modifiers,
-            }));
+            });
+            return Ok(());
         };
         self.reader.skip_white();
         let right = if attrs.contains(&"expr".to_string()) {
@@ -1572,7 +1578,7 @@ impl<'a> Parser<'a> {
         let mut attrs = vec![];
         let mut token = self.reader.read_nonwhitespace();
         if token == "" {
-            return Ok(self.add_node(Node::Highlight {
+            self.add_node(Node::Highlight {
                 pos,
                 mods,
                 bang,
@@ -1583,12 +1589,13 @@ impl<'a> Parser<'a> {
                 none: false,
                 to_group: None,
                 attrs,
-            }));
+            });
+            return Ok(());
         }
         if token.to_lowercase() == "clear" {
             self.reader.skip_white();
             token = self.reader.read_nonwhitespace();
-            return Ok(self.add_node(Node::Highlight {
+            self.add_node(Node::Highlight {
                 pos,
                 mods,
                 bang,
@@ -1599,14 +1606,15 @@ impl<'a> Parser<'a> {
                 to_group: None,
                 attrs,
                 group: if token == "" { None } else { Some(token) },
-            }));
+            });
+            return Ok(());
         }
         let default = token.to_lowercase() == "default";
         if default {
             self.reader.skip_white();
             token = self.reader.read_nonwhitespace();
             if token == "" {
-                return Ok(self.add_node(Node::Highlight {
+                self.add_node(Node::Highlight {
                     pos,
                     mods,
                     bang,
@@ -1617,7 +1625,8 @@ impl<'a> Parser<'a> {
                     to_group: None,
                     attrs,
                     group: None,
-                }));
+                });
+                return Ok(());
             }
         }
         let link = token.to_lowercase() == "link";
@@ -1635,7 +1644,7 @@ impl<'a> Parser<'a> {
         self.reader.skip_white();
         token = self.reader.read_nonwhitespace();
         if token.to_lowercase() == "none" {
-            return Ok(self.add_node(Node::Highlight {
+            self.add_node(Node::Highlight {
                 pos,
                 mods,
                 bang,
@@ -1646,7 +1655,8 @@ impl<'a> Parser<'a> {
                 to_group: None,
                 attrs,
                 group,
-            }));
+            });
+            return Ok(());
         } else if link {
             return if token == "" {
                 Err(ParseError {
@@ -1657,7 +1667,7 @@ impl<'a> Parser<'a> {
                     pos,
                 })
             } else {
-                Ok(self.add_node(Node::Highlight {
+                self.add_node(Node::Highlight {
                     pos,
                     mods,
                     bang,
@@ -1668,7 +1678,8 @@ impl<'a> Parser<'a> {
                     to_group: Some(token),
                     attrs,
                     group,
-                }))
+                });
+                return Ok(());
             };
         }
         lazy_static! {
@@ -1706,7 +1717,7 @@ impl<'a> Parser<'a> {
             self.reader.skip_white();
             token = self.reader.read_nonwhitespace();
         }
-        Ok(self.add_node(Node::Highlight {
+        self.add_node(Node::Highlight {
             pos,
             mods,
             bang,
@@ -1717,7 +1728,8 @@ impl<'a> Parser<'a> {
             to_group: None,
             attrs,
             group,
-        }))
+        });
+        Ok(())
     }
 
     fn parse_exprlist(&mut self) -> Result<Vec<Node>> {
@@ -1973,8 +1985,8 @@ impl<'a> Parser<'a> {
         if name == "" {
             return None;
         }
-        if self.commands.contains_key(&name) {
-            Some(Rc::clone(self.commands.get(&name).unwrap()))
+        if let Some(cmd) = self.commands.get(&name) {
+            Some(Rc::clone(cmd))
         } else if name.starts_with(|c: char| c.is_uppercase()) {
             name.push_str(&self.reader.read_alnum());
             let cmd = Rc::new(Command {
