@@ -53,7 +53,7 @@ impl Formatter {
                 self.f(node);
                 self.next_line();
             }
-            if self.output.len() > 0 {
+            if !self.output.is_empty() {
                 while self.output[0].trim() == "" {
                     self.output.remove(0);
                 }
@@ -166,7 +166,7 @@ impl Formatter {
     }
 
     fn f_list(&mut self, items: &[Box<Node>]) {
-        if items.len() == 0 {
+        if items.is_empty() {
             self.fit("[]");
         } else {
             // try to fit this on one line first
@@ -202,7 +202,7 @@ impl Formatter {
     }
 
     fn f_dict(&mut self, items: &[(Box<Node>, Box<Node>)]) {
-        if items.len() == 0 {
+        if items.is_empty() {
             self.fit("{}");
         } else {
             // try to fit on one line first
@@ -256,7 +256,7 @@ impl Formatter {
 
     fn f_augroup(&mut self, name: &str) {
         let trimmed = name.trim();
-        if trimmed.len() > 0 {
+        if !trimmed.is_empty() {
             if trimmed.to_lowercase() == "end" && self.current_indent > 0 {
                 self.current_indent -= 1;
                 self.line = format!("{}augroup ", self.indent());
@@ -291,16 +291,16 @@ impl Formatter {
                 if *bang {
                     self.add("!");
                 }
-                if group.len() > 0 {
+                if !group.is_empty() {
                     self.add(" ");
                     self.fit(group);
                 }
-                if events.len() > 0 {
+                if !events.is_empty() {
                     let mut events = events.clone();
                     events.sort_unstable();
                     self.fit(&format!(" {}", events.join(",")));
                 }
-                if patterns.len() > 0 {
+                if !patterns.is_empty() {
                     let mut patterns = patterns.clone();
                     patterns.sort_unstable();
                     self.fit(&format!(" {}", patterns.join(",")));
@@ -308,7 +308,7 @@ impl Formatter {
                 if *nested {
                     self.fit(" nested");
                 }
-                if body.len() > 0 {
+                if !body.is_empty() {
                     let saved_output = self.output.split_off(0);
                     let saved_line = self.line.split_off(0);
                     let mut trimmed = vec![];
@@ -539,20 +539,20 @@ impl Formatter {
             } => {
                 self.f_mods(mods.as_slice());
                 self.add(&command);
-                if attrs.len() > 0 {
+                if !attrs.is_empty() {
                     let mut attrs = attrs.clone();
                     attrs.sort_unstable();
                     for attr in attrs {
                         self.fit(&format!(" <{}>", attr));
                     }
                 }
-                if left.len() > 0 {
+                if !left.is_empty() {
                     self.add(" ");
                     self.fit(&left);
                     if let Some(re) = right_expr {
                         self.add(" ");
                         self.f(re);
-                    } else if right.len() > 0 {
+                    } else if !right.is_empty() {
                         self.add(" ");
                         self.fit(&right.replace("|", "\\|"));
                     }
@@ -628,7 +628,7 @@ impl Formatter {
         };
     }
 
-    fn f_body(&mut self, body: &Vec<Box<Node>>) {
+    fn f_body(&mut self, body: &[Box<Node>]) {
         self.current_indent += 1;
         for node in body.iter() {
             self.next_line();
@@ -692,7 +692,7 @@ impl Formatter {
                 body,
                 ..
             } => {
-                if self.output.len() > 0 {
+                if !self.output.is_empty() {
                     // a function must be preceded by a blank line or a comment
                     let last_line = self.output[self.output.len() - 1].trim().to_string();
                     if last_line != "" && !last_line.starts_with('"') {
@@ -715,7 +715,7 @@ impl Formatter {
                     }
                 }
                 self.add(")");
-                if attrs.len() > 0 {
+                if !attrs.is_empty() {
                     self.add(&format!(" {}", attrs.join(" ")));
                 }
                 self.f_body(body);
