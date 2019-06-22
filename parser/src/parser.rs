@@ -1061,9 +1061,9 @@ impl<'a> Parser<'a> {
         self.push_context(Node::For {
             pos: ea.cmdpos,
             mods: ea.modifiers,
-            var,
+            var: var.map(Box::new),
             list,
-            rest,
+            rest: rest.map(Box::new),
             right,
             body: vec![],
             end: None,
@@ -1149,9 +1149,9 @@ impl<'a> Parser<'a> {
         let node = Node::Let {
             pos: ea.cmdpos,
             mods: ea.modifiers,
-            var,
+            var: var.map(Box::new),
             list,
-            rest,
+            rest: rest.map(Box::new),
             op,
             right: Box::new(self.parse_expr()?),
         };
@@ -1399,7 +1399,7 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    fn parse_letlhs(&mut self) -> Result<(Option<Box<Node>>, Vec<Node>, Option<Box<Node>>)> {
+    fn parse_letlhs(&mut self) -> Result<(Option<Node>, Vec<Node>, Option<Node>)> {
         let mut tokenizer = Tokenizer::new(self.reader);
         let mut nodes = vec![];
         let mut left = None;
@@ -1417,7 +1417,7 @@ impl<'a> Parser<'a> {
                         continue;
                     }
                     TokenKind::Semicolon => {
-                        rest = Some(Box::new(self.parse_lvalue()?));
+                        rest = Some(self.parse_lvalue()?);
                         token = tokenizer.get()?;
                         if token.kind == TokenKind::SqClose {
                             break;
@@ -1437,7 +1437,7 @@ impl<'a> Parser<'a> {
                 }
             }
         } else {
-            left = Some(Box::new(self.parse_lvalue()?));
+            left = Some(self.parse_lvalue()?);
         }
         Ok((left, nodes, rest))
     }
