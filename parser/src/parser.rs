@@ -49,7 +49,7 @@ impl<'a> Parser<'a> {
     }
 
     fn ensure_context(&self) {
-        if self.context.len() == 0 {
+        if self.context.is_empty() {
             panic!("no context found");
         }
     }
@@ -477,7 +477,7 @@ impl<'a> Parser<'a> {
         self.reader.skip_white_and_colon();
         ea.cmdpos = self.reader.getpos();
         if [EOL, '"', EOF].contains(&self.reader.peek()) {
-            if ea.modifiers.len() > 0 || ea.range.len() > 0 {
+            if !ea.modifiers.is_empty() || !ea.range.is_empty() {
                 self.parse_cmd_modifier_range(ea);
             }
             return Ok(());
@@ -544,7 +544,10 @@ impl<'a> Parser<'a> {
 
     fn _parse_command(&mut self, ea: ExArg) -> Result<()> {
         match ea.cmd.parser {
-            ParserKind::Append | ParserKind::Insert => Ok(self.parse_cmd_append(ea)),
+            ParserKind::Append | ParserKind::Insert => {
+                self.parse_cmd_append(ea);
+                Ok(())
+            }
             ParserKind::Autocmd => self.parse_cmd_autocmd(ea),
             ParserKind::Break => self.parse_cmd_break(ea),
             ParserKind::Call => self.parse_cmd_call(ea),
@@ -601,7 +604,7 @@ impl<'a> Parser<'a> {
             mods: ea.modifiers,
             command: ea.cmd.name.clone(),
             bang: ea.bang,
-            args: if lines.len() > 0 {
+            args: if !lines.is_empty() {
                 format!("\n{}", lines.join("\n"))
             } else {
                 String::new()
@@ -627,7 +630,7 @@ impl<'a> Parser<'a> {
         }
         let maybe_group = self.reader.read_nonwhite();
         let (events_str, group) = if maybe_group
-            .split(",")
+            .split(',')
             .all(|word| !valid_autocmds().contains_key(&word.to_lowercase().as_str()))
         {
             // maybe_group contains no autocmd names so assume it's a group
@@ -672,7 +675,7 @@ impl<'a> Parser<'a> {
         let patterns = self
             .reader
             .read_nonwhite()
-            .split(",")
+            .split(',')
             .map(|s| s.to_string())
             .collect::<Vec<String>>();
         self.reader.skip_white();
@@ -1167,7 +1170,7 @@ impl<'a> Parser<'a> {
             mods: ea.modifiers,
             bang: ea.bang,
             command: ea.cmd.name.clone(),
-            args: if lines.len() > 0 {
+            args: if !lines.is_empty() {
                 format!("\n{}", lines.join("\n"))
             } else {
                 String::new()
@@ -1442,11 +1445,11 @@ impl<'a> Parser<'a> {
         }
         let left = self.parse_lvalue_func()?;
         self.reader.skip_white();
-        if let &Node::Identifier { pos, ref value, .. } = &left {
-            if !value.starts_with("<")
+        if let Node::Identifier { pos, ref value, .. } = left {
+            if !value.starts_with('<')
                 && !value.starts_with(|c: char| c.is_uppercase())
-                && !value.contains(":")
-                && !value.contains("#")
+                && !value.contains(':')
+                && !value.contains('#')
             {
                 return Err(ParseError {
                     msg: format!(
@@ -1827,7 +1830,7 @@ impl<'a> Parser<'a> {
                     return self.err(&format!("unexpected character: {}", c));
                 }
                 let gotten = self.reader.getn(1);
-                c = if gotten.len() == 0 {
+                c = if gotten.is_empty() {
                     EOF
                 } else {
                     gotten.chars().nth(0).unwrap()
@@ -2368,7 +2371,7 @@ impl<'a> ExprParser<'a> {
                     token = self.tokenizer.get()?;
                     if token.kind == TokenKind::CClose {
                         // premature closing of dict, e.g. "let d = { 'foo': }"
-                        if items.len() > 0 {
+                        if !items.is_empty() {
                             return self.token_err(token);
                         }
                         self.reader.seek_set(cursor);
@@ -2542,7 +2545,7 @@ impl<'a> ExprParser<'a> {
                 pos,
                 pieces: curly_parts
                     .into_iter()
-                    .map(|n| Box::new(n))
+                    .map(Box::new)
                     .collect::<Vec<Box<Node>>>(),
             });
         }

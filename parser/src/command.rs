@@ -115,52 +115,52 @@ bitflags! {
     /// flags taken directly from ex_cmds_defs.h in neovim source
     pub struct Flag: u32 {
         /// allow a linespecs
-        const RANGE     = 0b000000000000000000000001;
+        const RANGE     = 0b0000_0000_0000_0000_0000_0001;
         /// allow a ! after the command name
-        const BANG      = 0b000000000000000000000010;
+        const BANG      = 0b0000_0000_0000_0000_0000_0010;
         /// allow extra args after command name
-        const EXTRA     = 0b000000000000000000000100;
+        const EXTRA     = 0b0000_0000_0000_0000_0000_0100;
         /// expand wildcards in extra part
-        const XFILE     = 0b000000000000000000001000;
+        const XFILE     = 0b0000_0000_0000_0000_0000_1000;
         /// no spaces allowed in the extra part
-        const NOSPC     = 0b000000000000000000010000;
+        const NOSPC     = 0b0000_0000_0000_0000_0001_0000;
         /// default file range is 1,$
-        const DFLALL    = 0b000000000000000000100000;
+        const DFLALL    = 0b0000_0000_0000_0000_0010_0000;
         /// extend range to include whole fold also when less than two numbers given
-        const WHOLEFOLD = 0b000000000000000001000000;
+        const WHOLEFOLD = 0b0000_0000_0000_0000_0100_0000;
         /// argument required
-        const NEEDARG   = 0b000000000000000010000000;
+        const NEEDARG   = 0b0000_0000_0000_0000_1000_0000;
         /// check for trailing vertical bar
-        const TRLBAR    = 0b000000000000000100000000;
+        const TRLBAR    = 0b0000_0000_0000_0001_0000_0000;
         /// allow "x for register designation
-        const REGSTR    = 0b000000000000001000000000;
+        const REGSTR    = 0b0000_0000_0000_0010_0000_0000;
         /// allow count in argument, after command
-        const COUNT     = 0b000000000000010000000000;
+        const COUNT     = 0b0000_0000_0000_0100_0000_0000;
         /// no trailing comment allowed
-        const NOTRLCOM  = 0b000000000000100000000000;
+        const NOTRLCOM  = 0b0000_0000_0000_1000_0000_0000;
         /// zero line number allowed
-        const ZEROR     = 0b000000000001000000000000;
+        const ZEROR     = 0b0000_0000_0001_0000_0000_0000;
         /// do not remove CTRL-V from argument
-        const USECTRLV  = 0b000000000010000000000000;
+        const USECTRLV  = 0b0000_0000_0010_0000_0000_0000;
         /// number before command is not an address
-        const NOTADR    = 0b000000000100000000000000;
+        const NOTADR    = 0b0000_0000_0100_0000_0000_0000;
         /// allow "+command" argument
-        const EDITCMD   = 0b000000010000000000000000;
+        const EDITCMD   = 0b0000_0000_1000_0000_0000_0000;
         /// accepts buffer name
-        const BUFNAME   = 0b000000001000000000000000;
+        const BUFNAME   = 0b0000_0001_0000_0000_0000_0000;
         /// accepts unlisted buffer too
-        const BUFUNL    = 0b000000100000000000000000;
+        const BUFUNL    = 0b0000_0010_0000_0000_0000_0000;
         /// allow "++opt=val" argument
-        const ARGOPT    = 0b000001000000000000000000;
+        const ARGOPT    = 0b0000_0100_0000_0000_0000_0000;
         /// allowed in the sandbox
-        const SBOXOK    = 0b000010000000000000000000;
+        const SBOXOK    = 0b0000_1000_0000_0000_0000_0000;
         /// allowed in cmdline window; when missing disallows editing another buffer when
         /// curbuf_lock is set
-        const CMDWIN    = 0b000100000000000000000000;
+        const CMDWIN    = 0b0001_0000_0000_0000_0000_0000;
         /// forbidden in non-'modifiable' buffer
-        const MODIFY    = 0b001000000000000000000000;
+        const MODIFY    = 0b0010_0000_0000_0000_0000_0000;
         /// allow flags after count in argument
-        const EXFLAGS   = 0b010000000000000000000000;
+        const EXFLAGS   = 0b0100_0000_0000_0000_0000_0000;
         /// multiple extra files allowed
         const FILES     = Self::XFILE.bits | Self::EXTRA.bits;
         /// one extra word allowed
@@ -168,7 +168,7 @@ bitflags! {
         /// 1 file allowed, defaults to current file
         const FILE1     = Self::FILES.bits | Self::NOSPC.bits;
         /// whether this is a user-defined command or a built-in one (specific to this parser)
-        const USERCMD   = 0b100000000000000000000000;
+        const USERCMD   = 0b1000_0000_0000_0000_0000_0000;
     }
 }
 

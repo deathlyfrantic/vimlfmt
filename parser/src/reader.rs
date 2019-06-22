@@ -43,7 +43,7 @@ impl Reader {
                 self.pos.push((lnum + 1, col + 1));
                 col += 1;
             }
-            while lnum + 1 < lines.len() && lines[lnum + 1].trim_start().starts_with("\\") {
+            while lnum + 1 < lines.len() && lines[lnum + 1].trim_start().starts_with('\\') {
                 let line = lines[lnum + 1];
                 let trimmed = line.trim_start();
                 col = line.len() - trimmed.len() + 1;
@@ -140,8 +140,7 @@ impl Reader {
             cursor += 1;
         }
         *self.cursor.borrow_mut() = cursor;
-        let rv = self.buf[start..cursor].iter().collect::<String>();
-        rv
+        self.buf[start..cursor].iter().collect::<String>()
     }
 
     pub fn getstr(&self, begin: Position, end: Position) -> String {
