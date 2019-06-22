@@ -235,7 +235,7 @@ pub enum Node {
         nested: bool,
         /// The commands that will be executed when one of the events occurs and one of the
         /// patterns is matched.
-        body: Vec<Box<Node>>,
+        body: Vec<Node>,
     },
     /// An operation with two atoms
     BinaryOp {
@@ -257,7 +257,7 @@ pub enum Node {
         /// [Identifier](#variant.Identifier)), but doesn't have to be.
         name: Box<Node>,
         /// The arguments passed to the function.
-        args: Vec<Box<Node>>,
+        args: Vec<Node>,
     },
     /// A catch clause - will only show up in the `catches` member of a [Try](#variant.Try) node.
     Catch {
@@ -266,7 +266,7 @@ pub enum Node {
         /// A pattern, if one exists - e.g. `/^Vim\%((\a\+)\)\=:E123/`.
         pattern: Option<String>,
         /// The commands in the body of the clause.
-        body: Vec<Box<Node>>,
+        body: Vec<Node>,
     },
     /// A comment
     Comment {
@@ -290,7 +290,7 @@ pub enum Node {
         /// The pieces that form the variable. These will be either
         /// [CurlyNameExpr](#variant.CurlyNameExpr) nodes or
         /// [CurlyNamePart](#variant.CurlyNamePart) nodes.
-        pieces: Vec<Box<Node>>,
+        pieces: Vec<Node>,
     },
     /// An expression in curly braces in a "curly braces name" variable.
     CurlyNameExpr {
@@ -329,14 +329,14 @@ pub enum Node {
         /// The particular command - either `echo`, `echoerr`, `echomsg`, or `echon`.
         cmd: String,
         /// The arguments passed to the echo command.
-        list: Vec<Box<Node>>,
+        list: Vec<Node>,
     },
     /// An else clause - will only show up in the `else_` member of an [If](#variant.If) node.
     Else {
         pos: Position,
         mods: Vec<Modifier>,
         /// The commands in the body of the clause.
-        body: Vec<Box<Node>>,
+        body: Vec<Node>,
     },
     /// An elseif clause - will only show up in the `elseifs` member of an [If](#variant.If) node.
     ElseIf {
@@ -345,7 +345,7 @@ pub enum Node {
         /// The condition of the elseif.
         cond: Box<Node>,
         /// The commands in the body of the clause.
-        body: Vec<Box<Node>>,
+        body: Vec<Node>,
     },
     /// The end of a clause that requires and end statement. This will either be an `endif`,
     /// `endfor`, `endfunction`, `endtry`, or `endwhile`. This will only exist in the `end` member
@@ -391,14 +391,14 @@ pub enum Node {
         pos: Position,
         mods: Vec<Modifier>,
         /// The arguments passed to the execute command.
-        list: Vec<Box<Node>>,
+        list: Vec<Node>,
     },
     /// A finally clause - will only show up in the `finally` member of a [Try](#variant.Try) node.
     Finally {
         pos: Position,
         mods: Vec<Modifier>,
         /// The commands in the body of the clause.
-        body: Vec<Box<Node>>,
+        body: Vec<Node>,
     },
     /// A for loop
     For {
@@ -408,14 +408,14 @@ pub enum Node {
         var: Option<Box<Node>>,
         /// If there are multiple variables in the for statement, this is a list of those
         /// variables, e.g. in `for [a, b] in something`, this list contains `a` and `b`.
-        list: Vec<Box<Node>>,
+        list: Vec<Node>,
         /// If there is a `{lastname}` variable in the for statement, this is that variable, e.g.
         /// in `for [a, b; z] in something`, this is `z`.
         rest: Option<Box<Node>>,
         /// The collection being iterated, e.g. in `for x in something`, this is `something`.
         right: Box<Node>,
         /// The commands in the body of the loop.
-        body: Vec<Box<Node>>,
+        body: Vec<Node>,
         /// The `endfor` - an [End](#variant.End) Node. Note that while this is an Option, it is a
         /// parse error for there not to be one - it's only an Option so the parser can parse the
         /// body of the clause before the `endfor` is found.
@@ -430,9 +430,9 @@ pub enum Node {
         /// The name of the function - probably an [Identifier](#variant.Identifier).
         name: Box<Node>,
         /// The parameters of the function.
-        args: Vec<Box<Node>>,
+        args: Vec<Node>,
         /// The commands in the body of the function.
-        body: Vec<Box<Node>>,
+        body: Vec<Node>,
         /// A list of attributes of the function - can contain any of "range", "abort", "dict", or
         /// "closure".
         attrs: Vec<String>,
@@ -481,11 +481,11 @@ pub enum Node {
         /// The condition of the if.
         cond: Box<Node>,
         /// The elseif causes of the if.
-        elseifs: Vec<Box<Node>>,
+        elseifs: Vec<Node>,
         /// The else clause of the if.
         else_: Option<Box<Node>>,
         /// The commands in the body of the if.
-        body: Vec<Box<Node>>,
+        body: Vec<Node>,
         /// The `endif` - an [End](#variant.End) Node. Note that while this is an Option, it is a
         /// parse error for there not to be one - it's only an Option so the parser can parse the
         /// body of the if before the `endif` is found.
@@ -495,7 +495,7 @@ pub enum Node {
     Lambda {
         pos: Position,
         /// The arguments of the lambda.
-        args: Vec<Box<Node>>,
+        args: Vec<Node>,
         /// The expression that is evaluated (equivalent to the body of a regular function).
         expr: Box<Node>,
     },
@@ -507,7 +507,7 @@ pub enum Node {
         var: Option<Box<Node>>,
         /// If there are multiple variables in the let statement, this is a list of those
         /// variables, e.g. in `let [a, b] = something`, this list contains `a` and `b`.
-        list: Vec<Box<Node>>,
+        list: Vec<Node>,
         /// If there is a `{lastname}` variable in the let statement, this is that variable, e.g.
         /// in `let [a, b; z] = something`, this is `z`.
         rest: Option<Box<Node>>,
@@ -521,7 +521,7 @@ pub enum Node {
     List {
         pos: Position,
         /// The items in the list.
-        items: Vec<Box<Node>>,
+        items: Vec<Node>,
     },
     /// A lockvar or unlockvar command
     LockVar {
@@ -534,7 +534,7 @@ pub enum Node {
         /// The depth argument of the command, if there is one.
         depth: Option<usize>,
         /// The variables to lock or unlock.
-        list: Vec<Box<Node>>,
+        list: Vec<Node>,
     },
     /// A key mapping command
     Mapping {
@@ -643,16 +643,16 @@ pub enum Node {
     TopLevel {
         pos: Position,
         /// The statements of the input.
-        body: Vec<Box<Node>>,
+        body: Vec<Node>,
     },
     /// A try statement
     Try {
         pos: Position,
         mods: Vec<Modifier>,
         /// The commands in the body of the try.
-        body: Vec<Box<Node>>,
+        body: Vec<Node>,
         /// Any catch statements within the try. These will be [Catch](#variant.Catch)es.
-        catches: Vec<Box<Node>>,
+        catches: Vec<Node>,
         /// A finally statement, if there is one. This will be a [FInally](#variant.Finally).
         finally: Option<Box<Node>>,
         /// The `endtry` - an [End](#variant.End) Node. Note that while this is an Option, it is a
@@ -675,14 +675,14 @@ pub enum Node {
         /// Whether this command was invoked with a bang (`!`).
         bang: bool,
         /// The variables to be unlet.
-        list: Vec<Box<Node>>,
+        list: Vec<Node>,
     },
     /// A while loop
     While {
         pos: Position,
         mods: Vec<Modifier>,
         /// The commands in the body of the loop.
-        body: Vec<Box<Node>>,
+        body: Vec<Node>,
         /// The condition of the loop.
         cond: Box<Node>,
         /// The `endwhile` - an [End](#variant.End) Node. Note that while this is an Option, it is
@@ -789,10 +789,10 @@ impl Node {
     }
 }
 
-fn format_body(body: &[Box<Node>]) -> String {
+fn format_body(body: &[Node]) -> String {
     let mut rv = String::new();
     for node in body {
-        if let Node::BlankLine { .. } = node.as_ref() {
+        if let Node::BlankLine { .. } = node {
             continue;
         }
         for line in format!("{}", node).split("\n") {
@@ -1012,13 +1012,7 @@ impl fmt::Display for Node {
                     let mut rv = format!("(if {}", cond);
                     rv.push_str(&format_body(body.as_slice()));
                     for elseif in elseifs {
-                        let mut elseif = *elseif.clone();
-                        if let Node::ElseIf {
-                            ref mut cond,
-                            ref mut body,
-                            ..
-                        } = elseif
-                        {
+                        if let Node::ElseIf { cond, body, .. } = elseif {
                             rv.push_str(&format!("\n elseif {}", cond));
                             rv.push_str(&format_body(body.as_slice()));
                         }
@@ -1131,7 +1125,7 @@ impl fmt::Display for Node {
                 Node::Throw { err, .. } => display_left("throw", err),
                 Node::TopLevel { body, .. } => body
                     .iter()
-                    .filter_map(|n| if let Node::BlankLine { .. } = n.as_ref() {
+                    .filter_map(|n| if let Node::BlankLine { .. } = n {
                         None
                     } else {
                         Some(format!("{}", n))
@@ -1147,13 +1141,7 @@ impl fmt::Display for Node {
                     let mut rv = String::from("(try");
                     rv.push_str(&format_body(body.as_slice()));
                     for catch in catches {
-                        let mut catch = *catch.clone();
-                        if let Node::Catch {
-                            ref mut pattern,
-                            ref mut body,
-                            ..
-                        } = catch
-                        {
+                        if let Node::Catch { pattern, body, .. } = catch {
                             if let Some(p) = pattern {
                                 rv.push_str(&format!("\n catch /{}/", p));
                             } else {

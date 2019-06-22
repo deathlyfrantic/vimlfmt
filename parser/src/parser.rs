@@ -19,7 +19,7 @@ fn ends_excmds(c: char) -> bool {
 
 pub(crate) type Result<T> = std::result::Result<T, ParseError>;
 
-fn parse_piped_expressions(s: &str) -> Result<Vec<Box<Node>>> {
+fn parse_piped_expressions(s: &str) -> Result<Vec<Node>> {
     let reader = Reader::from_lines(&[s]);
     let mut parser = Parser::new(&reader);
     if let Node::TopLevel { body, .. } = parser.parse()? {
@@ -81,7 +81,7 @@ impl<'a> Parser<'a> {
                     ref mut catches, ..
                 } = self.current_context_mut()
                 {
-                    catches.push(Box::new(node));
+                    catches.push(node);
                 } else {
                     panic!("Catch node parent is not a Try node");
                 }
@@ -101,7 +101,7 @@ impl<'a> Parser<'a> {
                     ref mut elseifs, ..
                 } = self.current_context_mut()
                 {
-                    elseifs.push(Box::new(node));
+                    elseifs.push(node);
                 } else {
                     panic!("ElseIf node parent is not an If node");
                 }
@@ -138,7 +138,7 @@ impl<'a> Parser<'a> {
             | Node::TopLevel { ref mut body, .. }
             | Node::Try { ref mut body, .. }
             | Node::While { ref mut body, .. } => {
-                body.push(Box::new(node));
+                body.push(node);
             }
             _ => (),
         };
@@ -1393,7 +1393,7 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    fn parse_letlhs(&mut self) -> Result<(Option<Box<Node>>, Vec<Box<Node>>, Option<Box<Node>>)> {
+    fn parse_letlhs(&mut self) -> Result<(Option<Box<Node>>, Vec<Node>, Option<Box<Node>>)> {
         let mut tokenizer = Tokenizer::new(self.reader);
         let mut nodes = vec![];
         let mut left = None;
@@ -1401,7 +1401,7 @@ impl<'a> Parser<'a> {
         if tokenizer.peek()?.kind == TokenKind::SqOpen {
             tokenizer.get()?;
             loop {
-                nodes.push(Box::new(self.parse_lvalue()?));
+                nodes.push(self.parse_lvalue()?);
                 let mut token = tokenizer.get()?;
                 match token.kind {
                     TokenKind::SqClose => {
@@ -1490,10 +1490,10 @@ impl<'a> Parser<'a> {
                         });
                     }
                     named.push(token.value.clone());
-                    args.push(Box::new(Node::Identifier {
+                    args.push(Node::Identifier {
                         pos: token.pos,
                         value: token.value,
-                    }));
+                    });
                     if self.reader.peek().is_white() && tokenizer.peek()?.kind == TokenKind::Comma {
                         return self.err(
                             "E475: Invalid argument: White space is not allowed before comma",
@@ -1514,10 +1514,10 @@ impl<'a> Parser<'a> {
                         });
                     }
                 } else if token.kind == TokenKind::DotDotDot {
-                    args.push(Box::new(Node::Identifier {
+                    args.push(Node::Identifier {
                         pos: token.pos,
                         value: token.value,
-                    }));
+                    });
                     token = tokenizer.get()?;
                     if token.kind == TokenKind::PClose {
                         break;
@@ -1720,7 +1720,7 @@ impl<'a> Parser<'a> {
         }))
     }
 
-    fn parse_exprlist(&mut self) -> Result<Vec<Box<Node>>> {
+    fn parse_exprlist(&mut self) -> Result<Vec<Node>> {
         let mut nodes = vec![];
         loop {
             self.reader.skip_white();
@@ -1729,7 +1729,7 @@ impl<'a> Parser<'a> {
                 break;
             }
             let node = self.parse_expr()?;
-            nodes.push(Box::new(node));
+            nodes.push(node);
         }
         Ok(nodes)
     }
@@ -1762,15 +1762,15 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse_lvaluelist(&mut self) -> Result<Vec<Box<Node>>> {
+    fn parse_lvaluelist(&mut self) -> Result<Vec<Node>> {
         let mut nodes = vec![];
-        nodes.push(Box::new(self.parse_expr()?));
+        nodes.push(self.parse_expr()?);
         loop {
             self.reader.skip_white();
             if ends_excmds(self.reader.peek()) {
                 break;
             }
-            nodes.push(Box::new(self.parse_lvalue()?));
+            nodes.push(self.parse_lvalue()?);
         }
         Ok(nodes)
     }
@@ -2256,7 +2256,7 @@ impl<'a> ExprParser<'a> {
                     self.tokenizer.get()?;
                 } else {
                     loop {
-                        args.push(Box::new(self.parse_expr1()?));
+                        args.push(self.parse_expr1()?);
                         let token = self.tokenizer.get()?;
                         if token.kind == TokenKind::Comma {
                             if self.tokenizer.peek()?.kind == TokenKind::PClose {
@@ -2323,7 +2323,7 @@ impl<'a> ExprParser<'a> {
                     self.tokenizer.get()?;
                 } else {
                     loop {
-                        items.push(Box::new(self.parse_expr1()?));
+                        items.push(self.parse_expr1()?);
                         let token = self.tokenizer.peek()?;
                         match token.kind {
                             TokenKind::Comma => {
@@ -2475,7 +2475,7 @@ impl<'a> ExprParser<'a> {
                         });
                     }
                     token = self.tokenizer.get()?;
-                    args.push(Box::new(varnode));
+                    args.push(varnode);
                     if token.kind == TokenKind::Comma {
                         token = self.tokenizer.peek()?;
                         if token.kind == TokenKind::Arrow {
@@ -2499,7 +2499,7 @@ impl<'a> ExprParser<'a> {
                         pos: token.pos,
                         value: token.value,
                     };
-                    args.push(Box::new(varnode));
+                    args.push(varnode);
                     token = self.tokenizer.peek()?;
                     if token.kind == TokenKind::Arrow {
                         self.tokenizer.get()?;
@@ -2543,10 +2543,7 @@ impl<'a> ExprParser<'a> {
         if node.is_none() {
             node = Some(Node::CurlyName {
                 pos,
-                pieces: curly_parts
-                    .into_iter()
-                    .map(Box::new)
-                    .collect::<Vec<Box<Node>>>(),
+                pieces: curly_parts.into_iter().collect::<Vec<Node>>(),
             });
         }
         Ok(node.unwrap())
@@ -2749,7 +2746,7 @@ mod tests {
 
     fn create_node(s: &str) -> Node {
         if let Node::TopLevel { body, .. } = parse_lines(&[s]).unwrap() {
-            return *body[0].clone();
+            return body[0].clone();
         }
         panic!("can't create node from '{}'", s);
     }
