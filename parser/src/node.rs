@@ -817,15 +817,15 @@ impl fmt::Display for Node {
                     ..
                 } => {
                     let mut rv = String::from("(autocmd");
-                    if group.len() > 0 {
+                    if !group.is_empty() {
                         rv.push_str(&format!(" {}", group));
                     }
-                    if events.len() > 0 {
+                    if !events.is_empty() {
                         let mut events = events.clone();
                         events.sort();
                         rv.push_str(&format!(" {}", events.join(",")));
                     }
-                    if patterns.len() > 0 {
+                    if !patterns.is_empty() {
                         let mut patterns = patterns.clone();
                         patterns.sort();
                         rv.push_str(&format!(" {}", patterns.join(",")));
@@ -833,7 +833,7 @@ impl fmt::Display for Node {
                     if *nested {
                         rv.push_str(" nested");
                     }
-                    if body.len() > 0 {
+                    if !body.is_empty() {
                         rv.push_str(&format!(
                             " {}",
                             body.iter()
@@ -855,7 +855,7 @@ impl fmt::Display for Node {
                     format!("({} {} {})", op, left, right)
                 }
                 Node::Call { name, args, .. } => {
-                    if args.len() > 0 {
+                    if !args.is_empty() {
                         format!(
                             "({} {})",
                             name,
@@ -883,7 +883,7 @@ impl fmt::Display for Node {
                 | Node::Reg { value, .. }
                 | Node::String { value, .. } => value.clone(),
                 Node::Dict { items, .. } => {
-                    if items.len() > 0 {
+                    if !items.is_empty() {
                         format!(
                             "(dict {})",
                             items
@@ -904,7 +904,7 @@ impl fmt::Display for Node {
                         format!("({})", command)
                     } else {
                         let mut rv = format!("(excmd \"{}", command);
-                        if args.len() > 0 {
+                        if !args.is_empty() {
                             rv.push_str(&format!(" {}", args));
                         }
                         rv.push_str("\")");
@@ -945,7 +945,7 @@ impl fmt::Display for Node {
                     name, args, body, ..
                 } => {
                     let mut rv = format!("(function ({}", name);
-                    if args.len() > 0 {
+                    if !args.is_empty() {
                         let mut args = args
                             .iter()
                             .map(|n| format!("{}", n))
@@ -989,7 +989,7 @@ impl fmt::Display for Node {
                     if let Some(t) = to_group {
                         rv.push_str(&format!(" {}", t));
                     }
-                    if attrs.len() > 0 {
+                    if !attrs.is_empty() {
                         rv.push(' ');
                     }
                     rv.push_str(
@@ -1068,7 +1068,7 @@ impl fmt::Display for Node {
                     format!("(let {} {} {})", op, left, right)
                 }
                 Node::List { items, .. } => {
-                    if items.len() == 0 {
+                    if items.is_empty() {
                         "(list)".to_string()
                     } else {
                         display_with_list("list", &items)
@@ -1091,11 +1091,11 @@ impl fmt::Display for Node {
                     ..
                 } => {
                     let mut rv = format!("({}", command);
-                    if left.len() > 0 {
+                    if !left.is_empty() {
                         rv.push_str(&format!(" {}", left));
                         if let Some(re) = right_expr {
                             rv.push_str(&format!(" {}", re));
-                        } else if right.len() > 0 {
+                        } else if !right.is_empty() {
                             rv.push_str(&format!(" {}", right));
                         }
                     }
@@ -1129,17 +1129,15 @@ impl fmt::Display for Node {
                     cond, left, right, ..
                 } => display_lr(&format!("?: {}", cond), left, right),
                 Node::Throw { err, .. } => display_left("throw", err),
-                Node::TopLevel { body, .. } => format!(
-                    "{}",
-                    body.iter()
-                        .filter_map(|n| if let Node::BlankLine { .. } = n.as_ref() {
-                            None
-                        } else {
-                            Some(format!("{}", n))
-                        })
-                        .collect::<Vec<String>>()
-                        .join("\n")
-                ),
+                Node::TopLevel { body, .. } => body
+                    .iter()
+                    .filter_map(|n| if let Node::BlankLine { .. } = n.as_ref() {
+                        None
+                    } else {
+                        Some(format!("{}", n))
+                    })
+                    .collect::<Vec<String>>()
+                    .join("\n"),
                 Node::Try {
                     body,
                     catches,
