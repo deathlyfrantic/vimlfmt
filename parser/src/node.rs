@@ -802,49 +802,172 @@ fn format_body(body: &[Node]) -> String {
     rv
 }
 
+fn display_autocmd(node: &Node) -> String {
+    if let Node::Autocmd {
+        group,
+        events,
+        patterns,
+        nested,
+        body,
+        ..
+    } = node
+    {
+        let mut rv = String::from("(autocmd");
+        if !group.is_empty() {
+            rv.push_str(&format!(" {}", group));
+        }
+        if !events.is_empty() {
+            let mut events = events.clone();
+            events.sort();
+            rv.push_str(&format!(" {}", events.join(",")));
+        }
+        if !patterns.is_empty() {
+            let mut patterns = patterns.clone();
+            patterns.sort();
+            rv.push_str(&format!(" {}", patterns.join(",")));
+        }
+        if *nested {
+            rv.push_str(" nested");
+        }
+        if !body.is_empty() {
+            rv.push_str(&format!(
+                " {}",
+                body.iter()
+                    .map(|n| format!("{}", n))
+                    .collect::<Vec<String>>()
+                    .join(" ")
+            ));
+        }
+        rv.push(')');
+        rv
+    } else {
+        panic!("node passed to display_autocmd is not an autocmd node");
+    }
+}
+
+fn display_for(node: &Node) -> String {
+    if let Node::For {
+        var,
+        list,
+        rest,
+        right,
+        body,
+        ..
+    } = node
+    {
+        let left = if let Some(v) = var {
+            format!("{}", v)
+        } else {
+            let mut l = format!(
+                "({}",
+                list.iter()
+                    .map(|n| format!("{}", n))
+                    .collect::<Vec<String>>()
+                    .join(" ")
+            );
+            if let Some(r) = rest {
+                l.push_str(&format!(" . {}", r));
+            }
+            l.push_str(")");
+            l
+        };
+        let mut rv = format!("(for {} {}", left, right);
+        rv.push_str(&format_body(body.as_slice()));
+        rv.push_str(")");
+        rv
+    } else {
+        panic!("node passed to display_for is not a for node");
+    }
+}
+
+fn display_highlight(node: &Node) -> String {
+    if let Node::Highlight {
+        clear,
+        default,
+        link,
+        group,
+        none,
+        to_group,
+        attrs,
+        ..
+    } = node
+    {
+        let mut rv = "(highlight".to_string();
+        if *clear {
+            rv.push_str(" clear");
+        } else if *default {
+            rv.push_str(" default");
+        }
+        if *link {
+            rv.push_str(" link");
+        }
+        if let Some(g) = group {
+            rv.push_str(&format!(" {}", g));
+        }
+        if *none {
+            rv.push_str(" NONE");
+        }
+        if let Some(t) = to_group {
+            rv.push_str(&format!(" {}", t));
+        }
+        if !attrs.is_empty() {
+            rv.push(' ');
+        }
+        rv.push_str(
+            &attrs
+                .iter()
+                .map(|(k, v)| format!("{}={}", k, v))
+                .collect::<Vec<String>>()
+                .join(" "),
+        );
+        rv.push(')');
+        rv
+    } else {
+        panic!("node passed to display_highlight is not a highlight node");
+    }
+}
+
+fn display_try(node: &Node) -> String {
+    if let Node::Try {
+        body,
+        catches,
+        finally,
+        ..
+    } = node
+    {
+        let mut rv = String::from("(try");
+        rv.push_str(&format_body(body.as_slice()));
+        for catch in catches {
+            if let Node::Catch { pattern, body, .. } = catch {
+                if let Some(p) = pattern {
+                    rv.push_str(&format!("\n catch /{}/", p));
+                } else {
+                    rv.push_str("\n catch");
+                }
+                rv.push_str(&format_body(body.as_slice()));
+            }
+        }
+        if let Some(f) = finally {
+            let mut f = *f.clone();
+            if let Node::Finally { ref mut body, .. } = f {
+                rv.push_str("\n finally");
+                rv.push_str(&format_body(body.as_slice()));
+            }
+        }
+        rv.push_str(")");
+        rv
+    } else {
+        panic!("node passed to display_try is not a try node");
+    }
+}
+
 impl fmt::Display for Node {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
             "{}",
             match &self {
-                Node::Autocmd {
-                    group,
-                    events,
-                    patterns,
-                    nested,
-                    body,
-                    ..
-                } => {
-                    let mut rv = String::from("(autocmd");
-                    if !group.is_empty() {
-                        rv.push_str(&format!(" {}", group));
-                    }
-                    if !events.is_empty() {
-                        let mut events = events.clone();
-                        events.sort();
-                        rv.push_str(&format!(" {}", events.join(",")));
-                    }
-                    if !patterns.is_empty() {
-                        let mut patterns = patterns.clone();
-                        patterns.sort();
-                        rv.push_str(&format!(" {}", patterns.join(",")));
-                    }
-                    if *nested {
-                        rv.push_str(" nested");
-                    }
-                    if !body.is_empty() {
-                        rv.push_str(&format!(
-                            " {}",
-                            body.iter()
-                                .map(|n| format!("{}", n))
-                                .collect::<Vec<String>>()
-                                .join(" ")
-                        ));
-                    }
-                    rv.push(')');
-                    rv
-                }
+                Node::Autocmd { .. } => display_autocmd(&self),
                 Node::BinaryOp {
                     op, left, right, ..
                 } => {
@@ -912,35 +1035,7 @@ impl fmt::Display for Node {
                     }
                 }
                 Node::Execute { list, .. } => display_with_list("execute", &list),
-                Node::For {
-                    var,
-                    list,
-                    rest,
-                    right,
-                    body,
-                    ..
-                } => {
-                    let left = if let Some(v) = var {
-                        format!("{}", v)
-                    } else {
-                        let mut l = format!(
-                            "({}",
-                            list.iter()
-                                .map(|n| format!("{}", n))
-                                .collect::<Vec<String>>()
-                                .join(" ")
-                        );
-                        if let Some(r) = rest {
-                            l.push_str(&format!(" . {}", r));
-                        }
-                        l.push_str(")");
-                        l
-                    };
-                    let mut rv = format!("(for {} {}", left, right);
-                    rv.push_str(&format_body(body.as_slice()));
-                    rv.push_str(")");
-                    rv
-                }
+                Node::For { .. } => display_for(&self),
                 Node::Function {
                     name, args, body, ..
                 } => {
@@ -961,47 +1056,7 @@ impl fmt::Display for Node {
                     rv.push_str(")");
                     rv
                 }
-                Node::Highlight {
-                    clear,
-                    default,
-                    link,
-                    group,
-                    none,
-                    to_group,
-                    attrs,
-                    ..
-                } => {
-                    let mut rv = "(highlight".to_string();
-                    if *clear {
-                        rv.push_str(" clear");
-                    } else if *default {
-                        rv.push_str(" default");
-                    }
-                    if *link {
-                        rv.push_str(" link");
-                    }
-                    if let Some(g) = group {
-                        rv.push_str(&format!(" {}", g));
-                    }
-                    if *none {
-                        rv.push_str(" NONE");
-                    }
-                    if let Some(t) = to_group {
-                        rv.push_str(&format!(" {}", t));
-                    }
-                    if !attrs.is_empty() {
-                        rv.push(' ');
-                    }
-                    rv.push_str(
-                        &attrs
-                            .iter()
-                            .map(|(k, v)| format!("{}={}", k, v))
-                            .collect::<Vec<String>>()
-                            .join(" "),
-                    );
-                    rv.push(')');
-                    rv
-                }
+                Node::Highlight { .. } => display_highlight(&self),
                 Node::If {
                     cond,
                     body,
@@ -1132,34 +1187,7 @@ impl fmt::Display for Node {
                     })
                     .collect::<Vec<String>>()
                     .join("\n"),
-                Node::Try {
-                    body,
-                    catches,
-                    finally,
-                    ..
-                } => {
-                    let mut rv = String::from("(try");
-                    rv.push_str(&format_body(body.as_slice()));
-                    for catch in catches {
-                        if let Node::Catch { pattern, body, .. } = catch {
-                            if let Some(p) = pattern {
-                                rv.push_str(&format!("\n catch /{}/", p));
-                            } else {
-                                rv.push_str("\n catch");
-                            }
-                            rv.push_str(&format_body(body.as_slice()));
-                        }
-                    }
-                    if let Some(f) = finally {
-                        let mut f = *f.clone();
-                        if let Node::Finally { ref mut body, .. } = f {
-                            rv.push_str("\n finally");
-                            rv.push_str(&format_body(body.as_slice()));
-                        }
-                    }
-                    rv.push_str(")");
-                    rv
-                }
+                Node::Try { .. } => display_try(&self),
                 Node::UnaryOp { op, right, .. } => display_left(&format!("{}", op), right),
                 Node::Unlet { list, .. } => display_with_list("unlet", &list),
                 Node::While { cond, body, .. } => {
