@@ -271,91 +271,148 @@ impl Formatter {
         }
     }
 
+    fn f_autocmd(&mut self, node: &Node) {
+        if let Node::Autocmd {
+            mods,
+            bang,
+            group,
+            events,
+            patterns,
+            nested,
+            body,
+            ..
+        } = node
+        {
+            self.f_mods(mods.as_slice());
+            self.add("autocmd");
+            if *bang {
+                self.add("!");
+            }
+            if !group.is_empty() {
+                self.add(" ");
+                self.fit(group);
+            }
+            if !events.is_empty() {
+                let mut events = events.clone();
+                events.sort_unstable();
+                self.fit(&format!(" {}", events.join(",")));
+            }
+            if !patterns.is_empty() {
+                let mut patterns = patterns.clone();
+                patterns.sort_unstable();
+                self.fit(&format!(" {}", patterns.join(",")));
+            }
+            if *nested {
+                self.fit(" nested");
+            }
+            if !body.is_empty() {
+                let saved_output = self.output.split_off(0);
+                let saved_line = self.line.split_off(0);
+                let mut trimmed = vec![];
+                let mut raw = vec![];
+                for node in body {
+                    self.output.clear();
+                    self.line.clear();
+                    self.f(node);
+                    self.next_line();
+                    trimmed.push(
+                        self.output
+                            .iter()
+                            .map(|line| line.trim())
+                            .collect::<Vec<&str>>()
+                            .join(" | "),
+                    );
+                    raw.push(self.output.split_off(0));
+                }
+                self.output = saved_output;
+                self.line = saved_line;
+                self.add(" ");
+                let last_raw = raw.len() - 1;
+                for i in 0..raw.len() {
+                    if self.will_fit(&trimmed[i]) {
+                        self.add(&trimmed[i]);
+                    } else {
+                        let pieces = raw[i].clone();
+                        let last_piece = pieces.len() - 1;
+                        let indent = self.indent().len();
+                        for (j, piece) in pieces.iter().enumerate() {
+                            self.continue_line();
+                            if j == 0 {
+                                self.add(&piece);
+                            } else {
+                                self.add(piece.get(indent..).unwrap());
+                            }
+                            if j != last_piece {
+                                self.add(" | ");
+                            }
+                        }
+                    }
+                    if i != last_raw {
+                        self.add(" | ");
+                    }
+                }
+            }
+        } else {
+            panic!("node passed to f_autocmd is not an autocmd node");
+        }
+    }
+
+    fn f_highlight(&mut self, node: &Node) {
+        if let Node::Highlight {
+            mods,
+            clear,
+            bang,
+            default,
+            link,
+            group,
+            none,
+            to_group,
+            attrs,
+            ..
+        } = node
+        {
+            self.f_mods(mods.as_slice());
+            self.add("highlight");
+            if *bang && *link {
+                self.add("!");
+            }
+            self.add(" ");
+            if *clear {
+                self.fit("clear ");
+            } else if *default {
+                self.fit("default ");
+            }
+            if *link {
+                self.fit("link ");
+            }
+            if let Some(g) = group {
+                self.fit(&format!("{} ", g));
+            }
+            if *none {
+                self.fit("NONE ");
+            }
+            if let Some(t) = to_group {
+                self.fit(&format!("{} ", t));
+            }
+            let mut attrs = attrs
+                .iter()
+                .map(|(k, v)| format!("{}={} ", k, v))
+                .collect::<Vec<String>>();
+            attrs.sort_unstable();
+            for attr in attrs.iter() {
+                self.fit(attr);
+            }
+        } else {
+            panic!("node passed to f_highlight is not a highlight node");
+        }
+    }
+
     fn f_node(&mut self, node: &Node) {
         // this method assumes there is not a value (besides the current indent) in self.line
         // already. it will always put at least something onto the end of the current line before
         // it checks length and possibly continues onto the next line.
         match node {
-            Node::Autocmd {
-                mods,
-                bang,
-                group,
-                events,
-                patterns,
-                nested,
-                body,
-                ..
-            } => {
-                self.f_mods(mods.as_slice());
-                self.add("autocmd");
-                if *bang {
-                    self.add("!");
-                }
-                if !group.is_empty() {
-                    self.add(" ");
-                    self.fit(group);
-                }
-                if !events.is_empty() {
-                    let mut events = events.clone();
-                    events.sort_unstable();
-                    self.fit(&format!(" {}", events.join(",")));
-                }
-                if !patterns.is_empty() {
-                    let mut patterns = patterns.clone();
-                    patterns.sort_unstable();
-                    self.fit(&format!(" {}", patterns.join(",")));
-                }
-                if *nested {
-                    self.fit(" nested");
-                }
-                if !body.is_empty() {
-                    let saved_output = self.output.split_off(0);
-                    let saved_line = self.line.split_off(0);
-                    let mut trimmed = vec![];
-                    let mut raw = vec![];
-                    for node in body {
-                        self.output.clear();
-                        self.line.clear();
-                        self.f(node);
-                        self.next_line();
-                        trimmed.push(
-                            self.output
-                                .iter()
-                                .map(|line| line.trim())
-                                .collect::<Vec<&str>>()
-                                .join(" | "),
-                        );
-                        raw.push(self.output.split_off(0));
-                    }
-                    self.output = saved_output;
-                    self.line = saved_line;
-                    self.add(" ");
-                    let last_raw = raw.len() - 1;
-                    for i in 0..raw.len() {
-                        if self.will_fit(&trimmed[i]) {
-                            self.add(&trimmed[i]);
-                        } else {
-                            let pieces = raw[i].clone();
-                            let last_piece = pieces.len() - 1;
-                            let indent = self.indent().len();
-                            for (j, piece) in pieces.iter().enumerate() {
-                                self.continue_line();
-                                if j == 0 {
-                                    self.add(&piece);
-                                } else {
-                                    self.add(piece.get(indent..).unwrap());
-                                }
-                                if j != last_piece {
-                                    self.add(" | ");
-                                }
-                            }
-                        }
-                        if i != last_raw {
-                            self.add(" | ");
-                        }
-                    }
-                }
-            }
+            Node::Autocmd { .. } => self.f_autocmd(node),
             Node::BinaryOp {
                 left, right, op, ..
             } => {
@@ -438,50 +495,7 @@ impl Formatter {
                     self.add(" ");
                 }
             }
-            Node::Highlight {
-                mods,
-                clear,
-                bang,
-                default,
-                link,
-                group,
-                none,
-                to_group,
-                attrs,
-                ..
-            } => {
-                self.f_mods(mods.as_slice());
-                self.add("highlight");
-                if *bang && *link {
-                    self.add("!");
-                }
-                self.add(" ");
-                if *clear {
-                    self.fit("clear ");
-                } else if *default {
-                    self.fit("default ");
-                }
-                if *link {
-                    self.fit("link ");
-                }
-                if let Some(g) = group {
-                    self.fit(&format!("{} ", g));
-                }
-                if *none {
-                    self.fit("NONE ");
-                }
-                if let Some(t) = to_group {
-                    self.fit(&format!("{} ", t));
-                }
-                let mut attrs = attrs
-                    .iter()
-                    .map(|(k, v)| format!("{}={} ", k, v))
-                    .collect::<Vec<String>>();
-                attrs.sort_unstable();
-                for attr in attrs.iter() {
-                    self.fit(attr);
-                }
-            }
+            Node::Highlight { .. } => self.f_highlight(node),
             Node::Lambda { args, expr, .. } => {
                 self.add("{");
                 for (i, arg) in args.iter().enumerate() {
