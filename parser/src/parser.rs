@@ -32,6 +32,41 @@ fn parse_piped_expressions(s: &str) -> Result<Vec<Node>> {
     }
 }
 
+fn make_modifier(k: &str) -> Option<Modifier> {
+    lazy_static! {
+        static ref MODIFIERS: &'static [(&'static str, usize)] = &[
+            ("aboveleft", 3),
+            ("belowright", 3),
+            ("browse", 3),
+            ("botright", 2),
+            ("confirm", 4),
+            ("keepmarks", 3),
+            ("keepalt", 5),
+            ("keepjumps", 5),
+            ("keeppatterns", 5),
+            ("hide", 3),
+            ("lockmarks", 3),
+            ("leftabove", 5),
+            ("noautocmd", 3),
+            ("noswapfile", 3),
+            ("rightbelow", 6),
+            ("sandbox", 3),
+            ("silent", 3),
+            ("tab", 3),
+            ("topleft", 2),
+            ("unsilent", 3),
+            ("vertical", 4),
+            ("verbose", 4),
+        ];
+    }
+    for (modifier, min_length) in MODIFIERS.iter() {
+        if modifier.starts_with(&k) && k.len() >= *min_length {
+            return Some(Modifier::new(modifier));
+        }
+    }
+    None
+}
+
 #[derive(Debug)]
 pub struct Parser<'a> {
     reader: &'a Reader,
@@ -290,93 +325,30 @@ impl<'a> Parser<'a> {
             let k = self.reader.read_alpha();
             let c = self.reader.peek();
             self.reader.skip_white();
-            match k {
-                _ if "aboveleft".starts_with(&k) && k.len() >= 3 => {
-                    modifiers.push(Modifier::new("aboveleft"))
-                }
-                _ if "belowright".starts_with(&k) && k.len() >= 3 => {
-                    modifiers.push(Modifier::new("belowright"))
-                }
-                _ if "browse".starts_with(&k) && k.len() >= 3 => {
-                    modifiers.push(Modifier::new("browse"))
-                }
-                _ if "botright".starts_with(&k) && k.len() >= 2 => {
-                    modifiers.push(Modifier::new("botright"))
-                }
-                _ if "confirm".starts_with(&k) && k.len() >= 4 => {
-                    modifiers.push(Modifier::new("confirm"))
-                }
-                _ if "keepmarks".starts_with(&k) && k.len() >= 3 => {
-                    modifiers.push(Modifier::new("keepmarks"))
-                }
-                _ if "keepalt".starts_with(&k) && k.len() >= 5 => {
-                    modifiers.push(Modifier::new("keepalt"))
-                }
-                _ if "keepjumps".starts_with(&k) && k.len() >= 5 => {
-                    modifiers.push(Modifier::new("keepjumps"))
-                }
-                _ if "keeppatterns".starts_with(&k) && k.len() >= 5 => {
-                    modifiers.push(Modifier::new("keeppatterns"))
-                }
-                _ if "hide".starts_with(&k) && k.len() >= 3 => {
-                    if ends_excmds(c) {
-                        break;
+            if let Some(mut modifier) = make_modifier(&k) {
+                match modifier.name.as_str() {
+                    "hide" => {
+                        if ends_excmds(c) {
+                            break;
+                        }
                     }
-                    modifiers.push(Modifier::new("hide"))
-                }
-                _ if "lockmarks".starts_with(&k) && k.len() >= 3 => {
-                    modifiers.push(Modifier::new("lockmarks"))
-                }
-                _ if "leftabove".starts_with(&k) && k.len() >= 5 => {
-                    modifiers.push(Modifier::new("leftabove"))
-                }
-                _ if "noautocmd".starts_with(&k) && k.len() >= 3 => {
-                    modifiers.push(Modifier::new("noautocmd"))
-                }
-                _ if "noswapfile".starts_with(&k) && k.len() >= 3 => {
-                    modifiers.push(Modifier::new("noswapfile"))
-                }
-                _ if "rightbelow".starts_with(&k) && k.len() >= 6 => {
-                    modifiers.push(Modifier::new("rightbelow"))
-                }
-                _ if "sandbox".starts_with(&k) && k.len() >= 3 => {
-                    modifiers.push(Modifier::new("sandbox"))
-                }
-                _ if "silent".starts_with(&k) && k.len() >= 3 => {
-                    let mut mods = Modifier::new("silent");
-                    if c == '!' {
-                        mods.bang = true;
-                        self.reader.get();
+                    "silent" => {
+                        if c == '!' {
+                            modifier.bang = true;
+                            self.reader.get();
+                        }
                     }
-                    modifiers.push(mods)
-                }
-                _ if &k == "tab" => {
-                    let mut mods = Modifier::new("tab");
-                    if let Ok(n) = count.parse::<usize>() {
-                        mods.count = Some(n);
+                    "tab" | "verbose" => {
+                        if let Ok(n) = count.parse::<usize>() {
+                            modifier.count = Some(n);
+                        }
                     }
-                    modifiers.push(mods)
+                    _ => (),
                 }
-                _ if "topleft".starts_with(&k) && k.len() >= 2 => {
-                    modifiers.push(Modifier::new("topleft"))
-                }
-                _ if "unsilent".starts_with(&k) && k.len() >= 3 => {
-                    modifiers.push(Modifier::new("unsilent"))
-                }
-                _ if "vertical".starts_with(&k) && k.len() >= 4 => {
-                    modifiers.push(Modifier::new("vertical"))
-                }
-                _ if "verbose".starts_with(&k) && k.len() >= 4 => {
-                    let mut mods = Modifier::new("verbose");
-                    if let Ok(n) = count.parse::<usize>() {
-                        mods.count = Some(n);
-                    }
-                    modifiers.push(mods)
-                }
-                _ => {
-                    self.reader.seek_set(pos);
-                    break;
-                }
+                modifiers.push(modifier);
+            } else {
+                self.reader.seek_set(pos);
+                break;
             }
         }
         Ok(modifiers)
